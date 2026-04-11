@@ -12,8 +12,12 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/register") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/reports/") ||
+    pathname.startsWith("/legal/") ||
     pathname.startsWith("/_next") ||
-    pathname === "/favicon.ico"
+    pathname === "/favicon.ico" ||
+    pathname.endsWith(".txt") ||
+    pathname.endsWith(".json") ||
+    pathname.endsWith(".xml")
   ) {
     return NextResponse.next();
   }
