@@ -1,0 +1,85 @@
+"use client";
+
+import { useSession, signOut } from "next-auth/react";
+import {
+  Home,
+  User,
+  BookOpen,
+  Settings,
+  BarChart3,
+  ChevronDown,
+  LogOut,
+  MessageSquare,
+} from "lucide-react";
+import { SidebarNavItem } from "./sidebar-nav-item";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+
+const navItems = [
+  { href: "/home", label: "Home", icon: Home },
+  { href: "/profile", label: "Profile", icon: User },
+  { href: "/creator-resources", label: "Resources", icon: BookOpen },
+  { href: "/creator-settings", label: "Settings", icon: Settings },
+];
+
+export function CreatorSidebar() {
+  const { data: session } = useSession();
+
+  return (
+    <aside className="fixed left-0 top-0 z-30 flex h-screen w-60 flex-col border-r border-slate-200 bg-white">
+      {/* Logo */}
+      <div className="flex h-14 items-center gap-2 px-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500">
+          <BarChart3 className="h-4 w-4 text-white" />
+        </div>
+        <span className="text-base font-semibold text-slate-800">
+          {session?.user?.teamName || "Tracker"}
+        </span>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+        {navItems.map((item) => (
+          <SidebarNavItem key={item.href} {...item} />
+        ))}
+      </nav>
+
+      {/* Bottom section */}
+      <div className="border-t border-slate-200 px-3 py-3">
+        <a
+          href="#"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+        >
+          <MessageSquare className="h-4 w-4" />
+          Feedback
+        </a>
+        <Separator className="my-2" />
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100">
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-xs font-medium text-slate-600">
+              {session?.user?.name?.[0]?.toUpperCase() || "U"}
+            </div>
+            <span className="flex-1 truncate text-left text-sm">
+              {session?.user?.email || "user@example.com"}
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="text-red-600"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </aside>
+  );
+}

@@ -1,0 +1,434 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── MULTI-TENANCY ──────────────────────────────────────────
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members   TeamMember[]
+  campaigns Campaign[]
+  creators  Creator[]
+  apiKeys   ApiKey[]
+  settings  TeamSettings?
+
+  @@map("teams")
+}
+
+model TeamSettings {
+  id               String  @id @default(cuid())
+  teamId           String  @unique
+  team             Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  weeklyReportDay  Int     @default(1)
+  weeklyReportTime String  @default("09:00")
+  timezone         String  @default("America/New_York")
+
+  tiktokApiKey     String?
+  instagramToken   String?
+  youtubeApiKey    String?
+  facebookToken    String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("team_settings")
+}
+
+// ─── USERS & AUTH ──────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts    Account[]
+  sessions    Session[]
+  memberships TeamMember[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─── TEAM MEMBERSHIP ────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MEMBER
+  CREATOR
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  creatorId String?  @unique
+  creator   Creator? @relation(fields: [creatorId], references: [id])
+
+  @@unique([userId, teamId])
+  @@map("team_members")
+}
+
+// ─── CAMPAIGNS ──────────────────────────────────────────────
+
+model Campaign {
+  id               String    @id @default(cuid())
+  teamId           String
+  team             Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name             String
+  imageUrl         String?
+  startDate        DateTime
+  endDate          DateTime
+  isActive         Boolean   @default(true)
+  hashtags         String[]
+  weeklyPostTarget Int       @default(5)
+  ugcEngineer      String?
+  previewLinks     String[]
+  galleryUrls      String[]
+  lastSyncAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  campaignCreators  CampaignCreator[]
+  posts             Post[]
+  tasks             Task[]
+  dailyMetrics      CampaignDailyMetric[]
+  notificationRules NotificationRule[]
+  weeklyReports     WeeklyReportConfig[]
+  uploads           Upload[]
+
+  @@index([teamId])
+  @@map("campaigns")
+}
+
+// ─── CREATORS ───────────────────────────────────────────────
+
+enum CreatorTier {
+  TRAINING
+  BRONZE
+  SILVER
+  GOLD
+}
+
+enum Platform {
+  TIKTOK
+  INSTAGRAM
+  YOUTUBE
+  FACEBOOK
+}
+
+model Creator {
+  id        String      @id @default(cuid())
+  teamId    String
+  team      Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name      String
+  handle    String
+  tier      CreatorTier @default(TRAINING)
+  isActive  Boolean     @default(true)
+  email     String?
+  avatarUrl String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  campaignCreators CampaignCreator[]
+  posts            Post[]
+  tasks            Task[]
+  teamMember       TeamMember?
+  earnings         CreatorEarning[]
+  uploads          Upload[]
+
+  @@index([teamId])
+  @@map("creators")
+}
+
+model CampaignCreator {
+  id           String   @id @default(cuid())
+  campaignId   String
+  creatorId    String
+  platform     Platform @default(TIKTOK)
+  videosPerDay Int      @default(1)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator  Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, creatorId])
+  @@map("campaign_creators")
+}
+
+// ─── POSTS & METRICS ────────────────────────────────────────
+
+model Post {
+  id           String   @id @default(cuid())
+  campaignId   String
+  creatorId    String
+  platform     Platform
+  username     String
+  title        String?
+  externalId   String
+  link         String
+  thumbnailUrl String?
+  postedAt     DateTime
+  views        Int      @default(0)
+  likes        Int      @default(0)
+  shares       Int      @default(0)
+  saves        Int      @default(0)
+  comments     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campaign       Campaign              @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator        Creator               @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  metricsHistory PostMetricsSnapshot[]
+  contentTraits  ContentTraits?
+
+  @@unique([platform, externalId])
+  @@index([campaignId])
+  @@index([creatorId])
+  @@index([postedAt])
+  @@map("posts")
+}
+
+model PostMetricsSnapshot {
+  id       String   @id @default(cuid())
+  postId   String
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  date     DateTime @db.Date
+  views    Int      @default(0)
+  likes    Int      @default(0)
+  shares   Int      @default(0)
+  saves    Int      @default(0)
+  comments Int      @default(0)
+
+  @@unique([postId, date])
+  @@index([postId])
+  @@map("post_metrics_snapshots")
+}
+
+model CampaignDailyMetric {
+  id             String   @id @default(cuid())
+  campaignId     String
+  campaign       Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date
+  totalPosts     Int      @default(0)
+  totalViews     Int      @default(0)
+  totalLikes     Int      @default(0)
+  totalShares    Int      @default(0)
+  totalSaves     Int      @default(0)
+  totalComments  Int      @default(0)
+  activeCreators Int      @default(0)
+
+  @@unique([campaignId, date])
+  @@index([campaignId])
+  @@map("campaign_daily_metrics")
+}
+
+// ─── CONTENT TRAITS (AI) ────────────────────────────────────
+
+model ContentTraits {
+  id         String   @id @default(cuid())
+  postId     String   @unique
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hook       String?
+  formatType String?
+  expression String?
+  location   String?
+  analyzedAt DateTime @default(now())
+
+  @@map("content_traits")
+}
+
+// ─── TASKS ──────────────────────────────────────────────────
+
+enum TaskType {
+  REVIEW_FEEDBACK
+  POST_VIDEOS
+  UPLOAD_FOR_REVIEW
+  RESPOND_TO_COMMENTS
+  CUSTOM
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  campaignId  String
+  creatorId   String
+  type        TaskType
+  title       String
+  description String?
+  dueDate     DateTime
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator  Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId, dueDate])
+  @@index([campaignId])
+  @@map("tasks")
+}
+
+// ─── NOTIFICATIONS ──────────────────────────────────────────
+
+enum NotificationRuleType {
+  TOP_POSTS_WEEKLY
+  TOP_POSTS_DAILY
+  THRESHOLD_HIT
+}
+
+model NotificationRule {
+  id              String               @id @default(cuid())
+  campaignId      String
+  campaign        Campaign             @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  type            NotificationRuleType
+  name            String
+  description     String?
+  isEnabled       Boolean              @default(true)
+  webhookUrl      String
+  thresholdMetric String?
+  thresholdValue  Int?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([campaignId])
+  @@map("notification_rules")
+}
+
+// ─── WEEKLY REPORTS ─────────────────────────────────────────
+
+model WeeklyReportConfig {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  isEnabled  Boolean  @default(true)
+  recipients String[]
+  publicSlug String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([campaignId])
+  @@map("weekly_report_configs")
+}
+
+// ─── UPLOADS ────────────────────────────────────────────────
+
+enum UploadStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Upload {
+  id          String       @id @default(cuid())
+  campaignId  String
+  creatorId   String
+  fileName    String
+  fileUrl     String
+  fileSize    Int
+  status      UploadStatus @default(PENDING)
+  feedback    String?
+  reviewedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator  Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([creatorId])
+  @@map("uploads")
+}
+
+// ─── API KEYS ───────────────────────────────────────────────
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  teamId     String
+  team       Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name       String
+  keyHash    String    @unique
+  keyPrefix  String
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([teamId])
+  @@map("api_keys")
+}
+
+// ─── CREATOR EARNINGS (for 1099) ────────────────────────────
+
+model CreatorEarning {
+  id          String   @id @default(cuid())
+  creatorId   String
+  creator     Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?
+  earnedAt    DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([creatorId])
+  @@map("creator_earnings")
+}
