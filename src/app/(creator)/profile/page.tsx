@@ -3,6 +3,7 @@ import { getRequiredSession } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
+import { ConnectTikTokButton } from "@/components/creators/connect-tiktok-button";
 import { Badge } from "@/components/ui/badge";
 import { PLATFORM_LABELS } from "@/lib/constants";
 
@@ -76,6 +77,16 @@ export default async function ProfilePage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Connected Accounts */}
+      <div className="mt-4">
+        <ConnectTikTokButton
+          creatorId={creator.id}
+          isConnected={!!creator.tiktokAccessToken}
+          tiktokUsername={creator.tiktokUsername}
+          connectedAt={creator.tiktokConnectedAt?.toISOString() || null}
+        />
       </div>
 
       {/* Stats */}

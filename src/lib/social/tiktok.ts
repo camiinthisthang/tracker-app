@@ -1,79 +1,67 @@
 import axios from "axios";
-import type { SocialPost, SocialApiClient } from "./types";
+import { prisma } from "@/lib/prisma";
+import type { SocialPost } from "./types";
 
 /**
- * TikTok API client using the Research API / Display API.
+ * TikTok Display API client.
  *
- * TikTok's Research API requires an approved application.
- * This client uses the user info + video list endpoints.
+ * Uses per-creator OAuth access tokens (Login Kit) to fetch the creator's
+ * own videos via the Display API.
  *
- * Required env vars:
- *   TIKTOK_CLIENT_KEY
- *   TIKTOK_CLIENT_SECRET
+ * Requires scopes: user.info.basic, video.list
  */
-export class TikTokClient implements SocialApiClient {
-  private clientKey: string;
-  private clientSecret: string;
-  private accessToken: string | null = null;
+export class TikTokClient {
+  /**
+   * Fetch posts for a single creator using their stored OAuth token.
+   * Handles token refresh if expired.
+   */
+  async fetchCreatorPosts(creatorId: string): Promise<SocialPost[]> {
+    const creator = await prisma.creator.findUnique({
+      where: { id: creatorId },
+    });
 
-  constructor() {
-    this.clientKey = process.env.TIKTOK_CLIENT_KEY || "";
-    this.clientSecret = process.env.TIKTOK_CLIENT_SECRET || "";
-  }
-
-  private async getAccessToken(): Promise<string> {
-    if (this.accessToken) return this.accessToken;
-
-    const res = await axios.post(
-      "https://open.tiktokapis.com/v2/oauth/token/",
-      new URLSearchParams({
-        client_key: this.clientKey,
-        client_secret: this.clientSecret,
-        grant_type: "client_credentials",
-      }),
-      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-    );
-
-    this.accessToken = res.data.access_token;
-    return this.accessToken!;
-  }
-
-  async fetchUserPosts(username: string, since?: Date): Promise<SocialPost[]> {
-    if (!this.clientKey || !this.clientSecret) {
-      console.warn("TikTok API credentials not configured, skipping");
+    if (!creator || !creator.tiktokAccessToken) {
+      console.warn(`Creator ${creatorId} has no TikTok access token`);
       return [];
     }
 
-    try {
-      const token = await this.getAccessToken();
-
-      // TikTok Research API - query videos by username
-      const query: Record<string, unknown> = {
-        and: [{ field_name: "username", operation: "EQ", field_values: [username] }],
-      };
-
-      if (since) {
-        query.and = [
-          ...(query.and as unknown[]),
-          {
-            field_name: "create_date",
-            operation: "GTE",
-            field_values: [since.toISOString().split("T")[0]],
+    // Refresh token if expired
+    let accessToken = creator.tiktokAccessToken;
+    if (
+      creator.tiktokTokenExpires &&
+      creator.tiktokTokenExpires < new Date()
+    ) {
+      const refreshed = await this.refreshToken(creator.tiktokRefreshToken!);
+      if (refreshed) {
+        accessToken = refreshed.access_token;
+        await prisma.creator.update({
+          where: { id: creatorId },
+          data: {
+            tiktokAccessToken: refreshed.access_token,
+            tiktokRefreshToken: refreshed.refresh_token,
+            tiktokTokenExpires: new Date(
+              Date.now() + refreshed.expires_in * 1000
+            ),
           },
-        ];
+        });
+      } else {
+        console.error(`Failed to refresh TikTok token for creator ${creatorId}`);
+        return [];
       }
+    }
 
+    try {
       const res = await axios.post(
-        "https://open.tiktokapis.com/v2/research/video/query/",
-        {
-          query,
-          max_count: 100,
-          fields: "id,title,video_description,create_time,share_url,cover_image_url,view_count,like_count,share_count,comment_count",
-        },
+        "https://open.tiktokapis.com/v2/video/list/",
+        { max_count: 20 },
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
+          },
+          params: {
+            fields:
+              "id,title,video_description,create_time,share_url,cover_image_url,view_count,like_count,share_count,comment_count",
           },
         }
       );
@@ -84,21 +72,55 @@ export class TikTokClient implements SocialApiClient {
         (v: Record<string, unknown>): SocialPost => ({
           externalId: String(v.id),
           platform: "TIKTOK",
-          username,
-          title: (v.video_description as string) || (v.title as string) || null,
-          link: (v.share_url as string) || `https://www.tiktok.com/@${username}/video/${v.id}`,
+          username: creator.tiktokUsername || creator.handle,
+          title:
+            (v.video_description as string) ||
+            (v.title as string) ||
+            null,
+          link:
+            (v.share_url as string) ||
+            `https://www.tiktok.com/@${creator.tiktokUsername}/video/${v.id}`,
           thumbnailUrl: (v.cover_image_url as string) || null,
           postedAt: new Date((v.create_time as number) * 1000),
           views: (v.view_count as number) || 0,
           likes: (v.like_count as number) || 0,
           shares: (v.share_count as number) || 0,
-          saves: 0, // TikTok API doesn't expose saves
+          saves: 0,
           comments: (v.comment_count as number) || 0,
         })
       );
     } catch (error) {
-      console.error(`TikTok API error for @${username}:`, error);
+      console.error(`TikTok Display API error for creator ${creatorId}:`, error);
       return [];
     }
+  }
+
+  private async refreshToken(refreshToken: string): Promise<{
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+  } | null> {
+    try {
+      const res = await axios.post(
+        "https://open.tiktokapis.com/v2/oauth/token/",
+        new URLSearchParams({
+          client_key: process.env.TIKTOK_CLIENT_KEY!,
+          client_secret: process.env.TIKTOK_CLIENT_SECRET!,
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+        }),
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      );
+      return res.data;
+    } catch (error) {
+      console.error("TikTok token refresh error:", error);
+      return null;
+    }
+  }
+
+  /** Kept for backwards compatibility with sync orchestrator interface. */
+  async fetchUserPosts(): Promise<SocialPost[]> {
+    // This method is no longer used — we now fetch per-creator via fetchCreatorPosts
+    return [];
   }
 }

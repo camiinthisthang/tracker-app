@@ -1,15 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { TikTokClient } from "./tiktok";
 import { InstagramClient } from "./instagram";
-import { YouTubeClient } from "./youtube";
-import { FacebookClient } from "./facebook";
 import type { SocialApiClient, SocialPost } from "./types";
 
-const clients: Record<string, SocialApiClient> = {
-  TIKTOK: new TikTokClient(),
-  INSTAGRAM: new InstagramClient(),
-  YOUTUBE: new YouTubeClient(),
-  FACEBOOK: new FacebookClient(),
+const tiktokClient = new TikTokClient();
+const instagramClient = new InstagramClient();
+
+const legacyClients: Record<string, SocialApiClient> = {
+  INSTAGRAM: instagramClient,
 };
 
 /**
@@ -36,24 +34,28 @@ export async function syncCampaign(campaignId: string) {
   let totalPostsUpserted = 0;
 
   for (const cc of campaign.campaignCreators) {
-    const client = clients[cc.platform];
-    if (!client) continue;
-
     try {
-      // Fetch from the start of the campaign or last 30 days, whichever is more recent
-      const sinceDate = new Date(
-        Math.max(
-          campaign.startDate.getTime(),
-          Date.now() - 30 * 24 * 60 * 60 * 1000
-        )
-      );
+      let posts: SocialPost[] = [];
 
-      const posts = await fetchWithHashtagFilter(
-        client,
-        cc.creator.handle,
-        sinceDate,
-        campaign.hashtags
-      );
+      if (cc.platform === "TIKTOK") {
+        // TikTok uses per-creator OAuth token (Display API)
+        posts = await tiktokClient.fetchCreatorPosts(cc.creatorId);
+      } else {
+        // Legacy path for platforms still using app-level credentials
+        const client = legacyClients[cc.platform];
+        if (!client) continue;
+
+        const sinceDate = new Date(
+          Math.max(
+            campaign.startDate.getTime(),
+            Date.now() - 30 * 24 * 60 * 60 * 1000
+          )
+        );
+        posts = await client.fetchUserPosts(cc.creator.handle, sinceDate);
+      }
+
+      // Apply hashtag filter
+      posts = filterByHashtags(posts, campaign.hashtags);
 
       for (const post of posts) {
         await upsertPost(post, campaignId, cc.creatorId);
@@ -82,18 +84,11 @@ export async function syncCampaign(campaignId: string) {
 /**
  * Fetch posts from a social platform client, optionally filtering by hashtags.
  */
-async function fetchWithHashtagFilter(
-  client: SocialApiClient,
-  username: string,
-  since: Date,
+function filterByHashtags(
+  posts: SocialPost[],
   hashtags: string[]
-): Promise<SocialPost[]> {
-  const posts = await client.fetchUserPosts(username, since);
-
-  // If no hashtags specified, return all posts
+): SocialPost[] {
   if (hashtags.length === 0) return posts;
-
-  // Filter to only posts containing at least one of the required hashtags
   const lowerHashtags = hashtags.map((h) => h.toLowerCase());
   return posts.filter((post) => {
     const title = (post.title || "").toLowerCase();

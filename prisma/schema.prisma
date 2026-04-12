@@ -186,6 +186,15 @@ model Creator {
   isActive  Boolean     @default(true)
   email     String?
   avatarUrl String?
+
+  // TikTok OAuth
+  tiktokUserId       String?
+  tiktokUsername     String?
+  tiktokAccessToken  String?
+  tiktokRefreshToken String?
+  tiktokTokenExpires DateTime?
+  tiktokConnectedAt  DateTime?
+
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
