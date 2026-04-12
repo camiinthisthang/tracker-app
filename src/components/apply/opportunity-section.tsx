@@ -10,9 +10,9 @@ import {
 const items = [
   {
     icon: DollarSign,
-    title: "$850/month retainer",
+    title: "$700–$1,800/month retainer",
     description:
-      "Paid monthly. Top performers step up to $1,000/month after 90 days.",
+      "Based on experience. Top performers step up over time, and we review every 90 days.",
   },
   {
     icon: Zap,
@@ -22,7 +22,7 @@ const items = [
   },
   {
     icon: Video,
-    title: "60 videos per week",
+    title: "60 videos per month",
     description:
       "Cross-posted to both your TikTok and Instagram accounts. That's the target — how you hit it is up to you.",
   },

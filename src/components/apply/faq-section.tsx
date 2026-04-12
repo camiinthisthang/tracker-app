@@ -6,7 +6,7 @@ import { Plus, Minus } from "lucide-react";
 const faqs = [
   {
     q: "Do I have to film on a set schedule?",
-    a: "Nope — that's the whole point. Film whenever you want, as often as you want. Early mornings, late nights, big batches on the weekend, or 10-minute stretches between other work. We only care that you hit the 60/week target and the videos clear our review.",
+    a: "Nope — that's the whole point. Film whenever you want, as often as you want. Early mornings, late nights, big batches on the weekend, or 10-minute stretches between other work. We only care that you hit the 60/month target and the videos clear our review.",
   },
   {
     q: "Do you edit my videos for me?",
@@ -42,7 +42,7 @@ const faqs = [
   },
   {
     q: "How long until I see my first paycheck?",
-    a: "First retainer payment lands on the 1st of the month following your first completed month of work. So if you start mid-January, your first $850 lands February 1st.",
+    a: "First retainer payment lands on the 1st of the month following your first completed month of work. So if you start mid-January, your first retainer check lands February 1st.",
   },
   {
     q: "Do you work with creators outside the US?",

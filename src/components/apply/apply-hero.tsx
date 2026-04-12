@@ -26,26 +26,26 @@ export function ApplyHero() {
           </p>
 
           {/* Quick stats */}
-          <div className="mt-8 grid grid-cols-3 gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur sm:p-6">
-            <div className="text-center">
-              <p className="text-2xl font-semibold text-slate-900 sm:text-3xl">
-                $850
+          <div className="mt-8 grid grid-cols-3 divide-x divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur">
+            <div className="flex flex-col items-center justify-center px-2 py-5 sm:py-6">
+              <p className="whitespace-nowrap text-xl font-semibold text-slate-900 sm:text-2xl lg:text-3xl">
+                $700–$1.8K
               </p>
               <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-                monthly base
+                monthly retainer
               </p>
             </div>
-            <div className="border-x border-slate-200 text-center">
-              <p className="text-2xl font-semibold text-slate-900 sm:text-3xl">
-                60/week
+            <div className="flex flex-col items-center justify-center px-2 py-5 sm:py-6">
+              <p className="whitespace-nowrap text-xl font-semibold text-slate-900 sm:text-2xl lg:text-3xl">
+                60/month
               </p>
               <p className="mt-1 text-xs text-slate-500 sm:text-sm">
                 videos cross-posted
               </p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-semibold text-slate-900 sm:text-3xl">
-                $5-10K+
+            <div className="flex flex-col items-center justify-center px-2 py-5 sm:py-6">
+              <p className="whitespace-nowrap text-xl font-semibold text-slate-900 sm:text-2xl lg:text-3xl">
+                $5–10K+
               </p>
               <p className="mt-1 text-xs text-slate-500 sm:text-sm">
                 top earners stacked

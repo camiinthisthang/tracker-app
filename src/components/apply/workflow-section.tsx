@@ -1,37 +1,43 @@
 const steps = [
   {
     number: "01",
-    title: "Weekly brief in the app",
+    title: "Create new TikTok + Instagram accounts",
     description:
-      "Every week we drop your hooks, angles, and content direction into the app. What's working, what to try, what to avoid. All in one place.",
+      "You'll set up a fresh TikTok and a fresh Instagram just for this work — not your personal accounts. We walk you through the setup during onboarding so the algorithms trust them from day one.",
   },
   {
     number: "02",
-    title: "Create the content on your own time",
-    time: "Max flexibility",
+    title: "Weekly brief drops in the app",
     description:
-      "Film whenever and however you want — early morning, late night, all at once, spread across the week. You handle the filming and any editing. No fixed shoot day.",
+      "Every week we post your hooks, angles, and content direction — what's working, what to try, what to avoid. All in one place.",
   },
   {
     number: "03",
-    title: "Submit each video for review",
+    title: "Create the content on your own time",
+    time: "Max flexibility",
     description:
-      "Upload finished videos to our app. We review and either approve, give notes, or ask for a re-shoot. Every video gets a green light before it goes live.",
+      "Film whenever and however you want — early morning, late night, in big batches or 10-minute breaks. You handle the filming and any editing. No fixed shoot day.",
   },
   {
     number: "04",
-    title: "Cross-post to TikTok + Instagram",
+    title: "Submit each video for review",
     description:
-      "Once approved, post the same video natively to both platforms from your phone. Same video, both accounts — maximum distribution.",
+      "Upload finished videos to our app. We review and either approve, leave notes, or ask for a re-shoot. Every video gets a green light before it goes live.",
   },
   {
     number: "05",
-    title: "Hit 60 videos per week",
+    title: "Cross-post to TikTok + Instagram",
     description:
-      "That's ~8-9 videos a day on average. Distribute posts throughout the week — dumping all 60 at once hurts reach. Our app helps you pace it out.",
+      "Once approved, post the same video natively to both accounts from your phone. Same video, both platforms — maximum distribution.",
   },
   {
     number: "06",
+    title: "Hit 60 videos per month",
+    description:
+      "That's ~2 videos a day on average. Distribute posts throughout the month — dumping a bunch at once hurts reach. Our app helps you pace it.",
+  },
+  {
+    number: "07",
     title: "All communication in the app",
     description:
       "Every question, note, review, and update flows through the app. No texting, no email threads, no DM chaos. One inbox, one source of truth.",

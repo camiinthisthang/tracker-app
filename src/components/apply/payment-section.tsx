@@ -27,8 +27,8 @@ const earningsTable = [
 const stackingExample = [
   {
     label: "Client 1 (your first with us)",
-    value: "$850 base + $1,500 perf",
-    total: "$2,350",
+    value: "$1,200 base + $1,500 perf",
+    total: "$2,700",
   },
   { label: "Client 2 (referred)", value: "Retainer only", total: "$1,200" },
   {
@@ -62,11 +62,12 @@ export function PaymentSection() {
               <span className="text-xs text-slate-400">monthly</span>
             </div>
             <p className="mt-2 text-3xl font-semibold text-slate-900">
-              $850<span className="text-base font-normal text-slate-500">/mo</span>
+              $700–$1,800<span className="text-base font-normal text-slate-500">/mo</span>
             </p>
             <p className="mt-2 text-sm text-slate-600">
-              Paid the 1st of each month for the previous month&apos;s work.
-              Steps up to $1,000/mo for top performers after 90 days.
+              Based on experience and past performance. Paid the 1st of each
+              month for the previous month&apos;s work. Reviews every 90 days —
+              strong performers step up.
             </p>
           </div>
 
@@ -94,7 +95,7 @@ export function PaymentSection() {
               What $3/signup actually looks like
             </h3>
             <p className="mt-0.5 text-sm text-slate-500">
-              On top of your $850 base.
+              On top of your monthly retainer.
             </p>
           </div>
           <div className="divide-y divide-slate-100">
@@ -157,7 +158,7 @@ export function PaymentSection() {
                 Realistic stacked total
               </p>
               <p className="text-lg font-semibold text-emerald-400">
-                ~$6,850/mo
+                ~$7,200/mo
               </p>
             </div>
           </div>

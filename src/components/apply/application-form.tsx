@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 
 export function ApplicationForm() {
   const [submitted, setSubmitted] = useState(false);
@@ -21,7 +20,6 @@ export function ApplicationForm() {
   const [tiktokHandle, setTiktokHandle] = useState("");
   const [about, setAbout] = useState("");
   const [videoUrls, setVideoUrls] = useState<string[]>(["", ""]);
-  const [canCommit, setCanCommit] = useState(false);
 
   function updateVideo(i: number, value: string) {
     setVideoUrls(videoUrls.map((v, idx) => (idx === i ? value : v)));
@@ -41,11 +39,6 @@ export function ApplicationForm() {
     e.preventDefault();
     setError("");
 
-    if (!canCommit) {
-      setError("Please confirm you can commit to one shoot day per week.");
-      return;
-    }
-
     const cleanedVideoUrls = videoUrls
       .map((v) => v.trim())
       .filter((v) => v.length > 0);
@@ -64,7 +57,7 @@ export function ApplicationForm() {
           tiktokHandle,
           about,
           videoUrls: cleanedVideoUrls,
-          canCommit,
+          canCommit: true,
         }),
       });
 
@@ -243,22 +236,6 @@ export function ApplicationForm() {
           required
         />
       </div>
-
-      {/* Commitment checkbox */}
-      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <Checkbox
-          checked={canCommit}
-          onCheckedChange={(v) => setCanCommit(v === true)}
-          className="mt-0.5"
-        />
-        <span className="text-sm text-slate-700">
-          I confirm I can consistently deliver{" "}
-          <strong>60 videos per week</strong> cross-posted to a new TikTok and
-          Instagram account for at least the <strong>next 3 months</strong>,
-          and that all communication (briefs, reviews, feedback) will run
-          through the app — not over text or email.
-        </span>
-      </label>
 
       {/* Submit */}
       <Button

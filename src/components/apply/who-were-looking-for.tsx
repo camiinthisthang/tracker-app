@@ -5,7 +5,7 @@ const lookingFor = [
   "18+",
   "Comfortable on camera — energy and authenticity over perfection",
   "Native English speaker (or indistinguishably fluent)",
-  "Can consistently deliver 60 videos per week for at least 3 months",
+  "Can consistently deliver 60 videos per month for at least 3 months",
   "Willing to create new IG and TikTok accounts specifically for this work",
   "Okay cross-posting every video to both platforms",
   "Comfortable running all communication through the app (no texting, no emails)",
@@ -17,7 +17,7 @@ const notLookingFor = [
   "Wanting to post this content on your existing personal account",
   "Expecting us to film, edit, or produce the videos for you",
   "Need to text/call/email back and forth instead of using the app",
-  "Can't commit to the 60-video-per-week volume consistently",
+  "Can't commit to the 60-video-per-month volume consistently",
 ];
 
 export function WhoWereLookingFor() {

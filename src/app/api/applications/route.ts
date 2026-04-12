@@ -14,13 +14,6 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!body.canCommit) {
-      return NextResponse.json(
-        { error: "You must confirm you can commit to one shoot day per week." },
-        { status: 400 }
-      );
-    }
-
     const application = await prisma.creatorApplication.create({
       data: {
         name: body.name,
@@ -31,7 +24,7 @@ export async function POST(req: Request) {
         tiktokHandle: body.tiktokHandle || null,
         about: body.about,
         videoUrls: body.videoUrls || [],
-        canCommit: body.canCommit,
+        canCommit: body.canCommit ?? true,
       },
     });
 
