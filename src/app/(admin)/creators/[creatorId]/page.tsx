@@ -4,8 +4,9 @@ import { getRequiredSession } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
-import { ConnectTikTokButton } from "@/components/creators/connect-tiktok-button";
+import { InviteCreatorButton } from "@/components/creators/invite-creator-button";
 import { Badge } from "@/components/ui/badge";
+import { CheckCircle, Music } from "lucide-react";
 import { PLATFORM_LABELS } from "@/lib/constants";
 
 export default async function CreatorDetailPage({
@@ -24,6 +25,7 @@ export default async function CreatorDetailPage({
           campaign: { select: { id: true, name: true, isActive: true } },
         },
       },
+      teamMember: { select: { id: true } },
       _count: { select: { posts: true } },
     },
   });
@@ -66,14 +68,52 @@ export default async function CreatorDetailPage({
         </div>
       </div>
 
-      {/* Connected Accounts */}
-      <div className="mt-4">
-        <ConnectTikTokButton
-          creatorId={creator.id}
-          isConnected={!!creator.tiktokAccessToken}
-          tiktokUsername={creator.tiktokUsername}
-          connectedAt={creator.tiktokConnectedAt?.toISOString() || null}
-        />
+      {/* Account & TikTok Status */}
+      <div className="mt-4 space-y-3">
+        {/* Account status */}
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-800">
+              Creator account
+            </p>
+            <p className="text-xs text-slate-500">
+              {creator.teamMember
+                ? `Signed up${creator.email ? ` as ${creator.email}` : ""}`
+                : "No account yet — send them an invite link to sign up"}
+            </p>
+          </div>
+          <InviteCreatorButton
+            creatorId={creator.id}
+            creatorName={creator.name}
+            hasAccount={!!creator.teamMember}
+          />
+        </div>
+
+        {/* TikTok status (read-only for admins) */}
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900">
+              <Music className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800">
+                TikTok account
+              </p>
+              <p className="text-xs text-slate-500">
+                {creator.tiktokAccessToken
+                  ? `@${creator.tiktokUsername} · Connected ${
+                      creator.tiktokConnectedAt
+                        ? new Date(creator.tiktokConnectedAt).toLocaleDateString()
+                        : ""
+                    }`
+                  : "Creator must connect TikTok from their own profile"}
+              </p>
+            </div>
+          </div>
+          {creator.tiktokAccessToken && (
+            <CheckCircle className="h-5 w-5 text-green-600" />
+          )}
+        </div>
       </div>
 
       {/* Stats */}

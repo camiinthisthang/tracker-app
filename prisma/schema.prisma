@@ -195,6 +195,9 @@ model Creator {
   tiktokTokenExpires DateTime?
   tiktokConnectedAt  DateTime?
 
+  // Invite flow
+  inviteToken String? @unique
+
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
