@@ -2,6 +2,7 @@ import { ApplicationForm } from "@/components/apply/application-form";
 import { ApplyHero } from "@/components/apply/apply-hero";
 import { OpportunitySection } from "@/components/apply/opportunity-section";
 import { WorkflowSection } from "@/components/apply/workflow-section";
+import { ExamplesSection } from "@/components/apply/examples-section";
 import { PaymentSection } from "@/components/apply/payment-section";
 import { WhoWereLookingFor } from "@/components/apply/who-were-looking-for";
 import { WhatWeHandle } from "@/components/apply/what-we-handle";
@@ -22,6 +23,7 @@ export default function ApplyPage() {
       <ApplyHero />
       <OpportunitySection />
       <WorkflowSection />
+      <ExamplesSection />
       <PaymentSection />
       <WhoWereLookingFor />
       <WhatWeHandle />
