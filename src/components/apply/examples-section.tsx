@@ -1,19 +1,18 @@
 import { Clock, Sparkles, Zap } from "lucide-react";
 import { TikTokEmbed } from "./tiktok-embed";
 
-// TODO: Replace with your actual example TikTok URLs
 const examples = [
   {
-    url: "https://www.tiktok.com/@zachking/video/7261720736873565486",
-    caption: "Short hook — ~10 seconds, simple setup",
+    url: "https://www.tiktok.com/@katie_chipped/video/7551287371690446110",
+    caption: "Quick hook + visual reveal — short-form, low production",
   },
   {
-    url: "https://www.tiktok.com/@zachking/video/7261720736873565486",
-    caption: "Mid-length demo — ~30 seconds, trending audio",
+    url: "https://www.tiktok.com/@jess.studytips/video/7626417888752110878",
+    caption: "Talking head with overlay text — relatable, no editing tricks",
   },
   {
-    url: "https://www.tiktok.com/@zachking/video/7261720736873565486",
-    caption: "Longer POV — ~90 seconds, talking style",
+    url: "https://www.tiktok.com/@ana.learningspanish/video/7623247785634106638",
+    caption: "Longer-form value content — teaching style, evergreen",
   },
 ];
 
