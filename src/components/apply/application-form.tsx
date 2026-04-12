@@ -252,10 +252,11 @@ export function ApplicationForm() {
           className="mt-0.5"
         />
         <span className="text-sm text-slate-700">
-          I confirm I can commit to <strong>one shoot day per week</strong> for
-          at least the <strong>next 3 months</strong>, respond in the app
-          within 24 hours on weekdays, and create new accounts specifically
-          for this work.
+          I confirm I can consistently deliver{" "}
+          <strong>60 videos per week</strong> cross-posted to a new TikTok and
+          Instagram account for at least the <strong>next 3 months</strong>,
+          and that all communication (briefs, reviews, feedback) will run
+          through the app — not over text or email.
         </span>
       </label>
 

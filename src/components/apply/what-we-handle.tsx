@@ -1,9 +1,9 @@
 import {
   MessageSquare,
-  Scissors,
   CheckCircle2,
   LineChart,
   Lightbulb,
+  Target,
 } from "lucide-react";
 
 const items = [
@@ -11,31 +11,31 @@ const items = [
     icon: Lightbulb,
     title: "Hook strategy",
     description:
-      "We write the hooks from data across hundreds of prior posts. You deliver them.",
+      "We write the hooks from data across hundreds of prior posts. Every week you get fresh, tested hooks to use.",
   },
   {
-    icon: MessageSquare,
-    title: "Content guidance",
+    icon: Target,
+    title: "Content direction",
     description:
-      "We tell you what types of videos are hitting right now per client — POV, listicles, demos, reactions.",
-  },
-  {
-    icon: Scissors,
-    title: "Editing",
-    description:
-      "We cut, add text overlays, match licensed trending audio, and polish the final output.",
+      "We tell you what types of videos are hitting right now per client — formats, angles, CTAs, visuals.",
   },
   {
     icon: CheckCircle2,
     title: "Review system",
     description:
-      "Every edit gets QA'd by our team before it reaches you. Issues get caught early.",
+      "Every video you submit gets reviewed before going live. Approve, notes, or re-shoot — so you ship content that performs.",
   },
   {
     icon: LineChart,
     title: "Performance feedback",
     description:
       "We show you which hooks are winning, which are flat, and adjust the brief accordingly.",
+  },
+  {
+    icon: MessageSquare,
+    title: "One place to work",
+    description:
+      "Briefs, reviews, feedback, pay — all in the app. No texting, no emails, no DMs.",
   },
 ];
 
@@ -76,8 +76,8 @@ export function WhatWeHandle() {
               Your job
             </p>
             <p className="mt-2 text-base font-semibold text-slate-900">
-              Show up, deliver the hooks with energy, approve the edits, and
-              post.
+              Create the videos on your own schedule, submit for review, and
+              cross-post to TikTok + Instagram once approved.
             </p>
           </div>
         </div>

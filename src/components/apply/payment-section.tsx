@@ -25,10 +25,18 @@ const earningsTable = [
 ];
 
 const stackingExample = [
-  { label: "Client 1 (us)", value: "$850 base + $1,500 perf", total: "$2,350" },
-  { label: "Client 2", value: "Retainer only", total: "$1,200" },
-  { label: "Client 3", value: "$1,500 + $800 perf", total: "$2,300" },
-  { label: "Client 4", value: "Retainer only", total: "$1,000" },
+  {
+    label: "Client 1 (your first with us)",
+    value: "$850 base + $1,500 perf",
+    total: "$2,350",
+  },
+  { label: "Client 2 (referred)", value: "Retainer only", total: "$1,200" },
+  {
+    label: "Client 3 (referred)",
+    value: "$1,500 + $800 perf",
+    total: "$2,300",
+  },
+  { label: "Client 4 (referred)", value: "Retainer only", total: "$1,000" },
 ];
 
 export function PaymentSection() {
@@ -123,9 +131,10 @@ export function PaymentSection() {
             How top creators hit $5K–$10K+/month
           </h3>
           <p className="mt-2 text-sm text-slate-300">
-            They stack 3-5 agency/brand relationships, using the same weekly
-            filming rhythm. We actively refer our top creators to other
-            agencies we work with.
+            We run campaigns for multiple brand clients. Once you prove you can
+            consistently deliver, we refer our top creators to additional
+            clients in our network — so you can stack 3-5 active client
+            relationships at the same time without hunting for work.
           </p>
 
           <div className="mt-6 space-y-2">

@@ -1,40 +1,40 @@
 const steps = [
   {
     number: "01",
-    title: "Once a week: batch filming day",
-    time: "2–3 hours",
+    title: "Weekly brief in the app",
     description:
-      "Film everything for the week in one session: 4 talking videos + 10+ min of b-roll in 3 different settings/outfits.",
+      "Every week we drop your hooks, angles, and content direction into the app. What's working, what to try, what to avoid. All in one place.",
   },
   {
     number: "02",
-    title: "Upload raw footage to our app",
+    title: "Create the content on your own time",
+    time: "Max flexibility",
     description:
-      "That's it — you're done filming for the week. We take it from here.",
+      "Film whenever and however you want — early morning, late night, all at once, spread across the week. You handle the filming and any editing. No fixed shoot day.",
   },
   {
     number: "03",
-    title: "Our editing team edits",
+    title: "Submit each video for review",
     description:
-      "We cut your b-roll into short-form videos with text hooks + licensed music. 15+ posts per week.",
+      "Upload finished videos to our app. We review and either approve, give notes, or ask for a re-shoot. Every video gets a green light before it goes live.",
   },
   {
     number: "04",
-    title: "You review in the app",
+    title: "Cross-post to TikTok + Instagram",
     description:
-      "Every edit gets your approval before going live. Leave notes, request re-edits, or thumbs-up. Nothing posts without you.",
+      "Once approved, post the same video natively to both platforms from your phone. Same video, both accounts — maximum distribution.",
   },
   {
     number: "05",
-    title: "You post natively",
+    title: "Hit 60 videos per week",
     description:
-      "Download the final video to your phone. Post to TikTok/Instagram/Facebook from your device — native posting matters for reach.",
+      "That's ~8-9 videos a day on average. Distribute posts throughout the week — dumping all 60 at once hurts reach. Our app helps you pace it out.",
   },
   {
     number: "06",
-    title: "Distribute across the month",
+    title: "All communication in the app",
     description:
-      "2–3 posts per day, evenly spread. Our app queues them and tells you when to post what. Dumping all 60 at once kills reach.",
+      "Every question, note, review, and update flows through the app. No texting, no email threads, no DM chaos. One inbox, one source of truth.",
   },
 ];
 
@@ -47,7 +47,8 @@ export function WorkflowSection() {
             How it actually works
           </h2>
           <p className="mt-3 text-base text-slate-600">
-            One filming day per week. Everything else runs through our app.
+            Work on your own schedule. Everything runs through our app — no
+            texting, no emails.
           </p>
         </div>
 

@@ -2,9 +2,9 @@ import {
   DollarSign,
   Zap,
   Video,
-  Calendar,
-  Gift,
-  TrendingUp,
+  Clock,
+  MessageCircle,
+  Briefcase,
 } from "lucide-react";
 
 const items = [
@@ -15,34 +15,34 @@ const items = [
       "Paid monthly. Top performers step up to $1,000/month after 90 days.",
   },
   {
-    icon: TrendingUp,
+    icon: Zap,
     title: "Performance bonuses",
     description:
       "$1–$6 per sign-up your content drives. Stackable across clients.",
   },
   {
     icon: Video,
-    title: "60 videos / month",
+    title: "60 videos per week",
     description:
-      "About 15/week, filmed in one batch session and posted natively.",
+      "Cross-posted to both your TikTok and Instagram accounts. That's the target — how you hit it is up to you.",
   },
   {
-    icon: Zap,
-    title: "We handle the work",
+    icon: Clock,
+    title: "Maximum flexibility",
     description:
-      "Hooks, briefs, product info, music, and editing — all done for you.",
+      "No fixed shoot day. Work whenever, as often as you want. Film at 3am or across 10-minute breaks — we don't care how.",
   },
   {
-    icon: Calendar,
-    title: "Fresh accounts",
+    icon: MessageCircle,
+    title: "Everything in the app",
     description:
-      "Not your personal IG/TikTok. We'll guide you through setting up new ones.",
+      "Briefs, hooks, reviews, feedback, pay — all inside our app. No texts, no email threads, no DMs.",
   },
   {
-    icon: Gift,
-    title: "Client stacking",
+    icon: Briefcase,
+    title: "Build your portfolio",
     description:
-      "Established creators earn $5K–$10K/month across 3-5 client relationships.",
+      "Top creators get referred to our other brand partners. Stack clients and turn this into a real career.",
   },
 ];
 

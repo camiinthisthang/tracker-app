@@ -13,15 +13,16 @@ export function ApplyHero() {
             Now hiring US-based creators
           </div>
           <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-            Turn short-form content into{" "}
+            Work when you want.{" "}
             <span className="bg-gradient-to-r from-blue-500 to-emerald-500 bg-clip-text text-transparent">
-              real monthly income.
+              Build a real portfolio.
             </span>
           </h1>
           <p className="mt-6 max-w-2xl text-base text-slate-600 sm:text-lg">
             We&apos;re a UGC agency building a roster of US creators for our
-            brand partners. We handle hooks, briefs, editing, and strategy. You
-            show up, film once a week, and get paid.
+            brand partners. We give you hooks, direction, and a review process
+            — you create, cross-post, and grow a portfolio that lands more
+            clients.
           </p>
 
           {/* Quick stats */}
@@ -36,10 +37,10 @@ export function ApplyHero() {
             </div>
             <div className="border-x border-slate-200 text-center">
               <p className="text-2xl font-semibold text-slate-900 sm:text-3xl">
-                1 day
+                60/week
               </p>
               <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-                filming per week
+                videos cross-posted
               </p>
             </div>
             <div className="text-center">
