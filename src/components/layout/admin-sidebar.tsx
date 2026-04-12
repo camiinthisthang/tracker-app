@@ -13,6 +13,7 @@ import {
   LogOut,
   MessageSquare,
   Sparkles,
+  Inbox,
 } from "lucide-react";
 import { SidebarNavItem } from "./sidebar-nav-item";
 import {
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/creators", label: "Creators", icon: Users },
+  { href: "/applications", label: "Applications", icon: Inbox },
   { href: "/posts", label: "Posts", icon: List },
   { href: "/charts", label: "Charts", icon: BarChart3 },
   { href: "/reports", label: "Reports", icon: BookOpen },

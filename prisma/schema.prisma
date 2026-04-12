@@ -430,6 +430,36 @@ model ApiKey {
   @@map("api_keys")
 }
 
+// ─── CREATOR APPLICATIONS ───────────────────────────────────
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWING
+  APPROVED
+  REJECTED
+}
+
+model CreatorApplication {
+  id            String            @id @default(cuid())
+  name          String
+  email         String
+  phone         String?
+  location      String?
+  instagramHandle String?
+  tiktokHandle  String?
+  about         String
+  videoUrls     String[]
+  canCommit     Boolean           @default(false)
+  status        ApplicationStatus @default(PENDING)
+  reviewNotes   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("creator_applications")
+}
+
 // ─── CREATOR EARNINGS (for 1099) ────────────────────────────
 
 model CreatorEarning {
