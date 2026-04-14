@@ -33,6 +33,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Logged in but no team membership (typically a Google sign-in that didn't
+  // match any pending invite). Park them on /pending-approval until a super
+  // admin assigns them — but let super admins through, they manage things from
+  // /clients without having a team themselves.
+  const teamId = (token.teamId as string) || "";
+  const isSuperAdmin = Boolean(token.isSuperAdmin);
+  if (!teamId && !isSuperAdmin) {
+    if (
+      !pathname.startsWith("/pending-approval") &&
+      !pathname.startsWith("/api") &&
+      pathname !== "/logout"
+    ) {
+      return NextResponse.redirect(new URL("/pending-approval", request.url));
+    }
+    return NextResponse.next();
+  }
+
   // Role-based routing
   const role = token.role as string;
 

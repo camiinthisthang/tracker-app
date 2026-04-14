@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { BarChart3 } from "lucide-react";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -77,6 +78,14 @@ export default function RegisterPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <GoogleSignInButton label="Sign up with Google" />
+        <div className="my-4 flex items-center gap-3">
+          <div className="h-px flex-1 bg-slate-200" />
+          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
+            or with email
+          </span>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
