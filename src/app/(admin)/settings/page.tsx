@@ -89,6 +89,7 @@ export default function SettingsPage() {
 
   const [teamName, setTeamName] = useState("");
   const [timezone, setTimezone] = useState("America/New_York");
+  const [schedulingUrl, setSchedulingUrl] = useState("");
 
   const [tiktokApiKey, setTiktokApiKey] = useState("");
   const [instagramToken, setInstagramToken] = useState("");
@@ -108,6 +109,7 @@ export default function SettingsPage() {
         setTeamName(data.team.name);
         if (data.settings) {
           setTimezone(data.settings.timezone);
+          setSchedulingUrl(data.settings.schedulingUrl || "");
           setHasTiktok(data.settings.hasTiktokKey);
           setHasInstagram(data.settings.hasInstagramToken);
           setHasYoutube(data.settings.hasYoutubeKey);
@@ -122,7 +124,11 @@ export default function SettingsPage() {
   async function handleSave() {
     setSaving(true);
     try {
-      const body: Record<string, string> = { teamName, timezone };
+      const body: Record<string, string> = {
+        teamName,
+        timezone,
+        schedulingUrl,
+      };
       if (tiktokApiKey) body.tiktokApiKey = tiktokApiKey;
       if (instagramToken) body.instagramToken = instagramToken;
       if (youtubeApiKey) body.youtubeApiKey = youtubeApiKey;
@@ -203,6 +209,21 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="mt-4 space-y-1.5">
+            <Label className="text-sm font-medium text-slate-700">
+              Interview scheduling link
+            </Label>
+            <p className="text-xs text-slate-400">
+              Your Cal.com / Calendly URL — used when inviting applicants to
+              interview. E.g., <span className="font-mono">https://cal.com/yourname/creator-interview</span>
+            </p>
+            <Input
+              type="url"
+              placeholder="https://cal.com/yourname/creator-interview"
+              value={schedulingUrl}
+              onChange={(e) => setSchedulingUrl(e.target.value)}
+            />
           </div>
         </div>
 

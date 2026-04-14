@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Sparkles,
   Inbox,
+  Lightbulb,
 } from "lucide-react";
 import { SidebarNavItem } from "./sidebar-nav-item";
 import {
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/creators", label: "Creators", icon: Users },
   { href: "/applications", label: "Applications", icon: Inbox },
   { href: "/posts", label: "Posts", icon: List },
+  { href: "/hooks", label: "Hooks", icon: Lightbulb },
   { href: "/charts", label: "Charts", icon: BarChart3 },
   { href: "/reports", label: "Reports", icon: BookOpen },
   { href: "/notifications", label: "Notifications", icon: Sparkles },

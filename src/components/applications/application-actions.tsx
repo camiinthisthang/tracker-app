@@ -1,0 +1,68 @@
+"use client";
+
+import { useState } from "react";
+import { Check, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+
+export function ApplicationActions({
+  applicationId,
+  currentStatus,
+}: {
+  applicationId: string;
+  currentStatus: string;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState<string | null>(null);
+
+  async function updateStatus(status: string) {
+    setLoading(status);
+    try {
+      const res = await fetch(`/api/applications/${applicationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        toast.success(`Application marked ${status.toLowerCase()}`);
+        router.refresh();
+      } else {
+        toast.error("Failed to update");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {currentStatus !== "APPROVED" && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+          onClick={() => updateStatus("APPROVED")}
+          disabled={loading !== null}
+        >
+          <Check className="mr-1 h-3.5 w-3.5" />
+          Approve
+        </Button>
+      )}
+      {currentStatus !== "REJECTED" && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+          onClick={() => updateStatus("REJECTED")}
+          disabled={loading !== null}
+        >
+          <X className="mr-1 h-3.5 w-3.5" />
+          Reject
+        </Button>
+      )}
+    </div>
+  );
+}

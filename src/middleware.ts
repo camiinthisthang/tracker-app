@@ -36,7 +36,13 @@ export async function middleware(request: NextRequest) {
   const role = token.role as string;
 
   // Creator trying to access admin routes
-  if (role === "CREATOR" && !pathname.startsWith("/home") && !pathname.startsWith("/profile") && !pathname.startsWith("/creator-resources") && !pathname.startsWith("/creator-settings") && !pathname.startsWith("/api")) {
+  if (
+    role === "CREATOR" &&
+    !pathname.startsWith("/home") &&
+    !pathname.startsWith("/profile") &&
+    !pathname.startsWith("/creator-") &&
+    !pathname.startsWith("/api")
+  ) {
     return NextResponse.redirect(new URL("/home", request.url));
   }
 

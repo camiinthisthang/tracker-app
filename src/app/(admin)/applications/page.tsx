@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/shared/stat-card";
+import { InterviewInviteButton } from "@/components/applications/interview-invite-button";
+import { ApplicationActions } from "@/components/applications/application-actions";
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-yellow-50 text-yellow-700",
@@ -15,14 +17,26 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default async function ApplicationsPage() {
-  await getRequiredSession();
+  const session = await getRequiredSession();
 
-  const applications = await prisma.creatorApplication.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const [applications, team] = await Promise.all([
+    prisma.creatorApplication.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.team.findUnique({
+      where: { id: session.user.teamId },
+      include: { settings: true },
+    }),
+  ]);
+
+  const teamName = team?.name || "Viewtrackr";
+  const schedulingUrl = team?.settings?.schedulingUrl || null;
 
   const pendingCount = applications.filter((a) => a.status === "PENDING").length;
-  const approvedCount = applications.filter((a) => a.status === "APPROVED").length;
+  const reviewingCount = applications.filter(
+    (a) => a.status === "REVIEWING"
+  ).length;
+  const approvedCount = applications.filter(
+    (a) => a.status === "APPROVED"
+  ).length;
 
   return (
     <div>
@@ -39,9 +53,10 @@ export default async function ApplicationsPage() {
         />
       ) : (
         <>
-          <div className="mb-6 grid gap-4 sm:grid-cols-3">
+          <div className="mb-6 grid gap-4 sm:grid-cols-4">
             <StatCard label="Total" value={applications.length} />
             <StatCard label="Pending" value={pendingCount} />
+            <StatCard label="In interview" value={reviewingCount} />
             <StatCard label="Approved" value={approvedCount} />
           </div>
 
@@ -60,7 +75,7 @@ export default async function ApplicationsPage() {
                       <Badge
                         className={`${STATUS_COLORS[app.status]} hover:opacity-90`}
                       >
-                        {app.status}
+                        {app.status === "REVIEWING" ? "IN INTERVIEW" : app.status}
                       </Badge>
                     </div>
                     <p className="text-sm text-slate-500">
@@ -103,6 +118,24 @@ export default async function ApplicationsPage() {
                     ))}
                   </div>
                 )}
+
+                {/* Actions */}
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                  {(app.status === "PENDING" ||
+                    app.status === "REVIEWING") && (
+                    <InterviewInviteButton
+                      applicationId={app.id}
+                      applicantName={app.name}
+                      applicantEmail={app.email}
+                      teamName={teamName}
+                      schedulingUrl={schedulingUrl}
+                    />
+                  )}
+                  <ApplicationActions
+                    applicationId={app.id}
+                    currentStatus={app.status}
+                  />
+                </div>
               </div>
             ))}
           </div>

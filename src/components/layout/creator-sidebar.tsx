@@ -10,6 +10,9 @@ import {
   ChevronDown,
   LogOut,
   MessageSquare,
+  Upload,
+  Bell,
+  ListTodo,
 } from "lucide-react";
 import { SidebarNavItem } from "./sidebar-nav-item";
 import {
@@ -22,6 +25,9 @@ import { Separator } from "@/components/ui/separator";
 
 const navItems = [
   { href: "/home", label: "Home", icon: Home },
+  { href: "/creator-tasks", label: "Tasks", icon: ListTodo },
+  { href: "/creator-uploads", label: "Uploads", icon: Upload },
+  { href: "/creator-notifications", label: "Notifications", icon: Bell },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/creator-resources", label: "Resources", icon: BookOpen },
   { href: "/creator-settings", label: "Settings", icon: Settings },

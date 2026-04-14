@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
 import { Pencil } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
@@ -8,9 +8,20 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/shared/stat-card";
 import { SyncButton } from "@/components/campaigns/sync-button";
-import { TierBadge } from "@/components/creators/tier-badge";
 import { Badge } from "@/components/ui/badge";
-import { PLATFORM_LABELS } from "@/lib/constants";
+import { TopPostsGallery } from "@/components/campaigns/top-posts-gallery";
+import {
+  CreatorProgressSection,
+  type CreatorProgress,
+} from "@/components/campaigns/creator-progress";
+import { CampaignViewsChart } from "@/components/campaigns/campaign-views-chart";
+import {
+  CampaignCreatorsTable,
+  type CampaignCreatorRow,
+} from "@/components/campaigns/campaign-creators-table";
+
+const DAY_LABELS = ["M", "T", "W", "T", "F"];
+const VIRAL_THRESHOLD = 50_000;
 
 export default async function CampaignOverviewPage({
   params,
@@ -35,17 +46,127 @@ export default async function CampaignOverviewPage({
   // Aggregate post metrics
   const metrics = await prisma.post.aggregate({
     where: { campaignId },
-    _sum: { views: true, likes: true, comments: true, shares: true, saves: true },
+    _sum: {
+      views: true,
+      likes: true,
+      comments: true,
+      shares: true,
+      saves: true,
+      referrals: true,
+    },
   });
 
   const totalViews = metrics._sum.views ?? 0;
   const totalLikes = metrics._sum.likes ?? 0;
   const totalComments = metrics._sum.comments ?? 0;
+  const totalReferrals = metrics._sum.referrals ?? 0;
 
   const engagementRate =
     totalViews > 0
       ? (((totalLikes + totalComments) / totalViews) * 100).toFixed(2)
       : "0.00";
+
+  // All campaign posts — for creator aggregation, top posts, and chart
+  const allPosts = await prisma.post.findMany({
+    where: { campaignId },
+    include: { creator: { select: { handle: true } } },
+    orderBy: { postedAt: "desc" },
+  });
+
+  const topPosts = [...allPosts]
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 10);
+
+  // Aggregate daily views for chart (last 28 days)
+  const chartStart = startOfDay(subDays(new Date(), 28));
+  const dailyMetrics = await prisma.campaignDailyMetric.findMany({
+    where: {
+      campaignId,
+      date: { gte: chartStart },
+    },
+    orderBy: { date: "asc" },
+  });
+
+  const chartData = dailyMetrics.map((m) => ({
+    date: m.date.toISOString(),
+    views: m.totalViews,
+  }));
+
+  // Creator weekly progress (Mon–Fri of current week)
+  const now = new Date();
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 5);
+
+  const weekPosts = allPosts.filter(
+    (p) => p.postedAt >= weekStart && p.postedAt < weekEnd
+  );
+
+  const creatorProgresses: CreatorProgress[] = campaign.campaignCreators.map(
+    (cc) => {
+      const weeklyTarget = cc.videosPerDay * 5;
+      const creatorPosts = weekPosts.filter(
+        (p) => p.creatorId === cc.creatorId
+      );
+
+      const postsPerDay = DAY_LABELS.map((label, i) => {
+        const dayStart = addDays(weekStart, i);
+        const dayEnd = addDays(dayStart, 1);
+        const count = creatorPosts.filter(
+          (p) => p.postedAt >= dayStart && p.postedAt < dayEnd
+        ).length;
+        return { day: label, count };
+      });
+
+      return {
+        creatorId: cc.creatorId,
+        creatorName: cc.creator.name,
+        creatorHandle: cc.creator.handle,
+        platform: cc.platform,
+        videosPerDay: cc.videosPerDay,
+        weeklyTarget,
+        postsThisWeek: creatorPosts.length,
+        postsPerDay,
+      };
+    }
+  );
+
+  // Creators table aggregation
+  const creatorRows: CampaignCreatorRow[] = campaign.campaignCreators
+    .map((cc) => {
+      const creatorPosts = allPosts.filter((p) => p.creatorId === cc.creatorId);
+      const postCount = creatorPosts.length;
+      const totalCreatorViews = creatorPosts.reduce(
+        (s, p) => s + p.views,
+        0
+      );
+      const totalCreatorLikes = creatorPosts.reduce(
+        (s, p) => s + p.likes,
+        0
+      );
+      const totalCreatorReferrals = creatorPosts.reduce(
+        (s, p) => s + p.referrals,
+        0
+      );
+      const viralCount = creatorPosts.filter(
+        (p) => p.views >= VIRAL_THRESHOLD
+      ).length;
+
+      return {
+        creatorId: cc.creatorId,
+        creatorName: cc.creator.name,
+        creatorHandle: cc.creator.handle,
+        tier: cc.creator.tier,
+        platform: cc.platform,
+        videosPerDay: cc.videosPerDay,
+        postCount,
+        totalViews: totalCreatorViews,
+        avgViews: postCount > 0 ? Math.round(totalCreatorViews / postCount) : 0,
+        totalLikes: totalCreatorLikes,
+        viralCount,
+        totalReferrals: totalCreatorReferrals,
+      };
+    })
+    .sort((a, b) => b.totalReferrals - a.totalReferrals);
 
   return (
     <div>
@@ -66,117 +187,101 @@ export default async function CampaignOverviewPage({
         />
       </PageHeader>
 
-      {/* Stat Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Posts" value={campaign._count.posts.toLocaleString()} />
-        <StatCard
-          label="Total Views"
-          value={totalViews.toLocaleString()}
-        />
-        <StatCard
-          label="Total Likes"
-          value={totalLikes.toLocaleString()}
-        />
-        <StatCard
-          label="Engagement Rate"
-          value={`${engagementRate}%`}
-        />
-      </div>
-
-      {/* Campaign Info */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        {/* Details */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-800">
-            Campaign Details
-          </h3>
-          <div className="mt-3 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Status</span>
+      {/* Campaign Details — full width at the top */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <h3 className="text-sm font-semibold text-slate-800">
+          Campaign Details
+        </h3>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div>
+            <p className="text-xs text-slate-400">Status</p>
+            <div className="mt-1">
               <Badge
                 className={
                   campaign.isActive
-                    ? "bg-green-50 text-green-600"
-                    : "bg-slate-100 text-slate-500"
+                    ? "bg-green-50 text-green-600 hover:bg-green-50"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-100"
                 }
               >
                 {campaign.isActive ? "Active" : "Inactive"}
               </Badge>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Weekly Target</span>
-              <span className="text-slate-700">
-                {campaign.weeklyPostTarget} posts
-              </span>
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">Weekly target</p>
+            <p className="mt-1 text-sm text-slate-700">
+              {campaign.weeklyPostTarget} posts
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">UGC Engineer</p>
+            <p className="mt-1 text-sm text-slate-700">
+              {campaign.ugcEngineer || "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">Hashtags</p>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {campaign.hashtags.length === 0 ? (
+                <span className="text-sm text-slate-400">—</span>
+              ) : (
+                campaign.hashtags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
+                  >
+                    {tag}
+                  </span>
+                ))
+              )}
             </div>
-            {campaign.ugcEngineer && (
-              <div className="flex justify-between">
-                <span className="text-slate-500">UGC Engineer</span>
-                <span className="text-slate-700">{campaign.ugcEngineer}</span>
-              </div>
-            )}
-            {campaign.hashtags.length > 0 && (
-              <div className="flex justify-between">
-                <span className="text-slate-500">Hashtags</span>
-                <div className="flex flex-wrap justify-end gap-1">
-                  {campaign.hashtags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {campaign.lastSyncAt && (
-              <div className="flex justify-between">
-                <span className="text-slate-500">Last Sync</span>
-                <span className="text-slate-700">
-                  {format(campaign.lastSyncAt, "MMM d, yyyy h:mm a")}
-                </span>
-              </div>
-            )}
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">Last sync</p>
+            <p className="mt-1 text-sm text-slate-700">
+              {campaign.lastSyncAt
+                ? format(campaign.lastSyncAt, "MMM d, h:mm a")
+                : "Never"}
+            </p>
           </div>
         </div>
+      </div>
 
-        {/* Creators */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-800">
-            Creators ({campaign.campaignCreators.length})
-          </h3>
-          {campaign.campaignCreators.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-400">
-              No creators assigned to this campaign yet.
-            </p>
-          ) : (
-            <div className="mt-3 space-y-2">
-              {campaign.campaignCreators.map((cc) => (
-                <div
-                  key={cc.id}
-                  className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-medium text-slate-600">
-                      {cc.creator.name[0]?.toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-700">
-                        {cc.creator.handle}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {PLATFORM_LABELS[cc.platform]} ·{" "}
-                        {cc.videosPerDay} videos/day
-                      </p>
-                    </div>
-                  </div>
-                  <TierBadge tier={cc.creator.tier} />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Stat Cards */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Total Posts"
+          value={campaign._count.posts.toLocaleString()}
+        />
+        <StatCard label="Total Views" value={totalViews.toLocaleString()} />
+        <StatCard
+          label="Total Referrals"
+          value={totalReferrals.toLocaleString()}
+        />
+        <StatCard label="Engagement Rate" value={`${engagementRate}%`} />
+      </div>
+
+      {/* Daily Views Over Time */}
+      <div className="mt-6">
+        <CampaignViewsChart data={chartData} />
+      </div>
+
+      {/* Creator Progress (preview — 3 cards + See all) */}
+      <div className="mt-6">
+        <CreatorProgressSection
+          progresses={creatorProgresses}
+          campaignId={campaign.id}
+        />
+      </div>
+
+      {/* Top Posts Gallery */}
+      <div className="mt-6">
+        <TopPostsGallery posts={topPosts} />
+      </div>
+
+      {/* Creators — full width table with Viral column */}
+      <div className="mt-6">
+        <CampaignCreatorsTable creators={creatorRows} />
       </div>
     </div>
   );

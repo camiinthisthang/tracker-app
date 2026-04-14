@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
+import { Flame } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { FilterPills } from "@/components/creators/creator-filter-pills";
 import { TierBadge } from "@/components/creators/tier-badge";
@@ -16,6 +17,8 @@ interface CreatorRow {
   isActive: boolean;
   postCount: number;
   totalViews: number;
+  totalReferrals: number;
+  viralCount: number;
   campaignCount: number;
   campaigns: { id: string; name: string }[];
 }
@@ -90,6 +93,29 @@ const columns: ColumnDef<CreatorRow>[] = [
     ),
   },
   {
+    accessorKey: "viralCount",
+    header: () => (
+      <span className="inline-flex items-center gap-1">
+        <Flame className="h-3.5 w-3.5 text-orange-500" />
+        Viral
+      </span>
+    ),
+    cell: ({ row }) => (
+      <span className="text-sm font-semibold text-orange-600">
+        {row.original.viralCount}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "totalReferrals",
+    header: "Referrals",
+    cell: ({ row }) => (
+      <span className="text-sm font-semibold text-emerald-600">
+        {row.original.totalReferrals.toLocaleString()}
+      </span>
+    ),
+  },
+  {
     accessorKey: "campaignCount",
     header: "Campaigns",
     cell: ({ row }) => (
@@ -132,8 +158,8 @@ export function CreatorsTableClient({ creators }: CreatorsTableClientProps) {
         statusFilter === "active" ? c.isActive : !c.isActive
       );
     }
-    // Sort by totalViews descending for leaderboard
-    return result.sort((a, b) => b.totalViews - a.totalViews);
+    // Sort by referrals descending for leaderboard
+    return result.sort((a, b) => b.totalReferrals - a.totalReferrals);
   }, [creators, tierFilter, statusFilter]);
 
   return (

@@ -1,44 +1,137 @@
-import { format } from "date-fns";
-import {
-  BookOpen,
-  LayoutGrid,
-  Image,
-  Trophy,
-  Sparkles,
-} from "lucide-react";
+import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
-import { TaskList } from "@/components/tasks/task-list";
+import { StatCard } from "@/components/shared/stat-card";
+import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-progress";
+import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
+import { CreatorMessagesFeed } from "@/components/creators/creator-messages";
+import { CreatorViralVideos } from "@/components/creators/creator-viral-videos";
+
+const DAY_LABELS = ["M", "T", "W", "T", "F"];
+const VIRAL_THRESHOLD = 50_000;
 
 export default async function CreatorHomePage() {
   const session = await getRequiredSession();
   const creatorId = session.user.creatorId;
 
-  // Get creator's tasks
-  const tasks = creatorId
-    ? await prisma.task.findMany({
-        where: { creatorId },
-        include: {
-          campaign: { select: { id: true, name: true } },
-          creator: { select: { id: true, name: true, handle: true } },
-        },
-        orderBy: { dueDate: "asc" },
-      })
-    : [];
-
-  // Get unique campaigns for filter tabs
-  const campaignMap = new Map<string, { id: string; name: string }>();
-  for (const t of tasks) {
-    campaignMap.set(t.campaign.id, t.campaign);
+  if (!creatorId) {
+    return (
+      <div>
+        <h1 className="text-xl font-semibold text-slate-800">Home</h1>
+        <p className="mt-2 text-sm text-slate-400">
+          Your creator profile isn&apos;t linked to an account yet. Contact your
+          manager.
+        </p>
+      </div>
+    );
   }
-  const campaigns = Array.from(campaignMap.values());
 
-  const serializedTasks = tasks.map((t) => ({
-    ...t,
-    dueDate: t.dueDate.toISOString(),
-    completedAt: t.completedAt?.toISOString() || null,
-    createdAt: t.createdAt.toISOString(),
-    updatedAt: t.updatedAt.toISOString(),
+  const creator = await prisma.creator.findUnique({
+    where: { id: creatorId },
+    include: {
+      campaignCreators: {
+        include: { campaign: { select: { id: true, name: true, isActive: true } } },
+      },
+    },
+  });
+
+  if (!creator) {
+    return <p>Creator not found</p>;
+  }
+
+  // Weekly goal: sum of videosPerDay × 5 across all active campaigns
+  const activeCCs = creator.campaignCreators.filter(
+    (cc) => cc.isActive && cc.campaign.isActive
+  );
+  const weeklyTarget = activeCCs.reduce(
+    (sum, cc) => sum + cc.videosPerDay * 5,
+    0
+  );
+  const dailyTarget = activeCCs.reduce((sum, cc) => sum + cc.videosPerDay, 0);
+
+  // Posts this week
+  const now = new Date();
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 5);
+
+  const weekPosts = await prisma.post.findMany({
+    where: {
+      creatorId,
+      postedAt: { gte: weekStart, lt: weekEnd },
+    },
+    select: { postedAt: true },
+  });
+
+  const postsPerDay = DAY_LABELS.map((label, i) => {
+    const dayStart = addDays(weekStart, i);
+    const dayEnd = addDays(dayStart, 1);
+    const count = weekPosts.filter(
+      (p) => p.postedAt >= dayStart && p.postedAt < dayEnd
+    ).length;
+    return { day: label, count };
+  });
+
+  // Overall stats
+  const metrics = await prisma.post.aggregate({
+    where: { creatorId },
+    _sum: { views: true, referrals: true },
+    _count: true,
+  });
+
+  const viralCount = await prisma.post.count({
+    where: { creatorId, views: { gte: VIRAL_THRESHOLD } },
+  });
+
+  const totalViews = metrics._sum.views ?? 0;
+  const totalReferrals = metrics._sum.referrals ?? 0;
+  const totalPosts = metrics._count;
+
+  // Views-over-time (last 28 days)
+  const chartStart = startOfDay(subDays(now, 28));
+  const postsInRange = await prisma.post.findMany({
+    where: { creatorId, postedAt: { gte: chartStart } },
+    select: { postedAt: true, views: true },
+  });
+
+  const dailyMap = new Map<string, number>();
+  for (let i = 0; i <= 28; i++) {
+    const d = startOfDay(addDays(chartStart, i));
+    dailyMap.set(d.toISOString(), 0);
+  }
+  for (const p of postsInRange) {
+    const d = startOfDay(p.postedAt).toISOString();
+    dailyMap.set(d, (dailyMap.get(d) ?? 0) + p.views);
+  }
+  const chartData = Array.from(dailyMap.entries()).map(([date, views]) => ({
+    date,
+    views,
+  }));
+
+  // Viral videos
+  const viralPosts = await prisma.post.findMany({
+    where: { creatorId, views: { gte: VIRAL_THRESHOLD } },
+    orderBy: { views: "desc" },
+    take: 8,
+    select: {
+      id: true,
+      title: true,
+      link: true,
+      thumbnailUrl: true,
+      views: true,
+      referrals: true,
+    },
+  });
+
+  // Messages from manager
+  const messages = await prisma.creatorMessage.findMany({
+    where: { creatorId },
+    include: { campaign: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const serializedMessages = messages.map((m) => ({
+    ...m,
+    createdAt: m.createdAt.toISOString(),
   }));
 
   const today = format(new Date(), "EEE, MMM do");
@@ -47,55 +140,44 @@ export default async function CreatorHomePage() {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-800">Home</h1>
+        <h1 className="text-xl font-semibold text-slate-800">
+          Hey {session.user.name || creator.name} 👋
+        </h1>
         <p className="text-sm text-slate-400">{today}</p>
-        <p className="mt-2 text-sm text-slate-600">
-          hey {session.user.name || "there"} - here&apos;s what you have going
-          on today
-        </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-        {/* Task list */}
-        <div>
-          {tasks.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white py-12 text-center">
-              <p className="text-sm text-slate-400">
-                No tasks assigned to you yet
-              </p>
-            </div>
-          ) : (
-            <TaskList tasks={serializedTasks} campaigns={campaigns} />
-          )}
-        </div>
+      {/* Stat Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total Posts" value={totalPosts.toLocaleString()} />
+        <StatCard label="Total Views" value={totalViews.toLocaleString()} />
+        <StatCard label="Viral Videos (50K+)" value={viralCount} />
+        <StatCard label="Total Referrals" value={totalReferrals.toLocaleString()} />
+      </div>
 
-        {/* Quick links sidebar */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="text-sm font-semibold text-slate-800">Quick links</h3>
-          <div className="mt-3 space-y-1">
-            <QuickLink icon={BookOpen} label="Creator playbook" />
-            <QuickLink icon={LayoutGrid} label="Gallery link" />
-            <QuickLink icon={Image} label="Creator portfolio" />
-            <QuickLink icon={Sparkles} label="Sora AI videos" />
-            <QuickLink icon={Trophy} label="Leaderboard" />
-          </div>
-        </div>
+      {/* Progress + Messages row */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
+        <CreatorWeeklyProgress
+          postsThisWeek={weekPosts.length}
+          weeklyTarget={weeklyTarget}
+          postsPerDay={postsPerDay}
+          dailyTarget={dailyTarget}
+        />
+        <CreatorMessagesFeed
+          messages={serializedMessages}
+          limit={3}
+          showViewAll
+        />
+      </div>
+
+      {/* Views over time */}
+      <div className="mt-6">
+        <CreatorViewsChart data={chartData} />
+      </div>
+
+      {/* Viral videos */}
+      <div className="mt-6">
+        <CreatorViralVideos posts={viralPosts} />
       </div>
     </div>
-  );
-}
-
-function QuickLink({
-  icon: Icon,
-  label,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-}) {
-  return (
-    <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
-      <Icon className="h-4 w-4 text-slate-400" />
-      {label}
-    </button>
   );
 }

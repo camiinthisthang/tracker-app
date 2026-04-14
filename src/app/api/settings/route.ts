@@ -26,6 +26,7 @@ export async function GET() {
             hasInstagramToken: !!team.settings.instagramToken,
             hasYoutubeKey: !!team.settings.youtubeApiKey,
             hasFacebookToken: !!team.settings.facebookToken,
+            schedulingUrl: team.settings.schedulingUrl || "",
           }
         : null,
     });
@@ -57,6 +58,7 @@ export async function PATCH(req: Request) {
         instagramToken: body.instagramToken,
         youtubeApiKey: body.youtubeApiKey,
         facebookToken: body.facebookToken,
+        schedulingUrl: body.schedulingUrl,
       },
       update: {
         ...(body.timezone !== undefined && { timezone: body.timezone }),
@@ -64,6 +66,7 @@ export async function PATCH(req: Request) {
         ...(body.instagramToken !== undefined && { instagramToken: body.instagramToken || null }),
         ...(body.youtubeApiKey !== undefined && { youtubeApiKey: body.youtubeApiKey || null }),
         ...(body.facebookToken !== undefined && { facebookToken: body.facebookToken || null }),
+        ...(body.schedulingUrl !== undefined && { schedulingUrl: body.schedulingUrl || null }),
       },
     });
 

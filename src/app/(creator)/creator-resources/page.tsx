@@ -37,7 +37,7 @@ const resources = [
   },
   {
     icon: Gift,
-    title: "Playkit Wrapped",
+    title: "Your Year Wrapped",
     description: "Your performance highlights and achievements",
   },
 ];
