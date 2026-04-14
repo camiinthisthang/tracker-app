@@ -60,6 +60,7 @@ export const authOptions: NextAuthOptions = {
           teamName: membership?.team.name ?? "",
           role: (membership?.role ?? "MEMBER") as "ADMIN" | "MEMBER" | "CREATOR",
           creatorId: membership?.creatorId ?? undefined,
+          isSuperAdmin: user.isSuperAdmin,
         };
       },
     }),
@@ -80,6 +81,7 @@ export const authOptions: NextAuthOptions = {
         token.teamName = user.teamName ?? "";
         token.role = user.role ?? "MEMBER";
         token.creatorId = user.creatorId;
+        token.isSuperAdmin = user.isSuperAdmin ?? false;
       }
       return token;
     },
@@ -89,6 +91,7 @@ export const authOptions: NextAuthOptions = {
       session.user.teamName = token.teamName;
       session.user.role = token.role;
       session.user.creatorId = token.creatorId;
+      session.user.isSuperAdmin = token.isSuperAdmin ?? false;
       return session;
     },
   },

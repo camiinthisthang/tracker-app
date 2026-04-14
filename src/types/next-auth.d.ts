@@ -11,6 +11,7 @@ declare module "next-auth" {
       teamName: string;
       role: "ADMIN" | "MEMBER" | "CREATOR";
       creatorId?: string;
+      isSuperAdmin: boolean;
     } & DefaultSession["user"];
   }
 
@@ -22,6 +23,7 @@ declare module "next-auth" {
     teamName?: string;
     role?: "ADMIN" | "MEMBER" | "CREATOR";
     creatorId?: string;
+    isSuperAdmin?: boolean;
   }
 }
 
@@ -32,5 +34,6 @@ declare module "next-auth/jwt" {
     teamName: string;
     role: "ADMIN" | "MEMBER" | "CREATOR";
     creatorId?: string;
+    isSuperAdmin?: boolean;
   }
 }

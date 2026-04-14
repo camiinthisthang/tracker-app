@@ -15,6 +15,7 @@ import {
   Sparkles,
   Inbox,
   Lightbulb,
+  Building2,
 } from "lucide-react";
 import { SidebarNavItem } from "./sidebar-nav-item";
 import {
@@ -29,13 +30,20 @@ const navItems = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/creators", label: "Creators", icon: Users },
-  { href: "/applications", label: "Applications", icon: Inbox },
   { href: "/posts", label: "Posts", icon: List },
   { href: "/hooks", label: "Hooks", icon: Lightbulb },
   { href: "/charts", label: "Charts", icon: BarChart3 },
   { href: "/reports", label: "Reports", icon: BookOpen },
   { href: "/notifications", label: "Notifications", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },
+];
+
+// Super-admin-only items — only Cami sees these. Applications (review creator
+// applicants) and Clients (multi-tenant dashboard) both require platform-level
+// access.
+const superAdminItems = [
+  { href: "/applications", label: "Applications", icon: Inbox },
+  { href: "/clients", label: "Clients", icon: Building2 },
 ];
 
 export function AdminSidebar() {
@@ -58,6 +66,16 @@ export function AdminSidebar() {
         {navItems.map((item) => (
           <SidebarNavItem key={item.href} {...item} />
         ))}
+        {session?.user?.isSuperAdmin && (
+          <>
+            <div className="mt-4 mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              Agency
+            </div>
+            {superAdminItems.map((item) => (
+              <SidebarNavItem key={item.href} {...item} />
+            ))}
+          </>
+        )}
       </nav>
 
       {/* Bottom section */}

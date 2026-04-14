@@ -21,6 +21,7 @@ model Team {
   creators  Creator[]
   apiKeys   ApiKey[]
   settings  TeamSettings?
+  invites   TeamInvite[]
 
   @@map("teams")
 }
@@ -56,6 +57,9 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String?
+  // Platform-level role: super admins (the agency operator, e.g. Cami) can manage
+  // multiple client teams, invite managers into them, and read cross-team data.
+  isSuperAdmin  Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -129,6 +133,21 @@ model TeamMember {
 
   @@unique([userId, teamId])
   @@map("team_members")
+}
+
+model TeamInvite {
+  id         String   @id @default(cuid())
+  teamId     String
+  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  email      String
+  role       Role     @default(ADMIN)
+  token      String   @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([teamId])
+  @@map("team_invites")
 }
 
 // ─── CAMPAIGNS ──────────────────────────────────────────────

@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ applicationId: string }> }
 ) {
   try {
-    await getRequiredSession();
+    const session = await getSession();
+    if (!session?.user?.isSuperAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const { applicationId } = await params;
     const body = await req.json();
 

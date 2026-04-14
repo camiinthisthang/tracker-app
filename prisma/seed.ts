@@ -116,6 +116,7 @@ async function main() {
       name: "Cami",
       email: "cami@test.com",
       passwordHash,
+      isSuperAdmin: true,
       memberships: {
         create: { teamId: team.id, role: "ADMIN" },
       },
