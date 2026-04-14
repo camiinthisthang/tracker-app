@@ -121,14 +121,14 @@ export default async function ApplicationsPage() {
 
                 {/* Actions */}
                 <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                  {(app.status === "PENDING" ||
-                    app.status === "REVIEWING") && (
+                  {app.status !== "REJECTED" && (
                     <InterviewInviteButton
                       applicationId={app.id}
                       applicantName={app.name}
                       applicantEmail={app.email}
                       teamName={teamName}
                       schedulingUrl={schedulingUrl}
+                      currentStatus={app.status}
                     />
                   )}
                   <ApplicationActions

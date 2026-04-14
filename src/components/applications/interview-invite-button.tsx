@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Mail, ExternalLink } from "lucide-react";
+import { Calendar, Mail, ExternalLink, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,22 @@ interface InterviewInviteButtonProps {
   applicantEmail: string;
   teamName: string;
   schedulingUrl?: string | null;
+  currentStatus: string;
+}
+
+function textToHtml(text: string) {
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  const withLinks = escaped.replace(
+    /(https?:\/\/[^\s<]+)/g,
+    '<a href="$1" style="color:#2563eb;text-decoration:underline;">$1</a>'
+  );
+  return `<div style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.6;color:#0f172a;">${withLinks
+    .split("\n\n")
+    .map((p) => `<p style="margin:0 0 14px;">${p.replace(/\n/g, "<br/>")}</p>`)
+    .join("")}</div>`;
 }
 
 export function InterviewInviteButton({
@@ -32,12 +48,12 @@ export function InterviewInviteButton({
   applicantEmail,
   teamName,
   schedulingUrl,
+  currentStatus,
 }: InterviewInviteButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // The scheduling link we'll embed (fallback if team has no schedulingUrl set)
   const bookingUrl =
     schedulingUrl && schedulingUrl.trim().length > 0
       ? schedulingUrl
@@ -58,28 +74,35 @@ ${teamName} team`;
   const [body, setBody] = useState(defaultBody);
 
   async function handleSend() {
+    if (!subject.trim() || !body.trim()) {
+      toast.error("Subject and body are required");
+      return;
+    }
     setLoading(true);
     try {
-      // Update the application status to REVIEWING
-      const res = await fetch(`/api/applications/${applicationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "REVIEWING" }),
-      });
+      const res = await fetch(
+        `/api/applications/${applicationId}/send-interview-invite`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subject,
+            text: body,
+            html: textToHtml(body),
+            // Don't clobber an already-approved app back down to REVIEWING
+            markReviewing: currentStatus !== "APPROVED",
+          }),
+        }
+      );
 
       if (!res.ok) {
-        toast.error("Couldn't update application status");
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Email send failed");
         setLoading(false);
         return;
       }
 
-      // Open the mail client
-      const mailtoUrl = `mailto:${encodeURIComponent(
-        applicantEmail
-      )}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.open(mailtoUrl, "_blank");
-
-      toast.success(`${firstName} moved to Reviewing — your email is ready to send`);
+      toast.success(`Interview invite sent to ${applicantEmail}`);
       setOpen(false);
       router.refresh();
     } catch {
@@ -90,6 +113,10 @@ ${teamName} team`;
   }
 
   const hasSchedulingUrl = !!schedulingUrl && schedulingUrl.trim().length > 0;
+  const buttonLabel =
+    currentStatus === "APPROVED" || currentStatus === "REVIEWING"
+      ? "Resend interview invite"
+      : "Invite to interview";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -101,15 +128,15 @@ ${teamName} team`;
           className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
         >
           <Calendar className="mr-2 h-4 w-4" />
-          Invite to interview
+          {buttonLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Invite {firstName} to interview</DialogTitle>
           <DialogDescription>
-            Review the email below. Clicking Send will open your mail client
-            with this pre-filled and mark the application as Reviewing.
+            Review the email below. Clicking Send emails {applicantEmail}{" "}
+            directly and marks the application as Reviewing.
           </DialogDescription>
         </DialogHeader>
 
@@ -131,7 +158,10 @@ ${teamName} team`;
           </div>
           <div className="grid gap-1.5">
             <Label className="text-xs text-slate-500">Subject</Label>
-            <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+            <Input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
           </div>
           <div className="grid gap-1.5">
             <Label className="text-xs text-slate-500">Body</Label>
@@ -166,8 +196,17 @@ ${teamName} team`;
             onClick={handleSend}
             disabled={loading}
           >
-            <Mail className="mr-2 h-4 w-4" />
-            {loading ? "Sending..." : "Open email & mark reviewing"}
+            {loading ? (
+              <>
+                <Mail className="mr-2 h-4 w-4 animate-pulse" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                Send email
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
