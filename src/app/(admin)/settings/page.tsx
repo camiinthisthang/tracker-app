@@ -5,6 +5,7 @@ import { Save, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -90,6 +91,7 @@ export default function SettingsPage() {
   const [teamName, setTeamName] = useState("");
   const [timezone, setTimezone] = useState("America/New_York");
   const [schedulingUrl, setSchedulingUrl] = useState("");
+  const [creatorWelcomeTemplate, setCreatorWelcomeTemplate] = useState("");
 
   const [tiktokApiKey, setTiktokApiKey] = useState("");
   const [instagramToken, setInstagramToken] = useState("");
@@ -110,6 +112,7 @@ export default function SettingsPage() {
         if (data.settings) {
           setTimezone(data.settings.timezone);
           setSchedulingUrl(data.settings.schedulingUrl || "");
+          setCreatorWelcomeTemplate(data.settings.creatorWelcomeTemplate || "");
           setHasTiktok(data.settings.hasTiktokKey);
           setHasInstagram(data.settings.hasInstagramToken);
           setHasYoutube(data.settings.hasYoutubeKey);
@@ -128,6 +131,7 @@ export default function SettingsPage() {
         teamName,
         timezone,
         schedulingUrl,
+        creatorWelcomeTemplate,
       };
       if (tiktokApiKey) body.tiktokApiKey = tiktokApiKey;
       if (instagramToken) body.instagramToken = instagramToken;
@@ -215,14 +219,38 @@ export default function SettingsPage() {
               Interview scheduling link
             </Label>
             <p className="text-xs text-slate-400">
-              Your Cal.com / Calendly URL — used when inviting applicants to
-              interview. E.g., <span className="font-mono">https://cal.com/yourname/creator-interview</span>
+              Your Cal.com / Calendly URL — used in the interview-invite email
+              and as the {"{{schedulingUrl}}"} token in the welcome message
+              below. E.g.{" "}
+              <span className="font-mono">https://cal.com/yourname/creator-interview</span>
             </p>
             <Input
               type="url"
               placeholder="https://cal.com/yourname/creator-interview"
               value={schedulingUrl}
               onChange={(e) => setSchedulingUrl(e.target.value)}
+            />
+          </div>
+
+          <div className="mt-4 space-y-1.5">
+            <Label className="text-sm font-medium text-slate-700">
+              Creator welcome message (pinned at top of /creator-tasks)
+            </Label>
+            <p className="text-xs text-slate-400">
+              Shown to every newly approved creator the moment they log in.
+              Use{" "}
+              <span className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px]">
+                {"{{schedulingUrl}}"}
+              </span>{" "}
+              as a token — it&apos;ll be replaced with your scheduling link
+              above when the message is created.
+            </p>
+            <Textarea
+              rows={10}
+              placeholder="Welcome to Viewtrackr — you're on the roster..."
+              value={creatorWelcomeTemplate}
+              onChange={(e) => setCreatorWelcomeTemplate(e.target.value)}
+              className="font-mono text-xs"
             />
           </div>
         </div>

@@ -42,6 +42,11 @@ model TeamSettings {
   // Scheduling link for interview invites (e.g., https://cal.com/yourname/interview)
   schedulingUrl    String?
 
+  // Default pinned welcome message shown at the top of /creator-tasks for any
+  // new creator. The token {{schedulingUrl}} is replaced with this team's
+  // schedulingUrl when the message is created on creator approval.
+  creatorWelcomeTemplate String?
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

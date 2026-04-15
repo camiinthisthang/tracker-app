@@ -25,22 +25,44 @@ export async function POST(req: Request) {
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  // Create or find the user, then attach them to the team. If a user already
-  // exists with this email (e.g. they manage another client) we just add a new
-  // TeamMember and leave their password alone.
+  // Create or find the user, then attach them to the team. There are three
+  // possible states for the User row:
+  //   1. Doesn't exist  → create with the new password
+  //   2. Exists, no passwordHash (e.g. signed up via Google previously) → set
+  //      the new password so they can sign in with credentials too
+  //   3. Exists with a passwordHash → don't touch it; tell the client to use
+  //      their existing password (the invite link is just attaching the new
+  //      team membership, not resetting their account)
   const existingUser = await prisma.user.findUnique({
     where: { email: invite.email },
   });
 
-  const user =
-    existingUser ??
-    (await prisma.user.create({
+  let accountAlreadyExisted = false;
+  let passwordWasReplaced = false;
+  let user;
+
+  if (!existingUser) {
+    user = await prisma.user.create({
       data: {
         email: invite.email,
         name: name || null,
         passwordHash,
       },
-    }));
+    });
+  } else if (!existingUser.passwordHash) {
+    // OAuth-only account — safe to add a password since they had none.
+    user = await prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        passwordHash,
+        ...(name && !existingUser.name ? { name } : {}),
+      },
+    });
+    passwordWasReplaced = true;
+  } else {
+    user = existingUser;
+    accountAlreadyExisted = true;
+  }
 
   // Make sure they aren't already a member of this team
   const alreadyMember = await prisma.teamMember.findUnique({
@@ -62,5 +84,9 @@ export async function POST(req: Request) {
     data: { acceptedAt: new Date() },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    accountAlreadyExisted,
+    passwordWasReplaced,
+  });
 }

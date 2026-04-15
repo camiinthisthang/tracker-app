@@ -93,6 +93,31 @@ export async function PATCH(
           });
           createdCreatorId = creator.id;
           inviteToken = token;
+
+          // Drop a pinned welcome message at the top of /creator-tasks so they
+          // see the next-step CTA the moment they log in.
+          const settings = await prisma.teamSettings.findUnique({
+            where: { teamId },
+          });
+          const template = settings?.creatorWelcomeTemplate;
+          if (template) {
+            const schedulingUrl =
+              settings?.schedulingUrl?.trim() ||
+              "(scheduling link not set yet — ask your manager)";
+            const body = template.replace(
+              /\{\{\s*schedulingUrl\s*\}\}/g,
+              schedulingUrl
+            );
+            await prisma.creatorMessage.create({
+              data: {
+                creatorId: creator.id,
+                type: "ANNOUNCEMENT",
+                title: "Welcome — start here",
+                body,
+                isPinned: true,
+              },
+            });
+          }
         }
       }
     }
