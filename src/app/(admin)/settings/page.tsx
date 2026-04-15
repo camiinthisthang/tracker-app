@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { Save } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,61 +29,6 @@ const TIMEZONES = [
   "Australia/Sydney",
 ];
 
-interface ApiKeyFieldProps {
-  label: string;
-  placeholder: string;
-  value: string;
-  onChange: (v: string) => void;
-  isConfigured: boolean;
-}
-
-function ApiKeyField({
-  label,
-  placeholder,
-  value,
-  onChange,
-  isConfigured,
-}: ApiKeyFieldProps) {
-  const [visible, setVisible] = useState(false);
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2">
-        <Label className="text-sm font-medium text-slate-700">{label}</Label>
-        {isConfigured && !value && (
-          <span className="flex items-center gap-1 text-xs text-green-600">
-            <CheckCircle2 className="h-3 w-3" />
-            Configured
-          </span>
-        )}
-      </div>
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Input
-            type={visible ? "text" : "password"}
-            placeholder={isConfigured && !value ? "••••••••••••" : placeholder}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-          />
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9 w-9 p-0"
-          onClick={() => setVisible(!visible)}
-        >
-          {visible ? (
-            <EyeOff className="h-4 w-4" />
-          ) : (
-            <Eye className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,16 +37,6 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState("America/New_York");
   const [schedulingUrl, setSchedulingUrl] = useState("");
   const [creatorWelcomeTemplate, setCreatorWelcomeTemplate] = useState("");
-
-  const [tiktokApiKey, setTiktokApiKey] = useState("");
-  const [instagramToken, setInstagramToken] = useState("");
-  const [youtubeApiKey, setYoutubeApiKey] = useState("");
-  const [facebookToken, setFacebookToken] = useState("");
-
-  const [hasTiktok, setHasTiktok] = useState(false);
-  const [hasInstagram, setHasInstagram] = useState(false);
-  const [hasYoutube, setHasYoutube] = useState(false);
-  const [hasFacebook, setHasFacebook] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -113,10 +48,6 @@ export default function SettingsPage() {
           setTimezone(data.settings.timezone);
           setSchedulingUrl(data.settings.schedulingUrl || "");
           setCreatorWelcomeTemplate(data.settings.creatorWelcomeTemplate || "");
-          setHasTiktok(data.settings.hasTiktokKey);
-          setHasInstagram(data.settings.hasInstagramToken);
-          setHasYoutube(data.settings.hasYoutubeKey);
-          setHasFacebook(data.settings.hasFacebookToken);
         }
       }
       setLoading(false);
@@ -133,10 +64,6 @@ export default function SettingsPage() {
         schedulingUrl,
         creatorWelcomeTemplate,
       };
-      if (tiktokApiKey) body.tiktokApiKey = tiktokApiKey;
-      if (instagramToken) body.instagramToken = instagramToken;
-      if (youtubeApiKey) body.youtubeApiKey = youtubeApiKey;
-      if (facebookToken) body.facebookToken = facebookToken;
 
       const res = await fetch("/api/settings", {
         method: "PATCH",
@@ -146,16 +73,6 @@ export default function SettingsPage() {
 
       if (res.ok) {
         toast.success("Settings saved");
-        // Update configured status
-        if (tiktokApiKey) setHasTiktok(true);
-        if (instagramToken) setHasInstagram(true);
-        if (youtubeApiKey) setHasYoutube(true);
-        if (facebookToken) setHasFacebook(true);
-        // Clear inputs after save
-        setTiktokApiKey("");
-        setInstagramToken("");
-        setYoutubeApiKey("");
-        setFacebookToken("");
       } else {
         toast.error("Failed to save settings");
       }
@@ -252,50 +169,6 @@ export default function SettingsPage() {
               onChange={(e) => setCreatorWelcomeTemplate(e.target.value)}
               className="font-mono text-xs"
             />
-          </div>
-        </div>
-
-        {/* Social API Credentials */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6">
-          <h3 className="text-sm font-semibold text-slate-800">
-            Social Platform API Keys
-          </h3>
-          <p className="mt-1 text-xs text-slate-400">
-            Configure API credentials to sync posts from social platforms.
-            Keys are encrypted and stored securely.
-          </p>
-
-          <div className="mt-4 space-y-4">
-            <ApiKeyField
-              label="TikTok Client Key"
-              placeholder="Enter your TikTok Research API client key"
-              value={tiktokApiKey}
-              onChange={setTiktokApiKey}
-              isConfigured={hasTiktok}
-            />
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">TikTok Client Secret</Label>
-              <p className="text-xs text-slate-400">
-                Get your credentials at{" "}
-                <a href="https://developers.tiktok.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-600">
-                  developers.tiktok.com
-                </a>
-                {" "}→ Research API (requires approval)
-              </p>
-            </div>
-            <ApiKeyField
-              label="Instagram Access Token"
-              placeholder="Enter your long-lived Instagram access token"
-              value={instagramToken}
-              onChange={setInstagramToken}
-              isConfigured={hasInstagram}
-            />
-            <p className="text-xs text-slate-400">
-              Requires a Meta Business app with Instagram Graph API.{" "}
-              <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-600">
-                developers.facebook.com
-              </a>
-            </p>
           </div>
         </div>
 
