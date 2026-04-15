@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { subDays, startOfDay } from "date-fns";
+import { resend, FROM_EMAIL, isEmailConfigured } from "@/lib/email/resend";
+import {
+  computeWeeklyDigest,
+  renderWeeklyDigestHtml,
+} from "@/lib/reports/weekly";
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get("authorization");
@@ -51,25 +56,47 @@ export async function GET(req: Request) {
           take: 3,
         });
 
-        // TODO: Send email via Resend with React Email template
-        // For now, log the report data
-        console.log(`Weekly report for ${config.campaign.name}:`, {
-          recipients: config.recipients,
-          postsCreated: metrics._count,
-          totalViews: metrics._sum.views,
-          totalComments: metrics._sum.comments,
-          topPosts: topPosts.map((p) => ({
-            title: p.title,
-            views: p.views,
-            creator: p.creator.handle,
-          })),
-        });
+        // Send an HTML digest via Resend. If the API key isn't set we still
+        // want the cron to no-op gracefully rather than 500.
+        let sent = false;
+        if (isEmailConfigured() && resend) {
+          const digest = await computeWeeklyDigest(
+            config.campaign.teamId,
+            now
+          );
+          const html = renderWeeklyDigestHtml(config.campaign.name, digest);
+          const subject = `${config.campaign.name} · weekly report (${digest.totalViews.toLocaleString()} views)`;
+          try {
+            await resend.emails.send({
+              from: FROM_EMAIL,
+              to: config.recipients,
+              subject,
+              html,
+            });
+            sent = true;
+          } catch (emailErr) {
+            console.error("Resend send failed", emailErr);
+          }
+        } else {
+          console.log(
+            `[weekly-report] would email ${config.recipients.join(", ")} for ${config.campaign.name}:`,
+            {
+              postsCreated: metrics._count,
+              totalViews: metrics._sum.views,
+              topPosts: topPosts.map((p) => ({
+                title: p.title,
+                views: p.views,
+                creator: p.creator.handle,
+              })),
+            }
+          );
+        }
 
         results.push({
           campaignId: config.campaignId,
           campaignName: config.campaign.name,
           recipientCount: config.recipients.length,
-          sent: true,
+          sent,
         });
       } catch (error) {
         console.error(

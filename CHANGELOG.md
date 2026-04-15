@@ -100,6 +100,23 @@ tangent.
   counts posts ≥ 50K views. `VIRAL_VIEW_THRESHOLD` exported so task #8
   can reuse the same constant.
 
+## 2026-04-16 23:30 — task #6: reports + charts initial implementation
+- **/reports** now shows team-level weekly digest — total views this week,
+  posts tracked, placeholder for attributed signups (until PostHog is
+  wired), top 5 hooks and top 5 creators by views. Pulls from new
+  `src/lib/reports/weekly.ts#computeWeeklyDigest`. Lists existing scheduled
+  campaign-report configs at the bottom.
+- **/charts** now shows a team-wide overview above the existing per-campaign
+  charts: line chart of daily views (last 30d), bar chart of top 10
+  creators by views, bar chart of top 10 hooks by views. Uses recharts,
+  slate/blue palette, no gradients.
+- **Cron** `/api/cron/weekly-report` now actually sends the digest via
+  Resend (HTML template in `renderWeeklyDigestHtml`) when
+  `RESEND_API_KEY` is set. Falls back to `console.log` otherwise, so the
+  cron doesn't 500 when email isn't configured. Subject line includes the
+  campaign name and week's total views.
+
+
 
 
 

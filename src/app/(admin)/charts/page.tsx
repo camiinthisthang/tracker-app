@@ -1,9 +1,11 @@
 import { BarChart3 } from "lucide-react";
+import { startOfDay, subDays, addDays } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CampaignChartsClient } from "@/components/charts/campaign-charts-client";
+import { TeamOverviewCharts } from "@/components/charts/team-overview-charts";
 
 export default async function ChartsPage() {
   const session = await getRequiredSession();
@@ -14,6 +16,54 @@ export default async function ChartsPage() {
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
+
+  // Team-wide last-30-days view: line chart of daily totals + top 10 creators
+  // + top 10 hooks.
+  const chartStart = startOfDay(subDays(new Date(), 30));
+  const recentPosts = await prisma.post.findMany({
+    where: { creator: { teamId }, postedAt: { gte: chartStart } },
+    select: {
+      postedAt: true,
+      views: true,
+      hook: true,
+      creator: { select: { handle: true, name: true } },
+    },
+  });
+
+  const viewsByDayMap = new Map<string, number>();
+  for (let i = 0; i <= 30; i++) {
+    viewsByDayMap.set(
+      startOfDay(addDays(chartStart, i)).toISOString(),
+      0
+    );
+  }
+  for (const p of recentPosts) {
+    const k = startOfDay(p.postedAt).toISOString();
+    viewsByDayMap.set(k, (viewsByDayMap.get(k) ?? 0) + p.views);
+  }
+  const viewsByDay = Array.from(viewsByDayMap.entries()).map(
+    ([date, views]) => ({ date, views })
+  );
+
+  const creatorViews = new Map<string, number>();
+  for (const p of recentPosts) {
+    const key = `@${p.creator.handle}`;
+    creatorViews.set(key, (creatorViews.get(key) ?? 0) + p.views);
+  }
+  const topCreators = Array.from(creatorViews.entries())
+    .map(([label, views]) => ({ label, views }))
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 10);
+
+  const hookViews = new Map<string, number>();
+  for (const p of recentPosts) {
+    if (!p.hook) continue;
+    hookViews.set(p.hook, (hookViews.get(p.hook) ?? 0) + p.views);
+  }
+  const topHooks = Array.from(hookViews.entries())
+    .map(([label, views]) => ({ label, views }))
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 10);
 
   if (campaigns.length === 0) {
     return (
@@ -69,7 +119,12 @@ export default async function ChartsPage() {
     <div>
       <PageHeader
         title="Charts"
-        description="Campaign performance over time"
+        description="Team-wide performance + per-campaign drill-down"
+      />
+      <TeamOverviewCharts
+        viewsByDay={viewsByDay}
+        topCreators={topCreators}
+        topHooks={topHooks}
       />
       <CampaignChartsClient campaigns={campaigns} metricsMap={metricsMap} />
     </div>
