@@ -24,12 +24,37 @@ export function ApplicationActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      if (res.ok) {
-        toast.success(`Application marked ${status.toLowerCase()}`);
-        router.refresh();
-      } else {
+      if (!res.ok) {
         toast.error("Failed to update");
+        return;
       }
+
+      const data = await res.json().catch(() => null);
+
+      if (status === "APPROVED" && data?.createdCreatorId) {
+        toast.success("Creator created — opening their profile", {
+          description: data.inviteToken
+            ? `Invite URL copied: /invite/${data.inviteToken}`
+            : undefined,
+          duration: 6000,
+        });
+        if (data.inviteToken) {
+          navigator.clipboard
+            ?.writeText(
+              `${window.location.origin}/invite/${data.inviteToken}`
+            )
+            .catch(() => {});
+        }
+        router.push(`/creators/${data.createdCreatorId}`);
+        return;
+      }
+
+      if (status === "APPROVED" && data?.createWarning) {
+        toast.warning(data.createWarning);
+      } else {
+        toast.success(`Application marked ${status.toLowerCase()}`);
+      }
+      router.refresh();
     } catch {
       toast.error("Something went wrong");
     } finally {
