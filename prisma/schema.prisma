@@ -210,13 +210,18 @@ model Creator {
   email     String?
   avatarUrl String?
 
-  // TikTok OAuth
+  // TikTok OAuth (Display API — identity only)
   tiktokUserId       String?
   tiktokUsername     String?
   tiktokAccessToken  String?
   tiktokRefreshToken String?
   tiktokTokenExpires DateTime?
   tiktokConnectedAt  DateTime?
+
+  // Public handles used by the scraper-based sync (Apify). TikTok also falls
+  // back to `handle` / `tiktokUsername` when tiktokHandle is empty.
+  tiktokHandle    String?
+  instagramHandle String?
 
   // Invite flow
   inviteToken String? @unique

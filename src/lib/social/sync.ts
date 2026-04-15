@@ -1,19 +1,42 @@
 import { prisma } from "@/lib/prisma";
-import { TikTokClient } from "./tiktok";
-import { InstagramClient } from "./instagram";
-import type { SocialApiClient, SocialPost } from "./types";
+import {
+  fetchTikTokPostsViaApify,
+  fetchInstagramPostsViaApify,
+} from "./apify";
+import type { SocialPost } from "./types";
 
-const tiktokClient = new TikTokClient();
-const instagramClient = new InstagramClient();
+function resolveHandle(
+  platform: "TIKTOK" | "INSTAGRAM" | "YOUTUBE" | "FACEBOOK",
+  creator: {
+    handle: string;
+    tiktokHandle: string | null;
+    tiktokUsername: string | null;
+    instagramHandle: string | null;
+  }
+): string | null {
+  if (platform === "TIKTOK") {
+    return creator.tiktokHandle || creator.tiktokUsername || creator.handle;
+  }
+  if (platform === "INSTAGRAM") {
+    return creator.instagramHandle || creator.handle;
+  }
+  return null;
+}
 
-const legacyClients: Record<string, SocialApiClient> = {
-  INSTAGRAM: instagramClient,
-};
+async function fetchPostsForPlatform(
+  platform: "TIKTOK" | "INSTAGRAM" | "YOUTUBE" | "FACEBOOK",
+  handle: string
+): Promise<SocialPost[]> {
+  if (platform === "TIKTOK") return fetchTikTokPostsViaApify(handle);
+  if (platform === "INSTAGRAM") return fetchInstagramPostsViaApify(handle);
+  // YouTube / Facebook: not yet wired to Apify, skip silently.
+  return [];
+}
 
 /**
  * Sync all posts for a single campaign.
- * Fetches posts from each platform for each creator, upserts into DB,
- * creates daily metric snapshots.
+ * Fetches posts from each platform for each creator via Apify, upserts into
+ * DB, creates daily metric snapshots.
  */
 export async function syncCampaign(campaignId: string) {
   const campaign = await prisma.campaign.findUnique({
@@ -33,39 +56,31 @@ export async function syncCampaign(campaignId: string) {
 
   let totalPostsUpserted = 0;
 
-  for (const cc of campaign.campaignCreators) {
+  // Fetch all creators in parallel — each Apify run is independent and the
+  // actors rate-limit internally. Keeps a 10-creator sync well under Vercel's
+  // 300s Pro timeout vs. serial (~10×60s).
+  const fetches = campaign.campaignCreators.map(async (cc) => {
+    const handle = resolveHandle(cc.platform, cc.creator);
+    if (!handle) return { cc, posts: [] as SocialPost[] };
     try {
-      let posts: SocialPost[] = [];
-
-      if (cc.platform === "TIKTOK") {
-        // TikTok uses per-creator OAuth token (Display API)
-        posts = await tiktokClient.fetchCreatorPosts(cc.creatorId);
-      } else {
-        // Legacy path for platforms still using app-level credentials
-        const client = legacyClients[cc.platform];
-        if (!client) continue;
-
-        const sinceDate = new Date(
-          Math.max(
-            campaign.startDate.getTime(),
-            Date.now() - 30 * 24 * 60 * 60 * 1000
-          )
-        );
-        posts = await client.fetchUserPosts(cc.creator.handle, sinceDate);
-      }
-
-      // Apply hashtag filter
-      posts = filterByHashtags(posts, campaign.hashtags);
-
-      for (const post of posts) {
-        await upsertPost(post, campaignId, cc.creatorId);
-        totalPostsUpserted++;
-      }
+      const posts = await fetchPostsForPlatform(cc.platform, handle);
+      return { cc, posts: filterByHashtags(posts, campaign.hashtags) };
     } catch (error) {
       console.error(
         `Sync error for creator ${cc.creator.handle} on ${cc.platform}:`,
         error
       );
+      return { cc, posts: [] as SocialPost[] };
+    }
+  });
+
+  const fetchResults = await Promise.all(fetches);
+
+  // DB writes are sequential to avoid overwhelming the connection pool.
+  for (const { cc, posts } of fetchResults) {
+    for (const post of posts) {
+      await upsertPost(post, campaignId, cc.creatorId);
+      totalPostsUpserted++;
     }
   }
 

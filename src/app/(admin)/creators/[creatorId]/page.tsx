@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
 import { InviteCreatorButton } from "@/components/creators/invite-creator-button";
+import { CreatorSocialHandles } from "@/components/creators/creator-social-handles";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Music } from "lucide-react";
 import { PLATFORM_LABELS } from "@/lib/constants";
@@ -114,6 +115,16 @@ export default async function CreatorDetailPage({
             <CheckCircle className="h-5 w-5 text-green-600" />
           )}
         </div>
+      </div>
+
+      {/* Social handles + manual sync trigger */}
+      <div className="mt-4">
+        <CreatorSocialHandles
+          creatorId={creator.id}
+          tiktokHandle={creator.tiktokHandle}
+          instagramHandle={creator.instagramHandle}
+          fallbackHandle={creator.handle}
+        />
       </div>
 
       {/* Stats */}
