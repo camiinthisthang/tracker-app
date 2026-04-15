@@ -11,7 +11,6 @@ import {
   BarChart3,
   ChevronDown,
   LogOut,
-  MessageSquare,
   Sparkles,
   Inbox,
   Lightbulb,
@@ -80,13 +79,9 @@ export function AdminSidebar() {
 
       {/* Bottom section */}
       <div className="border-t border-slate-200 px-3 py-3">
-        <a
-          href="#"
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-        >
-          <MessageSquare className="h-4 w-4" />
-          Feedback
-        </a>
+        {/* TODO(cami): orphan? Feedback link has no destination. Hidden
+            until we have somewhere for it to point (a shared email, a form,
+            etc.). */}
         <Separator className="my-2" />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100">

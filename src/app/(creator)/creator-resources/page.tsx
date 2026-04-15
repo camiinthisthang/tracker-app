@@ -42,6 +42,9 @@ const resources = [
   },
 ];
 
+// TODO(cami): orphan? Every resource card below is a dead button — no
+// onClick, no href. Either wire these up to real destinations (each should
+// link to a doc / Notion / Canva / etc.) or cut the page.
 export default function ResourcesPage() {
   return (
     <div>
@@ -50,13 +53,18 @@ export default function ResourcesPage() {
         description="Playbooks, tools, and inspiration for creators"
       />
 
+      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+        These cards aren&apos;t wired up yet — your manager will drop real
+        links in soon.
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         {resources.map((resource) => {
           const Icon = resource.icon;
           return (
-            <button
+            <div
               key={resource.title}
-              className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 text-left transition-colors hover:border-slate-300"
+              className="flex items-start gap-4 rounded-xl border border-dashed border-slate-200 bg-white p-5 text-left opacity-70"
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
                 <Icon className="h-5 w-5 text-slate-500" />
@@ -72,7 +80,7 @@ export default function ResourcesPage() {
                   {resource.description}
                 </p>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>

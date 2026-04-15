@@ -160,6 +160,43 @@ tangent.
   saves fine but the cron will skip actual sends until you add them in
   Vercel project env.
 
+## 2026-04-17 00:25 — task #9: UI audit
+Conservative pass — flagged with `TODO(cami): orphan?` comments instead
+of deleting, except where the bad behavior was user-visible (dead
+`href="#"` links were removed from both sidebars since they had no
+destination and are worse than missing).
+
+### UI audit findings
+- **/notifications (admin):** stubbed "coming soon" page. The real per-
+  campaign notification-rule CRUD already lives at
+  `/campaigns/[id]/notifications`. The top-level page is redundant and
+  still linked from the admin sidebar. Flagged with TODO.
+- **/settings/api-keys:** stubbed. `ApiKey` model exists in Prisma but no
+  UI ever got built. Not linked from any sidebar — only reachable by URL.
+  Flagged with TODO.
+- **/creator-settings:** stubbed. Replaced the placeholder copy with a
+  hint that prefs live on Profile, but still linked from the creator
+  sidebar. Flagged with TODO.
+- **/creator-resources:** all 6 resource cards (Playbook, Gallery,
+  Portfolio, Sora AI Videos, Leaderboard, Year Wrapped) were `<button>`
+  elements with no onClick/href — zero worked. Switched them to dashed
+  non-interactive cards, added a yellow "not wired up yet" banner, left
+  TODO. Decide: wire each to a real destination, or cut the page.
+- **Admin sidebar "Feedback" link** had `href="#"` — removed. Restore when
+  there's a real destination (shared email / form / Linear).
+- **Creator sidebar "Feedback" link** same issue — removed.
+
+### Drive-by observations
+- `PageHeader` titles in stub pages were rendering raw camel-case values
+  like `"APIKeys"` and `"CreatorSettings"` instead of human-readable
+  labels. Fixed on creator-settings while touching it; left the others.
+- `/campaigns/[campaignId]/page.tsx` is a redirect-only file pointing at
+  `/overview`. Intentional; left alone.
+- `src/components/shared/data-table.tsx` emits a React Compiler warning
+  about TanStack Table incompatibility. Not a regression — same warning
+  has existed; doesn't fail the build.
+
+
 
 
 
