@@ -6,6 +6,8 @@ import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-prog
 import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
 import { CreatorMessagesFeed } from "@/components/creators/creator-messages";
 import { CreatorViralVideos } from "@/components/creators/creator-viral-videos";
+import { BonusTracker } from "@/components/creators/bonus-tracker";
+import { computeCreatorBonusSummary } from "@/lib/bonus";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F"];
 const VIRAL_THRESHOLD = 50_000;
@@ -134,6 +136,8 @@ export default async function CreatorHomePage() {
     createdAt: m.createdAt.toISOString(),
   }));
 
+  const bonusSummary = await computeCreatorBonusSummary(creatorId);
+
   const today = format(new Date(), "EEE, MMM do");
 
   return (
@@ -168,6 +172,13 @@ export default async function CreatorHomePage() {
           showViewAll
         />
       </div>
+
+      {/* Bonus tracker (only renders when team has active rules) */}
+      {bonusSummary.rules.length > 0 && (
+        <div className="mt-6">
+          <BonusTracker summary={bonusSummary} />
+        </div>
+      )}
 
       {/* Views over time */}
       <div className="mt-6">

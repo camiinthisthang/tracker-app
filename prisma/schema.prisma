@@ -23,6 +23,7 @@ model Team {
   settings  TeamSettings?
   invites   TeamInvite[]
   hooks     Hook[]
+  bonusRules BonusRule[]
 
   @@map("teams")
 }
@@ -331,6 +332,29 @@ model CampaignDailyMetric {
   @@unique([campaignId, date])
   @@index([campaignId])
   @@map("campaign_daily_metrics")
+}
+
+// ─── BONUS RULES ───────────────────────────────────────────
+
+enum BonusTrigger {
+  VIEW_THRESHOLD
+  VIRAL_COUNT
+}
+
+model BonusRule {
+  id        String       @id @default(cuid())
+  teamId    String
+  team      Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  trigger   BonusTrigger
+  threshold Int
+  amountUsd Decimal      @db.Decimal(10, 2)
+  label     String
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([teamId, isActive])
+  @@map("bonus_rules")
 }
 
 // ─── HOOKS (taxonomy) ───────────────────────────────────────

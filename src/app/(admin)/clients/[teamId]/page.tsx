@@ -9,6 +9,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { InviteManagerButton } from "@/components/clients/invite-manager-button";
 import { RemoveMemberButton } from "@/components/clients/remove-member-button";
+import { BonusRulesManager } from "@/components/clients/bonus-rules-manager";
 
 export default async function ClientDetailPage({
   params,
@@ -38,7 +39,7 @@ export default async function ClientDetailPage({
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [creators, campaigns, recentPosts, viewsAgg] = await Promise.all([
+  const [creators, campaigns, recentPosts, viewsAgg, bonusRules] = await Promise.all([
     prisma.creator.findMany({
       where: { teamId },
       orderBy: { createdAt: "desc" },
@@ -57,7 +58,20 @@ export default async function ClientDetailPage({
       where: { creator: { teamId } },
       _sum: { views: true, likes: true, comments: true },
     }),
+    prisma.bonusRule.findMany({
+      where: { teamId },
+      orderBy: [{ isActive: "desc" }, { threshold: "asc" }],
+    }),
   ]);
+
+  const bonusRulesSerialized = bonusRules.map((r) => ({
+    id: r.id,
+    trigger: r.trigger,
+    threshold: r.threshold,
+    amountUsd: r.amountUsd.toString(),
+    label: r.label,
+    isActive: r.isActive,
+  }));
 
   return (
     <div>
@@ -187,6 +201,11 @@ export default async function ClientDetailPage({
             </ul>
           )}
         </section>
+
+        {/* Bonus rules */}
+        <div className="lg:col-span-2">
+          <BonusRulesManager teamId={team.id} rules={bonusRulesSerialized} />
+        </div>
 
         {/* Creators */}
         <section className="lg:col-span-2 rounded-xl border border-slate-200 bg-white">

@@ -81,5 +81,25 @@ tangent.
 - **Upload API:** validates `hookId` belongs to the caller's team before
   writing, trims freestyle input, silently drops both on onboarding uploads.
 
+## 2026-04-16 23:10 — task #5: bonus structure + creator live view
+- **Schema:** `BonusRule` model (teamId, trigger enum, threshold int,
+  amountUsd decimal, label, isActive) + `BonusTrigger` enum
+  (VIEW_THRESHOLD, VIRAL_COUNT). Migration
+  `20260416020000_add_bonus_rules/migration.sql`.
+- **APIs:** `/api/bonus-rules` (GET/POST), `/api/bonus-rules/[ruleId]`
+  (PATCH/DELETE). ADMIN / super-admin only for writes.
+- **Admin UI:** `BonusRulesManager` on the `/clients/[teamId]` page —
+  add/delete per-client rules inline. Super-admins can post against any
+  team via the teamId form field.
+- **Creator UI:** `BonusTracker` card on `/home` showing dollars earned
+  this month, progress bar toward the next milestone, and a breakdown of
+  every active rule. Hidden when the team has no rules.
+- **Computation helper:** `src/lib/bonus.ts#computeCreatorBonusSummary`
+  runs one posts query per creator for the current month and evaluates:
+  VIEW_THRESHOLD compares the creator's best single post, VIRAL_COUNT
+  counts posts ≥ 50K views. `VIRAL_VIEW_THRESHOLD` exported so task #8
+  can reuse the same constant.
+
+
 
 
