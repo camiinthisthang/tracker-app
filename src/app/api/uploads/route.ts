@@ -64,6 +64,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "creatorId required" }, { status: 400 });
     }
 
+    let hookId: string | null = null;
+    if (category === "CONTENT" && typeof body.hookId === "string" && body.hookId) {
+      const hook = await prisma.hook.findFirst({
+        where: { id: body.hookId, teamId: session.user.teamId },
+      });
+      if (hook) hookId = hook.id;
+    }
+    const freestyleHook =
+      category === "CONTENT" &&
+      typeof body.freestyleHook === "string" &&
+      body.freestyleHook.trim().length > 0
+        ? body.freestyleHook.trim()
+        : null;
+
     const upload = await prisma.upload.create({
       data: {
         campaignId: category === "CONTENT" ? body.campaignId : null,
@@ -72,6 +86,8 @@ export async function POST(req: Request) {
         fileName: body.fileName,
         fileUrl: body.fileUrl,
         fileSize: body.fileSize || 0,
+        hookId,
+        freestyleHook,
       },
     });
 

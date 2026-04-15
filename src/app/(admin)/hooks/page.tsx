@@ -4,6 +4,7 @@ import { getRequiredSession } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
+import { HookManager } from "@/components/hooks/hook-manager";
 
 interface HookStat {
   hook: string;
@@ -18,6 +19,33 @@ interface HookStat {
 export default async function HooksPage() {
   const session = await getRequiredSession();
   const teamId = session.user.teamId;
+  const canManage =
+    session.user.role === "ADMIN" || session.user.isSuperAdmin;
+
+  const [hooks, uploadsByHook] = await Promise.all([
+    prisma.hook.findMany({
+      where: { teamId },
+      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+    }),
+    prisma.upload.groupBy({
+      by: ["hookId"],
+      where: {
+        creator: { teamId },
+        hookId: { not: null },
+      },
+      _count: { _all: true },
+    }),
+  ]);
+  const uploadCountByHookId = new Map<string, number>();
+  for (const u of uploadsByHook) {
+    if (u.hookId) uploadCountByHookId.set(u.hookId, u._count._all);
+  }
+  const hooksForManager = hooks.map((h) => ({
+    id: h.id,
+    text: h.text,
+    category: h.category,
+    isActive: h.isActive,
+  }));
 
   // Get all posts with hooks
   const posts = await prisma.post.findMany({
@@ -92,9 +120,63 @@ export default async function HooksPage() {
   return (
     <div>
       <PageHeader
-        title="Hook Performance"
-        description="Which hooks are driving the most views and referrals"
+        title="Hooks"
+        description="Define the hooks creators can tag videos with, and see which ones perform."
       />
+
+      {canManage && <HookManager hooks={hooksForManager} />}
+
+      {hooks.length > 0 && (
+        <div className="mb-8 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-100 px-5 py-3">
+            <h3 className="text-sm font-semibold text-slate-800">
+              Usage by defined hook
+            </h3>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Counts tagged uploads only. Once videos post, referrals and
+              views flow into the leaderboard below.
+            </p>
+          </div>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-100 text-left">
+                <th className="px-5 py-3 text-xs font-medium text-gray-500">
+                  Hook
+                </th>
+                <th className="px-5 py-3 text-xs font-medium text-gray-500">
+                  Category
+                </th>
+                <th className="px-5 py-3 text-right text-xs font-medium text-gray-500">
+                  Tagged uploads
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {hooks.map((h) => (
+                <tr
+                  key={h.id}
+                  className="border-b border-slate-50 last:border-0"
+                >
+                  <td className="px-5 py-3 text-sm text-slate-700">
+                    {h.text}
+                    {!h.isActive && (
+                      <span className="ml-2 text-xs text-slate-400">
+                        (archived)
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3 text-xs text-slate-500">
+                    {h.category ?? "—"}
+                  </td>
+                  <td className="px-5 py-3 text-right text-sm text-slate-700">
+                    {uploadCountByHookId.get(h.id) ?? 0}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {hookStats.length === 0 ? (
         <EmptyState

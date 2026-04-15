@@ -22,6 +22,7 @@ model Team {
   apiKeys   ApiKey[]
   settings  TeamSettings?
   invites   TeamInvite[]
+  hooks     Hook[]
 
   @@map("teams")
 }
@@ -332,6 +333,24 @@ model CampaignDailyMetric {
   @@map("campaign_daily_metrics")
 }
 
+// ─── HOOKS (taxonomy) ───────────────────────────────────────
+
+model Hook {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  text      String
+  category  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  uploads Upload[]
+
+  @@index([teamId, isActive])
+  @@map("hooks")
+}
+
 // ─── CONTENT TRAITS (AI) ────────────────────────────────────
 
 model ContentTraits {
@@ -476,6 +495,13 @@ model Upload {
   status      UploadStatus @default(PENDING)
   feedback    String?
   reviewedAt  DateTime?
+
+  // Hook tagging — creators either pick a predefined Hook (`hookId`) or type a
+  // one-off freestyle hook (`freestyleHook`). Exactly one is set in practice.
+  hookId        String?
+  hook          Hook?    @relation(fields: [hookId], references: [id], onDelete: SetNull)
+  freestyleHook String?
+
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 

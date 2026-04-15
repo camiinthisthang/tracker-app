@@ -20,9 +20,23 @@ interface Campaign {
   name: string;
 }
 
-const ONBOARDING_OPTION_ID = "__onboarding_docs__";
+interface HookOption {
+  id: string;
+  text: string;
+  category: string | null;
+}
 
-export function CreatorUploadForm({ campaigns }: { campaigns: Campaign[] }) {
+const ONBOARDING_OPTION_ID = "__onboarding_docs__";
+const FREESTYLE_HOOK_ID = "__freestyle__";
+const NO_HOOK_ID = "__none__";
+
+export function CreatorUploadForm({
+  campaigns,
+  hooks = [],
+}: {
+  campaigns: Campaign[];
+  hooks?: HookOption[];
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [campaignId, setCampaignId] = useState(
@@ -30,6 +44,8 @@ export function CreatorUploadForm({ campaigns }: { campaigns: Campaign[] }) {
   );
   const [fileName, setFileName] = useState("");
   const [fileUrl, setFileUrl] = useState("");
+  const [hookSelection, setHookSelection] = useState<string>(NO_HOOK_ID);
+  const [freestyleHook, setFreestyleHook] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,6 +55,19 @@ export function CreatorUploadForm({ campaigns }: { campaigns: Campaign[] }) {
     }
 
     const isOnboarding = campaignId === ONBOARDING_OPTION_ID;
+    let hookId: string | null = null;
+    let freestyle: string | null = null;
+    if (!isOnboarding) {
+      if (hookSelection === FREESTYLE_HOOK_ID) {
+        if (!freestyleHook.trim()) {
+          toast.error("Type your freestyle hook or switch to a defined one");
+          return;
+        }
+        freestyle = freestyleHook.trim();
+      } else if (hookSelection !== NO_HOOK_ID) {
+        hookId = hookSelection;
+      }
+    }
 
     setLoading(true);
     try {
@@ -51,6 +80,8 @@ export function CreatorUploadForm({ campaigns }: { campaigns: Campaign[] }) {
           fileName,
           fileUrl,
           fileSize: 0,
+          hookId,
+          freestyleHook: freestyle,
         }),
       });
 
@@ -62,6 +93,8 @@ export function CreatorUploadForm({ campaigns }: { campaigns: Campaign[] }) {
       toast.success("Video submitted for review!");
       setFileName("");
       setFileUrl("");
+      setHookSelection(NO_HOOK_ID);
+      setFreestyleHook("");
       router.refresh();
     } catch {
       toast.error("Something went wrong");
@@ -139,6 +172,53 @@ export function CreatorUploadForm({ campaigns }: { campaigns: Campaign[] }) {
           />
         </div>
       </div>
+
+      {campaignId !== ONBOARDING_OPTION_ID && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-xs font-medium text-slate-700">
+              Hook (optional)
+            </Label>
+            <Select
+              value={hookSelection}
+              onValueChange={(v) => v && setHookSelection(v)}
+            >
+              <SelectTrigger>
+                <SelectValue>
+                  {hookSelection === NO_HOOK_ID && "No hook"}
+                  {hookSelection === FREESTYLE_HOOK_ID && "Freestyle…"}
+                  {hookSelection !== NO_HOOK_ID &&
+                    hookSelection !== FREESTYLE_HOOK_ID &&
+                    hooks.find((h) => h.id === hookSelection)?.text}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_HOOK_ID}>No hook</SelectItem>
+                {hooks.map((h) => (
+                  <SelectItem key={h.id} value={h.id}>
+                    {h.text}
+                  </SelectItem>
+                ))}
+                <SelectItem value={FREESTYLE_HOOK_ID}>
+                  Freestyle: type your own…
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {hookSelection === FREESTYLE_HOOK_ID && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">
+                Your hook
+              </Label>
+              <Input
+                placeholder="POV: my first…"
+                value={freestyleHook}
+                onChange={(e) => setFreestyleHook(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-4 flex justify-end">
         <Button

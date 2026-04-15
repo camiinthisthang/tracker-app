@@ -51,6 +51,18 @@ export default async function CreatorUploadsPage() {
     .filter((cc) => cc.campaign.isActive)
     .map((cc) => cc.campaign);
 
+  const creatorRecord = await prisma.creator.findUnique({
+    where: { id: creatorId },
+    select: { teamId: true },
+  });
+  const hooks = creatorRecord
+    ? await prisma.hook.findMany({
+        where: { teamId: creatorRecord.teamId, isActive: true },
+        select: { id: true, text: true, category: true },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+
   const uploads = await prisma.upload.findMany({
     where: { creatorId },
     include: { campaign: { select: { id: true, name: true } } },
@@ -69,7 +81,7 @@ export default async function CreatorUploadsPage() {
       />
 
       {/* Upload form */}
-      <CreatorUploadForm campaigns={activeCampaigns} />
+      <CreatorUploadForm campaigns={activeCampaigns} hooks={hooks} />
 
       {/* Stats */}
       <div className="mt-6 grid gap-3 sm:grid-cols-3">

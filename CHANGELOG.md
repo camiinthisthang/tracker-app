@@ -62,4 +62,24 @@ tangent.
   preserves whitespace) so creators can read the FTC warming instructions.
 - `// TODO: templatize brand name` placed next to the Chipped-specific copy.
 
+## 2026-04-16 22:50 — task #4: hook taxonomy + tagging
+- **Schema:** new `Hook` model (id, teamId, text, category?, isActive,
+  createdAt, updatedAt) with `Team.hooks` relation + index on
+  (teamId, isActive). `Upload` gained `hookId` (FK → Hook, onDelete SET NULL)
+  and `freestyleHook` (text) for one-off hooks. Migration
+  `20260416010000_add_hook_model/migration.sql`.
+- **APIs:** `/api/hooks` (GET/POST) + `/api/hooks/[hookId]` (PATCH).
+  POST/PATCH require ADMIN or super-admin. Archive = `isActive=false`.
+- **Admin UI:** `/hooks` page now has a `HookManager` (add / edit / archive)
+  above the existing analytics. Added a "Usage by defined hook" table that
+  shows tagged-upload count per Hook row.
+- **Creator UI:** `creator-upload-form.tsx` exposes a Hook dropdown with
+  three branches — `No hook` (default), one of the team's defined hooks,
+  or "Freestyle: type your own…". Selecting freestyle reveals a text input
+  that writes `Upload.freestyleHook`. Form hides the hook picker when the
+  user has selected the Onboarding-documents destination.
+- **Upload API:** validates `hookId` belongs to the caller's team before
+  writing, trims freestyle input, silently drops both on onboarding uploads.
+
+
 
