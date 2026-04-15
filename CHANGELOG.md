@@ -135,6 +135,32 @@ tangent.
 - **Setup:** paste the API key + project ID on the client page, hit
   "Test connection", done — daily cron fills in the rest.
 
+## 2026-04-17 00:10 — task #8: viral notifications (email + SMS)
+- **Schema:** `Creator.notificationPrefs Json`, new `ViralNotification`
+  (postId, creatorId, channel enum EMAIL/SMS, sentAt, status, errorMsg)
+  with unique (postId, channel) index to prevent double-sends. Migration
+  `20260416040000_add_viral_notifications/migration.sql`.
+- **Detection:** `src/lib/notifications/viral.ts` diffs today vs
+  yesterday's `PostMetricsSnapshot` per post; fires when delta ≥ creator
+  threshold (default 50K = `DEFAULT_VIRAL_THRESHOLD`, overridable per
+  creator).
+- **Channels:** Email via Resend (already wired). SMS via Twilio using
+  `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_PHONE_NUMBER`.
+  **Twilio is not configured yet** — when the cron runs in prod it'll
+  log and skip SMS until those env vars are set. Email still fires.
+- **Cron:** `/api/cron/viral-notifications` at 15:00 UTC daily (added to
+  `vercel.json`). Auth via `Bearer $CRON_SECRET` in prod.
+- **Creator UI:** `/profile` gains a "Viral video alerts" card —
+  opt-in email / opt-in SMS (with phone number), custom threshold. Saves
+  via new `/api/notification-prefs` PATCH.
+
+### Blocked — needs Cami
+- **Task #8 (SMS):** Twilio env vars (`TWILIO_ACCOUNT_SID`,
+  `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`) aren't set. SMS opt-in
+  saves fine but the cron will skip actual sends until you add them in
+  Vercel project env.
+
+
 
 
 

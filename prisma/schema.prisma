@@ -241,6 +241,10 @@ model Creator {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
+  // Notification preferences; shape:
+  // { viralEmail: bool, viralSms: bool, phoneNumber?: string, threshold?: int }
+  notificationPrefs Json?
+
   campaignCreators CampaignCreator[]
   posts            Post[]
   tasks            Task[]
@@ -249,6 +253,7 @@ model Creator {
   uploads          Upload[]
   messages         CreatorMessage[]
   attributions     CreatorAttribution[]
+  viralNotifications ViralNotification[]
 
   @@index([teamId])
   @@map("creators")
@@ -588,6 +593,28 @@ model CreatorApplication {
   @@index([status])
   @@index([createdAt])
   @@map("creator_applications")
+}
+
+// ─── VIRAL NOTIFICATIONS ────────────────────────────────────
+
+enum ViralNotificationChannel {
+  EMAIL
+  SMS
+}
+
+model ViralNotification {
+  id         String                   @id @default(cuid())
+  postId     String
+  creatorId  String
+  creator    Creator                  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  channel    ViralNotificationChannel
+  sentAt     DateTime                 @default(now())
+  status     String                   @default("SENT")
+  errorMsg   String?
+
+  @@unique([postId, channel])
+  @@index([creatorId])
+  @@map("viral_notifications")
 }
 
 // ─── CREATOR ATTRIBUTION (PostHog sync) ─────────────────────
