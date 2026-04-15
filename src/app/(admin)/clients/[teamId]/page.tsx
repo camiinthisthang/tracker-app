@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { InviteManagerButton } from "@/components/clients/invite-manager-button";
+import { RemoveMemberButton } from "@/components/clients/remove-member-button";
 
 export default async function ClientDetailPage({
   params,
@@ -104,9 +105,18 @@ export default async function ClientDetailPage({
                     </p>
                     <p className="text-xs text-slate-400">{m.user.email}</p>
                   </div>
-                  <Badge className="bg-slate-100 text-slate-600 hover:opacity-90">
-                    {m.role}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-slate-100 text-slate-600 hover:opacity-90">
+                      {m.role}
+                    </Badge>
+                    {m.role !== "CREATOR" && (
+                      <RemoveMemberButton
+                        teamId={team.id}
+                        memberId={m.id}
+                        label={m.user.name || m.user.email}
+                      />
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -130,6 +140,11 @@ export default async function ClientDetailPage({
                         {format(inv.expiresAt, "MMM d")}
                       </p>
                     </div>
+                    <RemoveMemberButton
+                      teamId={team.id}
+                      inviteId={inv.id}
+                      label={`invite for ${inv.email}`}
+                    />
                   </li>
                 ))}
               </ul>
