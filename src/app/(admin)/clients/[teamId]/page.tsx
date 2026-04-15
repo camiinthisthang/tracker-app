@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { InviteManagerButton } from "@/components/clients/invite-manager-button";
 import { RemoveMemberButton } from "@/components/clients/remove-member-button";
 import { BonusRulesManager } from "@/components/clients/bonus-rules-manager";
+import { PostHogConfig } from "@/components/clients/posthog-config";
 
 export default async function ClientDetailPage({
   params,
@@ -205,6 +206,16 @@ export default async function ClientDetailPage({
         {/* Bonus rules */}
         <div className="lg:col-span-2">
           <BonusRulesManager teamId={team.id} rules={bonusRulesSerialized} />
+        </div>
+
+        {/* PostHog attribution */}
+        <div className="lg:col-span-2">
+          <PostHogConfig
+            teamId={team.id}
+            hasApiKey={Boolean(team.settings?.posthogApiKey)}
+            projectId={team.settings?.posthogProjectId ?? null}
+            host={team.settings?.posthogHost ?? null}
+          />
         </div>
 
         {/* Creators */}

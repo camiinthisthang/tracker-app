@@ -43,6 +43,11 @@ export default async function CreatorDetailPage({
     where: { creatorId },
     _sum: { views: true },
   });
+  const totalSignups = await prisma.creatorAttribution.aggregate({
+    where: { creatorId },
+    _sum: { signupCount: true },
+  });
+  const attributedSignups = totalSignups._sum.signupCount ?? 0;
 
   return (
     <div>
@@ -134,11 +139,15 @@ export default async function CreatorDetailPage({
       </div>
 
       {/* Stats */}
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+      <div className="mt-4 grid gap-4 sm:grid-cols-4">
         <StatCard label="Total Posts" value={creator._count.posts} />
         <StatCard
           label="Total Views"
           value={(totalViews._sum.views ?? 0).toLocaleString()}
+        />
+        <StatCard
+          label="Attributed Signups"
+          value={attributedSignups.toLocaleString()}
         />
         <StatCard
           label="Active Campaigns"

@@ -116,6 +116,26 @@ tangent.
   cron doesn't 500 when email isn't configured. Subject line includes the
   campaign name and week's total views.
 
+## 2026-04-16 23:50 — task #7: PostHog integration
+- **Schema:** `TeamSettings.posthogApiKey / posthogProjectId / posthogHost`.
+  New `CreatorAttribution` model (creatorId, date, signupCount, unique on
+  (creatorId, date)). Migration
+  `20260416030000_add_posthog_attribution/migration.sql`.
+- **Sync helper:** `src/lib/posthog.ts` runs a HogQL query over the last
+  30 days grouping events by `properties.referral_creator_id` + day,
+  filters to known team creators, upserts `CreatorAttribution` rows.
+- **Cron:** `/api/cron/posthog-sync` runs daily at 06:30 UTC (added to
+  `vercel.json`). Iterates every team with creds configured.
+- **Admin UI:** `PostHogConfig` on `/clients/[teamId]` has API key input
+  (password-masked, preserves existing value on empty), project ID,
+  optional host, plus "Test connection" and "Sync now" buttons. Save /
+  test / sync hit `/api/posthog`.
+- **Surface:** "Attributed Signups (7d)" on `/dashboard` stat grid,
+  "Attributed Signups" stat on `/creators/[creatorId]` (lifetime total).
+- **Setup:** paste the API key + project ID on the client page, hit
+  "Test connection", done — daily cron fills in the rest.
+
+
 
 
 

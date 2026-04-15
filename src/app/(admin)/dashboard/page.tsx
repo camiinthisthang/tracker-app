@@ -58,6 +58,15 @@ export default async function DashboardPage() {
 
   const weeklyViews = viewsThisWeek._sum.views ?? 0;
 
+  const attributedThisWeek = await prisma.creatorAttribution.aggregate({
+    where: {
+      creator: { teamId },
+      date: { gte: sevenDaysAgo },
+    },
+    _sum: { signupCount: true },
+  });
+  const signupsThisWeek = attributedThisWeek._sum.signupCount ?? 0;
+
   return (
     <div>
       <PageHeader
@@ -66,11 +75,15 @@ export default async function DashboardPage() {
       />
 
       {/* Stat Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Active Campaigns" value={activeCampaigns} />
         <StatCard label="Active Creators" value={totalCreators} />
         <StatCard label="Posts This Week" value={totalPostsThisWeek.toLocaleString()} />
         <StatCard label="Views This Week" value={weeklyViews.toLocaleString()} />
+        <StatCard
+          label="Attributed Signups (7d)"
+          value={signupsThisWeek.toLocaleString()}
+        />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

@@ -41,6 +41,11 @@ model TeamSettings {
   youtubeApiKey    String?
   facebookToken    String?
 
+  // PostHog attribution (see src/app/api/cron/posthog-sync/route.ts).
+  posthogApiKey    String?
+  posthogProjectId String?
+  posthogHost      String?
+
   // Scheduling link for interview invites (e.g., https://cal.com/yourname/interview)
   schedulingUrl    String?
 
@@ -243,6 +248,7 @@ model Creator {
   earnings         CreatorEarning[]
   uploads          Upload[]
   messages         CreatorMessage[]
+  attributions     CreatorAttribution[]
 
   @@index([teamId])
   @@map("creators")
@@ -582,6 +588,22 @@ model CreatorApplication {
   @@index([status])
   @@index([createdAt])
   @@map("creator_applications")
+}
+
+// ─── CREATOR ATTRIBUTION (PostHog sync) ─────────────────────
+
+model CreatorAttribution {
+  id           String   @id @default(cuid())
+  creatorId    String
+  creator      Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  date         DateTime @db.Date
+  signupCount  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([creatorId, date])
+  @@index([creatorId])
+  @@map("creator_attributions")
 }
 
 // ─── CREATOR EARNINGS (for 1099) ────────────────────────────
