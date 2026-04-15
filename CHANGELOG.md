@@ -42,3 +42,24 @@ tangent.
 - Cost: ≈6 results × $0.001/result ≈ **$0.006 burned** (negligible).
 - No code fixes needed in `src/lib/social/apify.ts`.
 
+## 2026-04-16 22:30 — tasks #2 + #3: auto-onboarding tasks
+- **Schema:** added `ONBOARDING` to `TaskType`, made `Task.campaignId`
+  nullable, added `UploadCategory` enum (`CONTENT` / `ONBOARDING_DOCS`),
+  made `Upload.campaignId` nullable, added `Upload.category` column
+  default `CONTENT`. Migration
+  `20260416000000_onboarding_tasks_uploads/migration.sql`.
+- **Tenant filter change:** tasks + uploads APIs now tenant-check via
+  `creator.teamId` instead of `campaign.teamId`, so orphan onboarding rows
+  (campaignId = null) remain visible.
+- New helper `src/lib/tasks/onboarding.ts` creates two tasks (tax form,
+  FTC + account warming) due 7 days out, idempotent by (creatorId, title).
+- Hooked into application-approve flow right after pinned welcome message
+  creation in `src/app/api/applications/[applicationId]/route.ts`.
+- Tax form task body references "Onboarding documents" destination in the
+  Uploads tab. `creator-upload-form.tsx` now shows that option in the
+  dropdown; selecting it sets `category=ONBOARDING_DOCS` + `campaignId=null`.
+- **TaskItem** now renders expandable `description` body (chevron toggle,
+  preserves whitespace) so creators can read the FTC warming instructions.
+- `// TODO: templatize brand name` placed next to the Chipped-specific copy.
+
+

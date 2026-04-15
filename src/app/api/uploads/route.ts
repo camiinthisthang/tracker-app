@@ -8,8 +8,10 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const campaignId = searchParams.get("campaignId");
 
+    // Tenant-check via creator so onboarding uploads (campaignId = null) are
+    // still visible.
     const where: Record<string, unknown> = {
-      campaign: { teamId: session.user.teamId },
+      creator: { teamId: session.user.teamId },
     };
     if (campaignId) where.campaignId = campaignId;
     if (session.user.role === "CREATOR" && session.user.creatorId) {
@@ -36,17 +38,37 @@ export async function POST(req: Request) {
     const session = await getRequiredSession();
     const body = await req.json();
 
-    const campaign = await prisma.campaign.findFirst({
-      where: { id: body.campaignId, teamId: session.user.teamId },
-    });
-    if (!campaign) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+    const category: "CONTENT" | "ONBOARDING_DOCS" =
+      body.category === "ONBOARDING_DOCS" ? "ONBOARDING_DOCS" : "CONTENT";
+
+    // Onboarding uploads don't belong to a campaign; regular content uploads do.
+    if (category === "CONTENT") {
+      const campaign = await prisma.campaign.findFirst({
+        where: { id: body.campaignId, teamId: session.user.teamId },
+      });
+      if (!campaign) {
+        return NextResponse.json(
+          { error: "Campaign not found" },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Derive the creator ID for the logged-in creator rather than trusting the
+    // client payload. Managers can still pass creatorId explicitly.
+    let creatorId = body.creatorId as string | undefined;
+    if (session.user.role === "CREATOR" && session.user.creatorId) {
+      creatorId = session.user.creatorId;
+    }
+    if (!creatorId) {
+      return NextResponse.json({ error: "creatorId required" }, { status: 400 });
     }
 
     const upload = await prisma.upload.create({
       data: {
-        campaignId: body.campaignId,
-        creatorId: body.creatorId,
+        campaignId: category === "CONTENT" ? body.campaignId : null,
+        creatorId,
+        category,
         fileName: body.fileName,
         fileUrl: body.fileUrl,
         fileSize: body.fileSize || 0,
@@ -67,7 +89,7 @@ export async function PATCH(req: Request) {
     const upload = await prisma.upload.findFirst({
       where: {
         id: body.uploadId,
-        campaign: { teamId: session.user.teamId },
+        creator: { teamId: session.user.teamId },
       },
     });
     if (!upload) {

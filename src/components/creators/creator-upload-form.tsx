@@ -20,23 +20,16 @@ interface Campaign {
   name: string;
 }
 
+const ONBOARDING_OPTION_ID = "__onboarding_docs__";
+
 export function CreatorUploadForm({ campaigns }: { campaigns: Campaign[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [campaignId, setCampaignId] = useState(campaigns[0]?.id ?? "");
+  const [campaignId, setCampaignId] = useState(
+    campaigns[0]?.id ?? ONBOARDING_OPTION_ID
+  );
   const [fileName, setFileName] = useState("");
   const [fileUrl, setFileUrl] = useState("");
-
-  if (campaigns.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-        <Upload className="mx-auto h-6 w-6 text-slate-300" />
-        <p className="mt-2 text-sm text-slate-500">
-          No active campaigns assigned to you yet
-        </p>
-      </div>
-    );
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,13 +38,16 @@ export function CreatorUploadForm({ campaigns }: { campaigns: Campaign[] }) {
       return;
     }
 
+    const isOnboarding = campaignId === ONBOARDING_OPTION_ID;
+
     setLoading(true);
     try {
       const res = await fetch("/api/uploads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          campaignId,
+          campaignId: isOnboarding ? null : campaignId,
+          category: isOnboarding ? "ONBOARDING_DOCS" : "CONTENT",
           fileName,
           fileUrl,
           fileSize: 0,
@@ -97,15 +93,17 @@ export function CreatorUploadForm({ campaigns }: { campaigns: Campaign[] }) {
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-slate-700">
-            Campaign
+            Destination
           </Label>
           <Select
             value={campaignId}
             onValueChange={(v) => v && setCampaignId(v)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select a campaign">
-                {campaigns.find((c) => c.id === campaignId)?.name}
+              <SelectValue placeholder="Select destination">
+                {campaignId === ONBOARDING_OPTION_ID
+                  ? "Onboarding documents"
+                  : campaigns.find((c) => c.id === campaignId)?.name}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -114,6 +112,9 @@ export function CreatorUploadForm({ campaigns }: { campaigns: Campaign[] }) {
                   {c.name}
                 </SelectItem>
               ))}
+              <SelectItem value={ONBOARDING_OPTION_ID}>
+                Onboarding documents
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>

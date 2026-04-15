@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { createOnboardingTasks } from "@/lib/tasks/onboarding";
 
 export async function PATCH(
   req: Request,
@@ -118,6 +119,10 @@ export async function PATCH(
               },
             });
           }
+
+          // Queue the standard onboarding tasks (tax form + FTC/account setup)
+          // so the creator sees them on their first login.
+          await createOnboardingTasks(creator.id);
         }
       }
     }

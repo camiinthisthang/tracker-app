@@ -34,11 +34,14 @@ export default async function CreatorTasksPage() {
   ]);
 
   const campaignMap = new Map<string, { id: string; name: string }>();
-  for (const t of tasks) campaignMap.set(t.campaign.id, t.campaign);
+  for (const t of tasks) {
+    if (t.campaign) campaignMap.set(t.campaign.id, t.campaign);
+  }
   const campaigns = Array.from(campaignMap.values());
 
   const serialized = tasks.map((t) => ({
     ...t,
+    campaign: t.campaign ?? null,
     dueDate: t.dueDate.toISOString(),
     completedAt: t.completedAt?.toISOString() || null,
     createdAt: t.createdAt.toISOString(),

@@ -354,12 +354,15 @@ enum TaskType {
   POST_VIDEOS
   UPLOAD_FOR_REVIEW
   RESPOND_TO_COMMENTS
+  ONBOARDING
   CUSTOM
 }
 
 model Task {
   id          String    @id @default(cuid())
-  campaignId  String
+  // Onboarding tasks are created at creator approval and aren't tied to any
+  // campaign, so campaignId is nullable.
+  campaignId  String?
   creatorId   String
   type        TaskType
   title       String
@@ -370,8 +373,8 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  creator  Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator  Creator   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
 
   @@index([creatorId, dueDate])
   @@index([campaignId])
@@ -455,21 +458,29 @@ enum UploadStatus {
   REJECTED
 }
 
+enum UploadCategory {
+  CONTENT
+  ONBOARDING_DOCS
+}
+
 model Upload {
   id          String       @id @default(cuid())
-  campaignId  String
+  // Null for onboarding-document uploads (tax forms, IDs) that aren't tied to
+  // a specific campaign.
+  campaignId  String?
   creatorId   String
   fileName    String
   fileUrl     String
   fileSize    Int
+  category    UploadCategory @default(CONTENT)
   status      UploadStatus @default(PENDING)
   feedback    String?
   reviewedAt  DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  creator  Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator  Creator   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
 
   @@index([campaignId])
   @@index([creatorId])

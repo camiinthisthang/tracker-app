@@ -10,14 +10,15 @@ export async function GET(req: Request) {
     const campaignId = searchParams.get("campaignId");
     const creatorId = searchParams.get("creatorId");
 
+    // Tenant-check via the creator's team so we still pick up onboarding tasks
+    // (campaignId = null). The old campaign-based check filtered them out.
     const where: Record<string, unknown> = {
-      campaign: { teamId: session.user.teamId },
+      creator: { teamId: session.user.teamId },
     };
 
     if (campaignId) where.campaignId = campaignId;
     if (creatorId) where.creatorId = creatorId;
 
-    // If user is a creator, only show their tasks
     if (session.user.role === "CREATOR" && session.user.creatorId) {
       where.creatorId = session.user.creatorId;
     }
@@ -49,11 +50,12 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "taskId is required" }, { status: 400 });
     }
 
-    // Verify task belongs to user's team
+    // Verify task belongs to user's team (via creator, since onboarding tasks
+    // have no campaign).
     const task = await prisma.task.findFirst({
       where: {
         id: taskId,
-        campaign: { teamId: session.user.teamId },
+        creator: { teamId: session.user.teamId },
       },
     });
 

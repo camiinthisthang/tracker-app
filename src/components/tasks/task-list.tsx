@@ -7,11 +7,15 @@ import { TaskItem } from "./task-item";
 interface Task {
   id: string;
   title: string;
+  description?: string | null;
   type: string;
   dueDate: string;
   isCompleted: boolean;
-  campaign: { id: string; name: string };
+  campaign: { id: string; name: string } | null;
 }
+
+const ONBOARDING_GROUP_ID = "__onboarding__";
+const ONBOARDING_GROUP_NAME = "Onboarding";
 
 interface TaskListProps {
   tasks: Task[];
@@ -23,7 +27,10 @@ export function TaskList({ tasks, campaigns }: TaskListProps) {
 
   const filtered = useMemo(() => {
     if (campaignFilter === "all") return tasks;
-    return tasks.filter((t) => t.campaign.id === campaignFilter);
+    if (campaignFilter === ONBOARDING_GROUP_ID) {
+      return tasks.filter((t) => !t.campaign);
+    }
+    return tasks.filter((t) => t.campaign?.id === campaignFilter);
   }, [tasks, campaignFilter]);
 
   // Group tasks by date
@@ -97,7 +104,7 @@ export function TaskList({ tasks, campaigns }: TaskListProps) {
             // Group by campaign within each date
             const byCampaign = new Map<string, Task[]>();
             for (const t of dateTasks) {
-              const key = t.campaign.id;
+              const key = t.campaign?.id ?? ONBOARDING_GROUP_ID;
               const existing = byCampaign.get(key) || [];
               existing.push(t);
               byCampaign.set(key, existing);
@@ -110,7 +117,8 @@ export function TaskList({ tasks, campaigns }: TaskListProps) {
                 </h3>
                 {Array.from(byCampaign.entries()).map(
                   ([campaignId, campaignTasks]) => {
-                    const campaignName = campaignTasks[0].campaign.name;
+                    const campaignName =
+                      campaignTasks[0].campaign?.name ?? ONBOARDING_GROUP_NAME;
                     return (
                       <div key={campaignId} className="mb-3">
                         <p className="mb-1 text-xs font-medium text-slate-500">
@@ -122,6 +130,7 @@ export function TaskList({ tasks, campaigns }: TaskListProps) {
                               key={task.id}
                               id={task.id}
                               title={task.title}
+                              description={task.description ?? null}
                               type={task.type}
                               dueDate={task.dueDate}
                               isCompleted={task.isCompleted}

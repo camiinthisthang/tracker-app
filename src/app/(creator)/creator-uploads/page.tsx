@@ -114,7 +114,11 @@ export default async function CreatorUploadsPage() {
                         {u.fileName}
                       </p>
                       <p className="text-xs text-slate-400">
-                        {u.campaign.name} ·{" "}
+                        {u.campaign?.name ??
+                          (u.category === "ONBOARDING_DOCS"
+                            ? "Onboarding documents"
+                            : "—")}{" "}
+                        ·{" "}
                         {format(u.createdAt, "MMM d, yyyy h:mm a")}
                       </p>
                       {u.feedback && (
