@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { ExternalLink, ArrowRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { creatorVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
@@ -15,6 +16,10 @@ export default async function DashboardPage() {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+  const creatorWhere = {
+    AND: [creatorVisibilityWhere(session), { isActive: true }],
+  };
+
   const [
     activeCampaigns,
     totalCreators,
@@ -24,7 +29,7 @@ export default async function DashboardPage() {
     topCreators,
   ] = await Promise.all([
     prisma.campaign.count({ where: { teamId, isActive: true } }),
-    prisma.creator.count({ where: { teamId, isActive: true } }),
+    prisma.creator.count({ where: creatorWhere }),
     prisma.post.count({
       where: { campaign: { teamId }, postedAt: { gte: sevenDaysAgo } },
     }),
@@ -42,7 +47,7 @@ export default async function DashboardPage() {
       take: 5,
     }),
     prisma.creator.findMany({
-      where: { teamId, isActive: true },
+      where: creatorWhere,
       include: {
         _count: { select: { posts: true } },
       },

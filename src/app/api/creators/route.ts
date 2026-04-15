@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { creatorVisibilityWhere } from "@/lib/visibility";
 import { createCreatorSchema } from "@/lib/validations/creator";
 
 export async function GET() {
@@ -8,7 +9,7 @@ export async function GET() {
     const session = await getRequiredSession();
 
     const creators = await prisma.creator.findMany({
-      where: { teamId: session.user.teamId },
+      where: creatorVisibilityWhere(session),
       include: {
         campaignCreators: {
           include: {

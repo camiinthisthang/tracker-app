@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { canAccessCreator } from "@/lib/visibility";
 import {
   fetchTikTokPostsViaApify,
   fetchInstagramPostsViaApify,
@@ -41,11 +42,10 @@ export async function POST(
     return NextResponse.json({ error: "Creator not found" }, { status: 404 });
   }
 
-  // Scope check: unless super admin, creator must belong to session's team.
-  if (
-    !session.user.isSuperAdmin &&
-    creator.teamId !== session.user.teamId
-  ) {
+  // Scope check: super admin sees all; client manager sees creators on their
+  // team's campaigns OR creators "homed" on their team.
+  const allowed = await canAccessCreator(prisma, creator, session);
+  if (!allowed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

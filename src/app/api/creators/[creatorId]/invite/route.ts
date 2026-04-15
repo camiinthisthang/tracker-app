@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { canAccessCreator } from "@/lib/visibility";
 
 export async function POST(
   _req: Request,
@@ -11,8 +12,8 @@ export async function POST(
     const session = await getRequiredSession();
     const { creatorId } = await params;
 
-    const creator = await prisma.creator.findFirst({
-      where: { id: creatorId, teamId: session.user.teamId },
+    const creator = await prisma.creator.findUnique({
+      where: { id: creatorId },
     });
 
     if (!creator) {
@@ -20,6 +21,11 @@ export async function POST(
         { error: "Creator not found" },
         { status: 404 }
       );
+    }
+
+    const allowed = await canAccessCreator(prisma, creator, session);
+    if (!allowed) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Generate invite token if not already set

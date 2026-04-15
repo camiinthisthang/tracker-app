@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { canAccessCreator } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
@@ -18,8 +19,8 @@ export default async function CreatorDetailPage({
   const session = await getRequiredSession();
   const { creatorId } = await params;
 
-  const creator = await prisma.creator.findFirst({
-    where: { id: creatorId, teamId: session.user.teamId },
+  const creator = await prisma.creator.findUnique({
+    where: { id: creatorId },
     include: {
       campaignCreators: {
         include: {
@@ -32,6 +33,11 @@ export default async function CreatorDetailPage({
   });
 
   if (!creator) notFound();
+
+  // Visibility: super admin sees any creator; client managers see creators
+  // assigned to one of their team's campaigns OR creators "homed" on their team.
+  const allowed = await canAccessCreator(prisma, creator, session);
+  if (!allowed) notFound();
 
   const totalViews = await prisma.post.aggregate({
     where: { creatorId },

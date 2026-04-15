@@ -1,6 +1,7 @@
 import { Users } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { creatorVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -10,7 +11,7 @@ export default async function CreatorsPage() {
   const session = await getRequiredSession();
 
   const creators = await prisma.creator.findMany({
-    where: { teamId: session.user.teamId },
+    where: creatorVisibilityWhere(session),
     include: {
       campaignCreators: {
         include: {
