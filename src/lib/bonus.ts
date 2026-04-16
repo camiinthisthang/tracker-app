@@ -9,7 +9,7 @@ export const VIRAL_VIEW_THRESHOLD = 50_000;
 export interface BonusProgress {
   ruleId: string;
   label: string;
-  trigger: "VIEW_THRESHOLD" | "VIRAL_COUNT";
+  trigger: "VIEW_THRESHOLD" | "VIRAL_COUNT" | "REFERRAL_COUNT" | "USER_DOWNLOAD" | "USER_PAID_PLAN";
   threshold: number;
   amountUsd: number;
   progress: number; // 0–1
@@ -20,7 +20,7 @@ export interface BonusProgress {
 export interface BonusSummary {
   earnedUsd: number;
   totalPossibleUsd: number;
-  monthlyPosts: Array<{ id: string; views: number; postedAt: Date }>;
+  monthlyPosts: Array<{ id: string; views: number; referrals: number; postedAt: Date }>;
   viralCount: number;
   maxSinglePostViews: number;
   rules: BonusProgress[];
@@ -58,7 +58,7 @@ export async function computeCreatorBonusSummary(
     }),
     prisma.post.findMany({
       where: { creatorId, postedAt: { gte: monthStart } },
-      select: { id: true, views: true, postedAt: true },
+      select: { id: true, views: true, referrals: true, postedAt: true },
     }),
   ]);
 
@@ -69,6 +69,17 @@ export async function computeCreatorBonusSummary(
     (m, p) => (p.views > m ? p.views : m),
     0
   );
+  const totalReferrals = monthlyPosts.reduce(
+    (s, p) => s + (p.referrals ?? 0),
+    0
+  );
+
+  // PostHog-sourced attribution for download / paid-plan triggers
+  const attributions = await prisma.creatorAttribution.aggregate({
+    where: { creatorId, date: { gte: monthStart } },
+    _sum: { signupCount: true },
+  });
+  const totalAttributedSignups = attributions._sum.signupCount ?? 0;
 
   let earnedUsd = 0;
   let totalPossibleUsd = 0;
@@ -79,6 +90,9 @@ export async function computeCreatorBonusSummary(
     let current = 0;
     if (r.trigger === "VIEW_THRESHOLD") current = maxSinglePostViews;
     else if (r.trigger === "VIRAL_COUNT") current = viralCount;
+    else if (r.trigger === "REFERRAL_COUNT") current = totalReferrals;
+    else if (r.trigger === "USER_DOWNLOAD") current = totalAttributedSignups;
+    else if (r.trigger === "USER_PAID_PLAN") current = totalAttributedSignups;
 
     const isEarned = current >= r.threshold;
     if (isEarned) earnedUsd += amountUsd;

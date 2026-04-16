@@ -7,6 +7,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
 import { InviteCreatorButton } from "@/components/creators/invite-creator-button";
 import { CreatorSocialHandles } from "@/components/creators/creator-social-handles";
+import { AssignToCampaign } from "@/components/creators/assign-to-campaign";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Music } from "lucide-react";
 import { PLATFORM_LABELS } from "@/lib/constants";
@@ -39,14 +40,26 @@ export default async function CreatorDetailPage({
   const allowed = await canAccessCreator(prisma, creator, session);
   if (!allowed) notFound();
 
-  const totalViews = await prisma.post.aggregate({
-    where: { creatorId },
-    _sum: { views: true },
-  });
-  const totalSignups = await prisma.creatorAttribution.aggregate({
-    where: { creatorId },
-    _sum: { signupCount: true },
-  });
+  const [totalViews, totalSignups, allCampaigns] = await Promise.all([
+    prisma.post.aggregate({
+      where: { creatorId },
+      _sum: { views: true },
+    }),
+    prisma.creatorAttribution.aggregate({
+      where: { creatorId },
+      _sum: { signupCount: true },
+    }),
+    session.user.isSuperAdmin
+      ? prisma.campaign.findMany({
+          select: { id: true, name: true, isActive: true },
+          orderBy: { name: "asc" },
+        })
+      : prisma.campaign.findMany({
+          where: { teamId: session.user.teamId },
+          select: { id: true, name: true, isActive: true },
+          orderBy: { name: "asc" },
+        }),
+  ]);
   const attributedSignups = totalSignups._sum.signupCount ?? 0;
 
   return (
@@ -162,7 +175,7 @@ export default async function CreatorDetailPage({
         <h3 className="text-sm font-semibold text-slate-800">Campaigns</h3>
         {creator.campaignCreators.length === 0 ? (
           <p className="mt-3 text-sm text-slate-400">
-            Not assigned to any campaigns
+            Not assigned to any campaigns yet — use the dropdown below to assign.
           </p>
         ) : (
           <div className="mt-3 space-y-2">
@@ -193,6 +206,13 @@ export default async function CreatorDetailPage({
             ))}
           </div>
         )}
+        <AssignToCampaign
+          creatorId={creator.id}
+          existingCampaignIds={creator.campaignCreators.map(
+            (cc) => cc.campaign.id
+          )}
+          campaigns={allCampaigns}
+        />
       </div>
     </div>
   );

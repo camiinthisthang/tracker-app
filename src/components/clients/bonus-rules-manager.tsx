@@ -18,7 +18,7 @@ import { toast } from "sonner";
 
 export interface BonusRuleRow {
   id: string;
-  trigger: "VIEW_THRESHOLD" | "VIRAL_COUNT";
+  trigger: "VIEW_THRESHOLD" | "VIRAL_COUNT" | "REFERRAL_COUNT" | "USER_DOWNLOAD" | "USER_PAID_PLAN";
   threshold: number;
   amountUsd: string;
   label: string;
@@ -28,6 +28,9 @@ export interface BonusRuleRow {
 const TRIGGER_LABEL: Record<BonusRuleRow["trigger"], string> = {
   VIEW_THRESHOLD: "views on a single post",
   VIRAL_COUNT: "viral videos this month",
+  REFERRAL_COUNT: "referrals this month",
+  USER_DOWNLOAD: "user downloads this month",
+  USER_PAID_PLAN: "paid plan conversions this month",
 };
 
 export function BonusRulesManager({

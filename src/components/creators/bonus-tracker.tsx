@@ -2,13 +2,20 @@ import { Sparkles, CheckCircle2 } from "lucide-react";
 import type { BonusSummary } from "@/lib/bonus";
 
 function formatTriggerCopy(
-  trigger: "VIEW_THRESHOLD" | "VIRAL_COUNT",
+  trigger: string,
   threshold: number
 ) {
-  if (trigger === "VIEW_THRESHOLD") {
+  if (trigger === "VIEW_THRESHOLD")
     return `Land a post with ${threshold.toLocaleString()}+ views`;
-  }
-  return `Hit ${threshold} viral videos this month`;
+  if (trigger === "VIRAL_COUNT")
+    return `Hit ${threshold} viral videos this month`;
+  if (trigger === "REFERRAL_COUNT")
+    return `Drive ${threshold.toLocaleString()}+ referrals this month`;
+  if (trigger === "USER_DOWNLOAD")
+    return `Drive ${threshold.toLocaleString()}+ downloads this month`;
+  if (trigger === "USER_PAID_PLAN")
+    return `Drive ${threshold.toLocaleString()}+ paid conversions this month`;
+  return `Hit ${threshold.toLocaleString()}+ ${trigger.toLowerCase().replace(/_/g, " ")}`;
 }
 
 export function BonusTracker({ summary }: { summary: BonusSummary }) {

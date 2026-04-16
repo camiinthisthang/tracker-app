@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     const rule = await prisma.bonusRule.create({
       data: {
         teamId,
-        trigger: body.trigger as "VIEW_THRESHOLD" | "VIRAL_COUNT",
+        trigger: body.trigger as "VIEW_THRESHOLD" | "VIRAL_COUNT" | "REFERRAL_COUNT" | "USER_DOWNLOAD" | "USER_PAID_PLAN",
         threshold: Math.floor(threshold),
         amountUsd,
         label,

@@ -71,7 +71,9 @@ export function CampaignChartsClient({
           onValueChange={(v) => v && setSelectedCampaign(v)}
         >
           <SelectTrigger className="w-[250px]">
-            <SelectValue placeholder="Select campaign" />
+            <SelectValue placeholder="Select campaign">
+              {campaigns.find((c) => c.id === selectedCampaign)?.name}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {campaigns.map((c) => (

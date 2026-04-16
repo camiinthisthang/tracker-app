@@ -350,6 +350,9 @@ model CampaignDailyMetric {
 enum BonusTrigger {
   VIEW_THRESHOLD
   VIRAL_COUNT
+  REFERRAL_COUNT
+  USER_DOWNLOAD
+  USER_PAID_PLAN
 }
 
 model BonusRule {
