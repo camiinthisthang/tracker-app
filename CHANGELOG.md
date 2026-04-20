@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-04-21 00:05 — task #2: creator delete action
+- **New:** `DELETE /api/creators/[creatorId]` — super-admin only. Inside a `$transaction`: deletes the linked `User` first (cascades `TeamMember`/`Session`/`Account`), then the `Creator` (cascades `Post`, `PostMetricsSnapshot` via Post, `Task`, `CreatorMessage`, `Upload`, `CampaignCreator`, `ViralNotification`, `CreatorAttribution`, `CreatorEarning`). Schema already had `onDelete: Cascade` on every FK — no migration needed.
+- **New:** `src/components/creators/delete-creator-danger-zone.tsx` — collapsed "Danger zone" card at the bottom of `/creators/[id]` with red accent. Click to expand, reveals a red `Delete creator` button. Opens a confirm dialog that requires typing the creator's exact name before the permanent-delete button enables.
+- Rendered only when `session.user.isSuperAdmin` is true.
+- On success: toast "Creator deleted", `router.push("/creators")`, `router.refresh()`.
+- Tested: `npm run build` passes.
+
 ## 2026-04-20 22:15 — task #1: nuclear data reset script
 - **New:** `scripts/reset-data.ts` wipes every non-super-admin row behind a required `--confirm` flag. All mutations happen inside a single Prisma `$transaction` so partial failure rolls back.
 - Keeps: Cami (`camirgarzon@gmail.com`) + Jacqueline (`jacquelinegiale@gmail.com`) as super admins, one `Team` named "Tapmore" (renames the agency team in place if found, else creates fresh), `TeamSettings` for Tapmore (preserves `schedulingUrl` / `creatorWelcomeTemplate` / PostHog fields via an upsert-with-empty-update), two ADMIN `TeamMember` rows linking each super admin to Tapmore.

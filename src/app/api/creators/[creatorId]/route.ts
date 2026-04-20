@@ -73,3 +73,41 @@ export async function PATCH(
 
   return NextResponse.json(updated);
 }
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ creatorId: string }> }
+) {
+  const session = await getSession();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!session.user.isSuperAdmin) {
+    return NextResponse.json(
+      { error: "Only super admins can delete creators" },
+      { status: 403 }
+    );
+  }
+
+  const { creatorId } = await params;
+  const creator = await prisma.creator.findUnique({
+    where: { id: creatorId },
+    include: { teamMember: { select: { userId: true } } },
+  });
+  if (!creator) {
+    return NextResponse.json({ error: "Creator not found" }, { status: 404 });
+  }
+
+  // Delete the linked User first (cascades TeamMember/Session/Account) so the
+  // creator login is gone, then the Creator row (cascades Posts, Tasks,
+  // CreatorMessage, Upload, CampaignCreator, ViralNotification,
+  // CreatorAttribution, CreatorEarning via the schema).
+  await prisma.$transaction(async (tx) => {
+    if (creator.teamMember?.userId) {
+      await tx.user.delete({ where: { id: creator.teamMember.userId } });
+    }
+    await tx.creator.delete({ where: { id: creatorId } });
+  });
+
+  return NextResponse.json({ success: true });
+}

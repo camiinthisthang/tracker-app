@@ -8,6 +8,7 @@ import { TierBadge } from "@/components/creators/tier-badge";
 import { InviteCreatorButton } from "@/components/creators/invite-creator-button";
 import { CreatorSocialHandles } from "@/components/creators/creator-social-handles";
 import { AssignToCampaign } from "@/components/creators/assign-to-campaign";
+import { DeleteCreatorDangerZone } from "@/components/creators/delete-creator-danger-zone";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Music } from "lucide-react";
 import { PLATFORM_LABELS } from "@/lib/constants";
@@ -215,6 +216,13 @@ export default async function CreatorDetailPage({
           campaigns={allCampaigns}
         />
       </div>
+
+      {session.user.isSuperAdmin && (
+        <DeleteCreatorDangerZone
+          creatorId={creator.id}
+          creatorName={creator.name}
+        />
+      )}
     </div>
   );
 }
