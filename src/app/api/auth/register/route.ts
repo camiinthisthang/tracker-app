@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { findEmailConflict } from "@/lib/email-conflict";
 
 export async function POST(req: Request) {
   try {
@@ -13,13 +14,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    const conflict = await findEmailConflict(email, {
+      check: ["user", "creator"],
     });
-
-    if (existingUser) {
+    if (conflict) {
       return NextResponse.json(
-        { error: "User already exists" },
+        {
+          error: conflict.message,
+          suggestion:
+            conflict.table === "user"
+              ? "Sign in with your existing password instead of registering again."
+              : conflict.suggestion,
+          conflict: { table: conflict.table, existingId: conflict.existingId },
+        },
         { status: 409 }
       );
     }

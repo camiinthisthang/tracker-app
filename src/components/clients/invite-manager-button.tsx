@@ -43,7 +43,9 @@ export function InviteManagerButton({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        toast.error(body?.error || "Could not create invite");
+        toast.error(body?.error || "Could not create invite", {
+          description: body?.suggestion,
+        });
         setLoading(false);
         return;
       }

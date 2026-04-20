@@ -27,6 +27,20 @@ tangent.
 
 ---
 
+## 2026-04-21 01:40 — task #6: specific email-conflict errors
+- **New helper:** `src/lib/email-conflict.ts#findEmailConflict(email, { check })` — checks User / Creator / open-status CreatorApplication (PENDING or REVIEWING) tables in that priority order and returns `{ table, existingId, message, suggestion }` or null. `check` option lets callers narrow to the tables they actually care about (e.g. `register-creator` only checks User so it doesn't false-positive on the invited creator's own Creator row).
+- **API responses** now include three fields on a 409 email-conflict: `error` (the human message, which table has it), `suggestion` (next-action string), and `conflict.{table, existingId}` (so the UI can deep-link to the existing row).
+- **Applied to:**
+  - `POST /api/creators` — checks all three tables before creating. Main place where Cami hit this.
+  - `POST /api/clients/[teamId]/invite` — checks Creator + Application tables. Deliberately does NOT block on an existing User (the invite-accept flow already gracefully attaches existing users to new teams, so blocking would be wrong).
+  - `POST /api/auth/register` — checks User + Creator. Suggestion for existing user is "sign in with your existing password".
+  - `POST /api/auth/register-creator` — checks User only (a Creator row for the invitee is expected).
+- **UI surfacing:**
+  - `AddCreatorButton` toast now shows the suggestion as the toast description and, when the conflict is a Creator or Application, attaches an action button that navigates straight to the existing record (`/creators/{id}` or `/applications`).
+  - `InviteManagerButton` toast shows the suggestion as the description.
+- Note: the reset in task #1 already cleared the specific Jacqueline conflict, so the in-the-wild symptom is gone. This is preventative for future dupes.
+- Tested: `npm run build` passes.
+
 ## 2026-04-21 01:20 — task #5: client onboarding PostHog setup step
 - **Schema change:** `TeamSettings.posthogOnboardingSkippedAt DateTime?` — set when a user explicitly skips the onboarding card so we don't re-prompt later. Migration `prisma/migrations/20260421000000_add_posthog_onboarding_skip/migration.sql`.
 - **New page:** `/onboarding/posthog` (under a new `src/app/onboarding/layout.tsx` with the same centered auth-style wrapper). Server component pulls current `TeamSettings`; if `posthogApiKey` is already set it bounces the user to `/dashboard`. Creators are redirected to `/home`.

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { findEmailConflict } from "@/lib/email-conflict";
 
 export async function POST(
   req: Request,
@@ -23,6 +24,24 @@ export async function POST(
   const team = await prisma.team.findUnique({ where: { id: teamId } });
   if (!team) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
+  }
+
+  // Creator / open-application conflicts block a manager invite — the email
+  // is already "claimed" by a different kind of account and the invite would
+  // create a confusing second one. A preexisting User is NOT a block: the
+  // accept-invite flow gracefully attaches an existing user to the new team.
+  const conflict = await findEmailConflict(email, {
+    check: ["creator", "application"],
+  });
+  if (conflict) {
+    return NextResponse.json(
+      {
+        error: conflict.message,
+        suggestion: conflict.suggestion,
+        conflict: { table: conflict.table, existingId: conflict.existingId },
+      },
+      { status: 409 }
+    );
   }
 
   const token = crypto.randomBytes(24).toString("hex");

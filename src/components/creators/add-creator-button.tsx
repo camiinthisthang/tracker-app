@@ -97,7 +97,25 @@ export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) 
 
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(data?.error || "Could not create creator");
+        const message = data?.error || "Could not create creator";
+        const description = data?.suggestion as string | undefined;
+        const conflict = data?.conflict as
+          | { table: "user" | "creator" | "application"; existingId: string }
+          | undefined;
+        const action =
+          conflict?.table === "creator"
+            ? {
+                label: "View creator",
+                onClick: () =>
+                  router.push(`/creators/${conflict.existingId}`),
+              }
+            : conflict?.table === "application"
+            ? {
+                label: "Open application",
+                onClick: () => router.push(`/applications`),
+              }
+            : undefined;
+        toast.error(message, { description, action });
         setSubmitting(false);
         return;
       }

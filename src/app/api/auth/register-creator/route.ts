@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { findEmailConflict } from "@/lib/email-conflict";
 
 export async function POST(req: Request) {
   try {
@@ -37,14 +38,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if the email is already used
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
+    // Check if the email already owns a User account. We DON'T check the
+    // creator table here — the caller is a creator accepting their own invite,
+    // so their own Creator row is expected.
+    const conflict = await findEmailConflict(email, { check: ["user"] });
+    if (conflict) {
       return NextResponse.json(
-        { error: "An account with this email already exists." },
+        {
+          error: conflict.message,
+          suggestion:
+            "Sign in with your existing account instead, or ask the agency to re-send the invite to a different email.",
+          conflict: { table: conflict.table, existingId: conflict.existingId },
+        },
         { status: 409 }
       );
     }

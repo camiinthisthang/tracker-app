@@ -5,6 +5,7 @@ import { getRequiredSession } from "@/lib/auth";
 import { creatorVisibilityWhere } from "@/lib/visibility";
 import { createCreatorSchema } from "@/lib/validations/creator";
 import { sendCreatorInvite } from "@/lib/email/creator-invite";
+import { findEmailConflict } from "@/lib/email-conflict";
 
 export async function GET() {
   try {
@@ -74,6 +75,20 @@ export async function POST(req: Request) {
 
     const inviteToken = crypto.randomBytes(16).toString("hex");
     const email = data.email?.trim() || null;
+
+    if (email) {
+      const conflict = await findEmailConflict(email);
+      if (conflict) {
+        return NextResponse.json(
+          {
+            error: conflict.message,
+            suggestion: conflict.suggestion,
+            conflict: { table: conflict.table, existingId: conflict.existingId },
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     // Handle is an internal display slug on the creator card. Auto-derive from
     // name if the caller didn't pass one — e.g. "Jane Doe" → "jane.doe".
