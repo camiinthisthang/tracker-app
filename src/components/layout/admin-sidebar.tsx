@@ -37,13 +37,15 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-// Super-admin-only items — only Cami sees these. Applications (review creator
-// applicants) and Clients (multi-tenant dashboard) both require platform-level
-// access.
-const superAdminItems = [
+// Agency-wide items — super admins + agency managers (Tapmore team) see these.
+// Applications (review creator applicants) and Clients (multi-tenant dashboard)
+// both require cross-client visibility.
+const agencyNavItems = [
   { href: "/applications", label: "Applications", icon: Inbox },
   { href: "/clients", label: "Clients", icon: Building2 },
 ];
+
+const AGENCY_TEAM_NAME = "Tapmore";
 
 export function AdminSidebar() {
   const { data: session } = useSession();
@@ -67,12 +69,13 @@ export function AdminSidebar() {
         {navItems.map((item) => (
           <SidebarNavItem key={item.href} {...item} />
         ))}
-        {session?.user?.isSuperAdmin && (
+        {(session?.user?.isSuperAdmin ||
+          session?.user?.teamName === AGENCY_TEAM_NAME) && (
           <>
             <div className="mt-4 mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               Agency
             </div>
-            {superAdminItems.map((item) => (
+            {agencyNavItems.map((item) => (
               <SidebarNavItem key={item.href} {...item} />
             ))}
           </>

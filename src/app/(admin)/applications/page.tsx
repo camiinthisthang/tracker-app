@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { Inbox, ExternalLink } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requireSuperAdmin } from "@/lib/auth";
+import { requireAgencyAccess } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default async function ApplicationsPage() {
-  const session = await requireSuperAdmin();
+  const session = await requireAgencyAccess();
 
   const [applications, team] = await Promise.all([
     prisma.creatorApplication.findMany({ orderBy: { createdAt: "desc" } }),

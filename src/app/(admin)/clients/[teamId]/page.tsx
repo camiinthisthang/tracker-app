@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { Users, Megaphone, UserPlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requireSuperAdmin } from "@/lib/auth";
+import { requireAgencyAccess, AGENCY_TEAM_NAME } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +17,10 @@ export default async function ClientDetailPage({
 }: {
   params: Promise<{ teamId: string }>;
 }) {
-  await requireSuperAdmin();
+  await requireAgencyAccess();
   const { teamId } = await params;
+
+  const isAgencyTeam = (name: string) => name === AGENCY_TEAM_NAME;
 
   const team = await prisma.team.findUnique({
     where: { id: teamId },
@@ -121,6 +123,19 @@ export default async function ClientDetailPage({
                     <p className="text-xs text-slate-400">{m.user.email}</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {m.role !== "CREATOR" && (
+                      <Badge
+                        className={
+                          isAgencyTeam(team.name)
+                            ? "bg-indigo-50 text-indigo-700 hover:opacity-90"
+                            : "bg-blue-50 text-blue-700 hover:opacity-90"
+                        }
+                      >
+                        {isAgencyTeam(team.name)
+                          ? "Agency manager"
+                          : "Client manager"}
+                      </Badge>
+                    )}
                     <Badge className="bg-slate-100 text-slate-600 hover:opacity-90">
                       {m.role}
                     </Badge>

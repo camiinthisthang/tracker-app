@@ -1,9 +1,12 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { hasAgencyWideAccess } from "@/lib/auth";
 
 interface SessionLike {
   user: {
     teamId: string;
     isSuperAdmin: boolean;
+    role?: "ADMIN" | "MEMBER" | "CREATOR";
+    teamName?: string | null;
   };
 }
 
@@ -11,17 +14,17 @@ interface SessionLike {
  * Visibility filter for Creator queries.
  *
  * Creators are an agency-wide pool: a single Creator can work on campaigns
- * across multiple client teams via CampaignCreator. So a non-super-admin
- * user (a client account manager) should see a creator if EITHER:
+ * across multiple client teams via CampaignCreator. So a client manager
+ * should see a creator if EITHER:
  *   - the creator's home team is theirs (Creator.teamId), OR
  *   - the creator is currently assigned to one of their team's campaigns
  *
- * Super admins see every creator.
+ * Super admins + agency managers see every creator.
  */
 export function creatorVisibilityWhere(
   session: SessionLike
 ): Prisma.CreatorWhereInput {
-  if (session.user.isSuperAdmin) return {};
+  if (hasAgencyWideAccess(session)) return {};
   return {
     OR: [
       { teamId: session.user.teamId },
@@ -55,7 +58,7 @@ export async function canAccessCreator(
   creator: { id: string; teamId: string | null },
   session: SessionLike
 ): Promise<boolean> {
-  if (session.user.isSuperAdmin) return true;
+  if (hasAgencyWideAccess(session)) return true;
   if (creator.teamId === session.user.teamId) return true;
   const overlap = await prismaClient.campaignCreator.findFirst({
     where: {

@@ -2,13 +2,13 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Building2, Plus, Users, Megaphone, Film } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requireSuperAdmin } from "@/lib/auth";
+import { requireAgencyAccess } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/shared/stat-card";
 
 export default async function ClientsPage() {
-  await requireSuperAdmin();
+  await requireAgencyAccess();
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

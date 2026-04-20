@@ -27,6 +27,15 @@ tangent.
 
 ---
 
+## 2026-04-21 00:50 — task #4: agency manager vs client manager distinction
+- **`src/lib/auth.ts`:** new `getUserAccessLevel(session)` returning `"super_admin" | "agency_manager" | "client_manager" | "creator"`. Rules: `isSuperAdmin` → super_admin, `role=CREATOR` → creator, `teamName === "Tapmore"` (exported as `AGENCY_TEAM_NAME`) → agency_manager, else client_manager. Companion helper `hasAgencyWideAccess()` collapses the first two into one bool. New gate `requireAgencyAccess()` mirrors `requireSuperAdmin()` but admits agency managers too.
+- **Visibility audit:** `src/lib/visibility.ts` now calls `hasAgencyWideAccess()` instead of checking `isSuperAdmin` directly. Agency managers (anyone on Tapmore) now get the empty `where {}` return in `creatorVisibilityWhere` and unconditional `true` in `canAccessCreator` — they see every creator, not just their own team's. `SessionLike` expanded with `role` + `teamName`.
+- **`/clients`** now gated on `requireAgencyAccess()` (was super-admin only). `/applications` same — it's cross-client so agency managers should be able to triage. `/clients/new` stays super-admin only (only Cami creates new client workspaces).
+- **`/clients/[teamId]` members list** gains an explicit "Agency manager" vs "Client manager" badge per non-creator member. Color-coded (indigo vs blue) so agency vs client managers are visually distinct.
+- **Admin sidebar** — "Agency" nav group (Applications + Clients) now shows to anyone on Tapmore, not just super admins.
+- **No schema change** (the task said derive from existing data) — entirely session-derived.
+- Tested: `npm run build` passes.
+
 ## 2026-04-21 00:25 — task #3: expose USER_DOWNLOAD + USER_PAID_PLAN bonus triggers
 - **UI:** `BonusRulesManager` trigger dropdown now shows all five `BonusTrigger` enum values (added `REFERRAL_COUNT`, `USER_DOWNLOAD`, `USER_PAID_PLAN`). Labels match the task spec: "Bonus per user signup (PostHog)" and "Bonus per user on paid plan (PostHog)".
 - **UI:** Threshold field gains per-trigger placeholder + help-text — the PostHog triggers read "Count of attributed signups/paid-plan users this month (from PostHog)" so the number's meaning is obvious.
