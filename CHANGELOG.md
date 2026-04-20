@@ -27,6 +27,20 @@ tangent.
 
 ---
 
+## 2026-04-20 22:15 — task #1: nuclear data reset script
+- **New:** `scripts/reset-data.ts` wipes every non-super-admin row behind a required `--confirm` flag. All mutations happen inside a single Prisma `$transaction` so partial failure rolls back.
+- Keeps: Cami (`camirgarzon@gmail.com`) + Jacqueline (`jacquelinegiale@gmail.com`) as super admins, one `Team` named "Tapmore" (renames the agency team in place if found, else creates fresh), `TeamSettings` for Tapmore (preserves `schedulingUrl` / `creatorWelcomeTemplate` / PostHog fields via an upsert-with-empty-update), two ADMIN `TeamMember` rows linking each super admin to Tapmore.
+- Preflight: deletes any stale `Creator` or `CreatorApplication` rows with Jacqueline's email so her signup isn't blocked after the reset. Nulls `TeamMember.creatorId` before wiping creators so the FK doesn't fire.
+- Wipes: every row in `Creator`, `CreatorApplication`, `Post`, `PostMetricsSnapshot`, `CampaignDailyMetric`, `Task`, `CreatorMessage`, `Upload`, `Campaign`, `CampaignCreator`, `Hook`, `BonusRule`, `ViralNotification`, `CreatorAttribution`, `WeeklyReportConfig`, `NotificationRule`, `TeamInvite`, `ApiKey`, `ContentTraits`, `CreatorEarning`, `VerificationToken`, all other `TeamMember`s, all other `Team`s, all other `User`s.
+- Final assertion inside the transaction: `Creator=0, User=2, Team=1, TeamMember=2` — mismatch throws and rolls back.
+- **Ran locally against dev DB** — counts asserted, Tapmore team + settings present, both users super admins, passwordHash for Cami preserved (was set; left untouched by `upsert.update`).
+- **For Cami to run against prod** (not run from here — requires her to paste the prod `DATABASE_URL`):
+  ```bash
+  DATABASE_URL="<prod connection string>" npx tsx scripts/reset-data.ts --confirm
+  ```
+  After: Jacqueline sets her password via `/register` with her gmail (or via a fresh team invite; no blocking rows remain).
+- Tested: `npm run build` passes.
+
 ## 2026-04-20 21:55 — interactive: super-admin creator-add flow + invite email + creator-self handle setup
 - **New:** `/creators` now has a "New creator" button (top right) that opens a modal. Super admins can pick the client team; everyone else auto-assigned to their own team. Minimum fields: name, email, handle, tier.
 - **New:** `src/lib/email/creator-invite.ts` — `sendCreatorInvite()` composes a branded HTML+text invite email with the `/invite/<token>` magic link.
