@@ -55,7 +55,6 @@ export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) 
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [handle, setHandle] = useState("");
   const [teamId, setTeamId] = useState(defaultTeamId);
   const [tier, setTier] = useState<(typeof TIER_OPTIONS)[number]["value"]>(
     "TRAINING"
@@ -64,7 +63,6 @@ export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) 
   function reset() {
     setName("");
     setEmail("");
-    setHandle("");
     setTeamId(defaultTeamId);
     setTier("TRAINING");
     setResult(null);
@@ -73,8 +71,8 @@ export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !handle.trim()) {
-      toast.error("Name and handle are required");
+    if (!name.trim()) {
+      toast.error("Name is required");
       return;
     }
     if (isSuperAdmin && !teamId) {
@@ -89,7 +87,6 @@ export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          handle: handle.trim(),
           email: email.trim() || undefined,
           teamId: isSuperAdmin ? teamId : undefined,
           tier,
@@ -176,20 +173,6 @@ export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) 
                   the link yourself.
                 </p>
               </div>
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-slate-600">Handle</Label>
-                <Input
-                  placeholder="jane.d"
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value)}
-                  required
-                />
-                <p className="text-[10px] text-slate-400">
-                  Internal display handle. Creator adds their real TikTok /
-                  Instagram handles during onboarding.
-                </p>
-              </div>
-
               {isSuperAdmin && (
                 <div className="grid gap-1.5">
                   <Label className="text-xs text-slate-600">Client</Label>
@@ -198,7 +181,9 @@ export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) 
                     onValueChange={(v) => v && setTeamId(v)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Pick a client" />
+                      <SelectValue placeholder="Pick a client">
+                        {teams.find((t) => t.id === teamId)?.name}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {teams.map((t) => (
@@ -220,7 +205,9 @@ export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) 
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue>
+                      {TIER_OPTIONS.find((t) => t.value === tier)?.label}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {TIER_OPTIONS.map((t) => (

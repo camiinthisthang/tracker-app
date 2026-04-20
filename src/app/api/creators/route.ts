@@ -75,11 +75,16 @@ export async function POST(req: Request) {
     const inviteToken = crypto.randomBytes(16).toString("hex");
     const email = data.email?.trim() || null;
 
+    // Handle is an internal display slug on the creator card. Auto-derive from
+    // name if the caller didn't pass one — e.g. "Jane Doe" → "jane.doe".
+    const handle = data.handle?.trim().replace(/^@+/, "") ||
+      data.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, ".").replace(/^\.+|\.+$/g, "");
+
     const creator = await prisma.creator.create({
       data: {
         teamId: team.id,
         name: data.name,
-        handle: data.handle.trim().replace(/^@+/, ""),
+        handle,
         email,
         tier: data.tier,
         isActive: data.isActive,

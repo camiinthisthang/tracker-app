@@ -56,7 +56,9 @@ export function AdminSidebar() {
           <BarChart3 className="h-4 w-4 text-white" />
         </div>
         <span className="text-base font-semibold text-slate-800">
-          {session?.user?.teamName || "Tracker"}
+          {session?.user?.isSuperAdmin
+            ? "Tapmore"
+            : session?.user?.teamName || "Tracker"}
         </span>
       </div>
 
