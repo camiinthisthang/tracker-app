@@ -46,6 +46,12 @@ model TeamSettings {
   posthogProjectId String?
   posthogHost      String?
 
+  // Set when a client manager explicitly skips the `/onboarding/posthog` step
+  // after accepting their team invite. Remains null once they actually fill
+  // creds in — used to avoid re-prompting the same user and to surface a
+  // "finish your PostHog setup" nudge later.
+  posthogOnboardingSkippedAt DateTime?
+
   // Scheduling link for interview invites (e.g., https://cal.com/yourname/interview)
   schedulingUrl    String?
 

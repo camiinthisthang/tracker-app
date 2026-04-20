@@ -62,7 +62,7 @@ export function AcceptTeamInviteForm({
         router.push("/login");
         return;
       }
-      router.push("/dashboard");
+      router.push(data?.needsPostHogOnboarding ? "/onboarding/posthog" : "/dashboard");
       router.refresh();
     } catch {
       toast.error("Something went wrong");

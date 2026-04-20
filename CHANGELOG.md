@@ -27,6 +27,18 @@ tangent.
 
 ---
 
+## 2026-04-21 01:20 — task #5: client onboarding PostHog setup step
+- **Schema change:** `TeamSettings.posthogOnboardingSkippedAt DateTime?` — set when a user explicitly skips the onboarding card so we don't re-prompt later. Migration `prisma/migrations/20260421000000_add_posthog_onboarding_skip/migration.sql`.
+- **New page:** `/onboarding/posthog` (under a new `src/app/onboarding/layout.tsx` with the same centered auth-style wrapper). Server component pulls current `TeamSettings`; if `posthogApiKey` is already set it bounces the user to `/dashboard`. Creators are redirected to `/home`.
+- **New component:** `src/components/onboarding/posthog-onboarding-form.tsx` — three inputs (API key password-style / project ID required / host optional with `https://us.i.posthog.com` placeholder), a "Test connection" button that reports inline success/failure, a "Skip for now" ghost button, and a slate-900 "Save and continue" primary.
+- **New endpoint:** `POST /api/posthog/test` — accepts unsaved `{apiKey, projectId, host}` in the body so the onboarding form can validate before the first save. ADMIN / super-admin only.
+- **New endpoint:** `POST /api/posthog/skip` — stamps `posthogOnboardingSkippedAt=now()` via upsert. ADMIN / super-admin only.
+- **Save path:** reuses the existing `PATCH /api/posthog` which already upserts TeamSettings.
+- **Routing hook:** `POST /api/invite/team/accept` now returns `needsPostHogOnboarding` (only true for freshly-created users on a team whose `posthogApiKey` is null). `AcceptTeamInviteForm` uses that flag to redirect to `/onboarding/posthog` instead of `/dashboard` after credentials sign-in.
+- **Not forced on existing users** — `needsPostHogOnboarding` is `false` if the accepting user already had a User row (the `accountAlreadyExisted` path sends them to `/login` anyway).
+- Google-via-team-invite path still lands on `/dashboard` directly (Google callback URL is set once at button click before we know if the signup is fresh). Not worth the complexity to route Google invitees through onboarding — noted but not implemented.
+- Tested: `npm run build` passes. Migration applied locally.
+
 ## 2026-04-21 00:50 — task #4: agency manager vs client manager distinction
 - **`src/lib/auth.ts`:** new `getUserAccessLevel(session)` returning `"super_admin" | "agency_manager" | "client_manager" | "creator"`. Rules: `isSuperAdmin` → super_admin, `role=CREATOR` → creator, `teamName === "Tapmore"` (exported as `AGENCY_TEAM_NAME`) → agency_manager, else client_manager. Companion helper `hasAgencyWideAccess()` collapses the first two into one bool. New gate `requireAgencyAccess()` mirrors `requireSuperAdmin()` but admits agency managers too.
 - **Visibility audit:** `src/lib/visibility.ts` now calls `hasAgencyWideAccess()` instead of checking `isSuperAdmin` directly. Agency managers (anyone on Tapmore) now get the empty `where {}` return in `creatorVisibilityWhere` and unconditional `true` in `canAccessCreator` — they see every creator, not just their own team's. `SessionLike` expanded with `role` + `teamName`.

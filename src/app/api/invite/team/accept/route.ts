@@ -84,9 +84,22 @@ export async function POST(req: Request) {
     data: { acceptedAt: new Date() },
   });
 
+  // Tell the client whether to route to the PostHog onboarding step. Only fire
+  // it on fresh invite signups (not for users who already had an account) and
+  // only when the team hasn't already configured a PostHog API key.
+  let needsPostHogOnboarding = false;
+  if (!accountAlreadyExisted) {
+    const teamSettings = await prisma.teamSettings.findUnique({
+      where: { teamId: invite.teamId },
+      select: { posthogApiKey: true },
+    });
+    needsPostHogOnboarding = !teamSettings?.posthogApiKey;
+  }
+
   return NextResponse.json({
     ok: true,
     accountAlreadyExisted,
     passwordWasReplaced,
+    needsPostHogOnboarding,
   });
 }
