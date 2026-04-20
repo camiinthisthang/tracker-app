@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 
+// Per-unit triggers: earnings = count × amountUsd. VIEW_THRESHOLD was a
+// milestone-style trigger (flat bonus at N views) — kept in the enum for
+// backwards compat but no longer accepted from the UI.
 const VALID_TRIGGERS = new Set([
-  "VIEW_THRESHOLD",
   "VIRAL_COUNT",
   "REFERRAL_COUNT",
   "USER_DOWNLOAD",
@@ -46,11 +48,7 @@ export async function POST(req: Request) {
     ) {
       return NextResponse.json({ error: "Invalid trigger" }, { status: 400 });
     }
-    const threshold = Number(body.threshold);
     const amountUsd = Number(body.amountUsd);
-    if (!Number.isFinite(threshold) || threshold <= 0) {
-      return NextResponse.json({ error: "Invalid threshold" }, { status: 400 });
-    }
     if (!Number.isFinite(amountUsd) || amountUsd < 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
@@ -63,11 +61,14 @@ export async function POST(req: Request) {
         ? body.teamId
         : session.user.teamId;
 
+    // `threshold` is NOT NULL in the schema; keep the column populated with 1
+    // so existing rows aren't disturbed and new rules are valid. It's unused
+    // by the per-unit bonus calc (see src/lib/bonus.ts).
     const rule = await prisma.bonusRule.create({
       data: {
         teamId,
-        trigger: body.trigger as "VIEW_THRESHOLD" | "VIRAL_COUNT" | "REFERRAL_COUNT" | "USER_DOWNLOAD" | "USER_PAID_PLAN",
-        threshold: Math.floor(threshold),
+        trigger: body.trigger as "VIRAL_COUNT" | "REFERRAL_COUNT" | "USER_DOWNLOAD" | "USER_PAID_PLAN",
+        threshold: 1,
         amountUsd,
         label,
       },

@@ -1,35 +1,33 @@
 import { startOfMonth } from "date-fns";
 import { prisma } from "@/lib/prisma";
 
-// Viral threshold used for VIRAL_COUNT rules. Matches the default used in the
-// viral-notification feature — keeping them consistent avoids confusing
-// creators about what counts as viral.
+// Viral threshold used by VIRAL_COUNT (per-unit): a post is "viral" when its
+// view count crosses this line. Matches the default used in the viral-
+// notification feature so creators see a consistent definition of viral.
 export const VIRAL_VIEW_THRESHOLD = 50_000;
 
 export interface BonusProgress {
   ruleId: string;
   label: string;
-  trigger: "VIEW_THRESHOLD" | "VIRAL_COUNT" | "REFERRAL_COUNT" | "USER_DOWNLOAD" | "USER_PAID_PLAN";
-  threshold: number;
-  amountUsd: number;
-  progress: number; // 0–1
+  trigger: "VIRAL_COUNT" | "REFERRAL_COUNT" | "USER_DOWNLOAD" | "USER_PAID_PLAN";
+  /** USD per unit (signup, viral video, referral, paid signup). */
+  ratePerUnit: number;
+  /** Creator's count for this month. */
   current: number;
-  isEarned: boolean;
+  /** current × ratePerUnit — how much they've already earned. */
+  earnedUsd: number;
 }
 
 export interface BonusSummary {
   earnedUsd: number;
-  totalPossibleUsd: number;
   monthlyPosts: Array<{ id: string; views: number; referrals: number; postedAt: Date }>;
   viralCount: number;
-  maxSinglePostViews: number;
   rules: BonusProgress[];
-  nextMilestone: BonusProgress | null;
 }
 
 /**
- * Compute the creator's bonus progress for the current calendar month, based
- * on the team's active BonusRules.
+ * Compute the creator's bonus earnings for the current calendar month under
+ * the team's active per-unit BonusRules.
  */
 export async function computeCreatorBonusSummary(
   creatorId: string
@@ -41,12 +39,9 @@ export async function computeCreatorBonusSummary(
   if (!creator) {
     return {
       earnedUsd: 0,
-      totalPossibleUsd: 0,
       monthlyPosts: [],
       viralCount: 0,
-      maxSinglePostViews: 0,
       rules: [],
-      nextMilestone: null,
     };
   }
 
@@ -54,7 +49,7 @@ export async function computeCreatorBonusSummary(
   const [rules, monthlyPosts] = await Promise.all([
     prisma.bonusRule.findMany({
       where: { teamId: creator.teamId, isActive: true },
-      orderBy: { threshold: "asc" },
+      orderBy: { createdAt: "asc" },
     }),
     prisma.post.findMany({
       where: { creatorId, postedAt: { gte: monthStart } },
@@ -65,16 +60,14 @@ export async function computeCreatorBonusSummary(
   const viralCount = monthlyPosts.filter(
     (p) => p.views >= VIRAL_VIEW_THRESHOLD
   ).length;
-  const maxSinglePostViews = monthlyPosts.reduce(
-    (m, p) => (p.views > m ? p.views : m),
-    0
-  );
   const totalReferrals = monthlyPosts.reduce(
     (s, p) => s + (p.referrals ?? 0),
     0
   );
 
-  // PostHog-sourced attribution for download / paid-plan triggers
+  // PostHog attribution for download / paid-plan triggers. The current schema
+  // only tracks signupCount; USER_PAID_PLAN reuses that until the attribution
+  // model distinguishes paid vs free.
   const attributions = await prisma.creatorAttribution.aggregate({
     where: { creatorId, date: { gte: monthStart } },
     _sum: { signupCount: true },
@@ -82,45 +75,35 @@ export async function computeCreatorBonusSummary(
   const totalAttributedSignups = attributions._sum.signupCount ?? 0;
 
   let earnedUsd = 0;
-  let totalPossibleUsd = 0;
+  const ruleProgress: BonusProgress[] = [];
+  for (const r of rules) {
+    // Legacy VIEW_THRESHOLD rows aren't part of the per-unit model — skip.
+    if (r.trigger === "VIEW_THRESHOLD") continue;
 
-  const ruleProgress: BonusProgress[] = rules.map((r) => {
-    const amountUsd = Number(r.amountUsd);
-    totalPossibleUsd += amountUsd;
+    const ratePerUnit = Number(r.amountUsd);
     let current = 0;
-    if (r.trigger === "VIEW_THRESHOLD") current = maxSinglePostViews;
-    else if (r.trigger === "VIRAL_COUNT") current = viralCount;
+    if (r.trigger === "VIRAL_COUNT") current = viralCount;
     else if (r.trigger === "REFERRAL_COUNT") current = totalReferrals;
     else if (r.trigger === "USER_DOWNLOAD") current = totalAttributedSignups;
     else if (r.trigger === "USER_PAID_PLAN") current = totalAttributedSignups;
 
-    const isEarned = current >= r.threshold;
-    if (isEarned) earnedUsd += amountUsd;
+    const ruleEarnedUsd = current * ratePerUnit;
+    earnedUsd += ruleEarnedUsd;
 
-    return {
+    ruleProgress.push({
       ruleId: r.id,
       label: r.label,
       trigger: r.trigger,
-      threshold: r.threshold,
-      amountUsd,
-      progress: r.threshold > 0 ? Math.min(current / r.threshold, 1) : 0,
+      ratePerUnit,
       current,
-      isEarned,
-    };
-  });
-
-  const nextMilestone =
-    ruleProgress
-      .filter((r) => !r.isEarned)
-      .sort((a, b) => b.progress - a.progress)[0] ?? null;
+      earnedUsd: ruleEarnedUsd,
+    });
+  }
 
   return {
     earnedUsd,
-    totalPossibleUsd,
     monthlyPosts,
     viralCount,
-    maxSinglePostViews,
     rules: ruleProgress,
-    nextMilestone,
   };
 }

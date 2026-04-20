@@ -18,42 +18,31 @@ import { toast } from "sonner";
 
 export interface BonusRuleRow {
   id: string;
-  trigger: "VIEW_THRESHOLD" | "VIRAL_COUNT" | "REFERRAL_COUNT" | "USER_DOWNLOAD" | "USER_PAID_PLAN";
+  trigger:
+    | "VIRAL_COUNT"
+    | "REFERRAL_COUNT"
+    | "USER_DOWNLOAD"
+    | "USER_PAID_PLAN";
   threshold: number;
   amountUsd: string;
   label: string;
   isActive: boolean;
 }
 
-const TRIGGER_LABEL: Record<BonusRuleRow["trigger"], string> = {
-  VIEW_THRESHOLD: "views on a single post",
-  VIRAL_COUNT: "viral videos this month",
-  REFERRAL_COUNT: "referrals this month",
-  USER_DOWNLOAD: "Bonus per user signup (PostHog)",
-  USER_PAID_PLAN: "Bonus per user on paid plan (PostHog)",
+// What each trigger pays-per. Everything is a per-unit rate now; no milestones.
+const TRIGGER_UNIT: Record<BonusRuleRow["trigger"], string> = {
+  VIRAL_COUNT: "viral video",
+  REFERRAL_COUNT: "referral",
+  USER_DOWNLOAD: "signup",
+  USER_PAID_PLAN: "paid signup",
 };
 
-const POSTHOG_TRIGGERS = new Set<BonusRuleRow["trigger"]>([
-  "USER_DOWNLOAD",
-  "USER_PAID_PLAN",
-]);
-
-function thresholdHelpText(trigger: BonusRuleRow["trigger"]): string {
-  if (trigger === "VIEW_THRESHOLD") return "Views on a single post.";
-  if (trigger === "VIRAL_COUNT") return "Number of viral videos this month.";
-  if (trigger === "REFERRAL_COUNT") return "Referrals this month.";
-  if (trigger === "USER_DOWNLOAD")
-    return "Count of attributed signups this month (from PostHog).";
-  if (trigger === "USER_PAID_PLAN")
-    return "Count of attributed paid-plan users this month (from PostHog).";
-  return "";
-}
-
-function thresholdPlaceholder(trigger: BonusRuleRow["trigger"]): string {
-  if (trigger === "VIEW_THRESHOLD") return "100000";
-  if (POSTHOG_TRIGGERS.has(trigger)) return "10";
-  return "5";
-}
+const TRIGGER_OPTION_LABEL: Record<BonusRuleRow["trigger"], string> = {
+  USER_DOWNLOAD: "Per signup (PostHog)",
+  USER_PAID_PLAN: "Per paid-plan signup (PostHog)",
+  VIRAL_COUNT: "Per viral video",
+  REFERRAL_COUNT: "Per referral",
+};
 
 export function BonusRulesManager({
   teamId,
@@ -64,16 +53,15 @@ export function BonusRulesManager({
 }) {
   const router = useRouter();
   const [trigger, setTrigger] =
-    useState<BonusRuleRow["trigger"]>("VIEW_THRESHOLD");
-  const [threshold, setThreshold] = useState("");
+    useState<BonusRuleRow["trigger"]>("USER_DOWNLOAD");
   const [amount, setAmount] = useState("");
   const [label, setLabel] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!threshold || !amount || !label.trim()) {
-      toast.error("Fill threshold, amount, and label");
+    if (!amount || !label.trim()) {
+      toast.error("Fill amount and label");
       return;
     }
     setLoading(true);
@@ -84,7 +72,6 @@ export function BonusRulesManager({
         body: JSON.stringify({
           teamId,
           trigger,
-          threshold: Number(threshold),
           amountUsd: Number(amount),
           label,
         }),
@@ -93,7 +80,6 @@ export function BonusRulesManager({
         toast.error("Failed to add rule");
         return;
       }
-      setThreshold("");
       setAmount("");
       setLabel("");
       toast.success("Bonus rule added");
@@ -118,13 +104,15 @@ export function BonusRulesManager({
       <div className="border-b border-slate-100 px-5 py-3">
         <h3 className="text-sm font-semibold text-slate-800">Bonus rules</h3>
         <p className="mt-0.5 text-xs text-slate-500">
-          Creators see progress toward each active rule on their home screen.
+          Each rule pays a flat rate per unit — e.g. $1 per signup, $5 per
+          paid-plan signup. Creators see their running monthly total on the
+          home screen.
         </p>
       </div>
 
       <form
         onSubmit={handleCreate}
-        className="grid gap-2 border-b border-slate-100 px-5 py-4 sm:grid-cols-5"
+        className="grid gap-2 border-b border-slate-100 px-5 py-4 sm:grid-cols-4"
       >
         <div className="space-y-1 sm:col-span-2">
           <Label className="text-xs font-medium text-slate-700">Trigger</Label>
@@ -135,51 +123,35 @@ export function BonusRulesManager({
             }
           >
             <SelectTrigger>
-              <SelectValue>{TRIGGER_LABEL[trigger]}</SelectValue>
+              <SelectValue>{TRIGGER_OPTION_LABEL[trigger]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="VIEW_THRESHOLD">
-                {TRIGGER_LABEL.VIEW_THRESHOLD}
-              </SelectItem>
-              <SelectItem value="VIRAL_COUNT">
-                {TRIGGER_LABEL.VIRAL_COUNT}
-              </SelectItem>
-              <SelectItem value="REFERRAL_COUNT">
-                {TRIGGER_LABEL.REFERRAL_COUNT}
-              </SelectItem>
               <SelectItem value="USER_DOWNLOAD">
-                {TRIGGER_LABEL.USER_DOWNLOAD}
+                {TRIGGER_OPTION_LABEL.USER_DOWNLOAD}
               </SelectItem>
               <SelectItem value="USER_PAID_PLAN">
-                {TRIGGER_LABEL.USER_PAID_PLAN}
+                {TRIGGER_OPTION_LABEL.USER_PAID_PLAN}
+              </SelectItem>
+              <SelectItem value="VIRAL_COUNT">
+                {TRIGGER_OPTION_LABEL.VIRAL_COUNT}
+              </SelectItem>
+              <SelectItem value="REFERRAL_COUNT">
+                {TRIGGER_OPTION_LABEL.REFERRAL_COUNT}
               </SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
           <Label className="text-xs font-medium text-slate-700">
-            Threshold
+            USD per {TRIGGER_UNIT[trigger]}
           </Label>
-          <Input
-            type="number"
-            min={1}
-            value={threshold}
-            onChange={(e) => setThreshold(e.target.value)}
-            placeholder={thresholdPlaceholder(trigger)}
-          />
-          <p className="text-[11px] text-slate-400">
-            {thresholdHelpText(trigger)}
-          </p>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-slate-700">USD</Label>
           <Input
             type="number"
             min={0}
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder="200"
+            placeholder="1"
           />
         </div>
         <div className="space-y-1">
@@ -187,10 +159,10 @@ export function BonusRulesManager({
           <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="Viral bonus"
+            placeholder="Signup bonus"
           />
         </div>
-        <div className="sm:col-span-5 flex justify-end">
+        <div className="sm:col-span-4 flex justify-end">
           <Button
             type="submit"
             disabled={loading}
@@ -217,11 +189,10 @@ export function BonusRulesManager({
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-slate-800">{r.label}</p>
                 <p className="text-xs text-slate-500">
-                  Hit {r.threshold.toLocaleString()} {TRIGGER_LABEL[r.trigger]}{" "}
-                  →{" "}
                   <span className="font-medium text-emerald-600">
                     ${Number(r.amountUsd).toLocaleString()}
-                  </span>
+                  </span>{" "}
+                  per {TRIGGER_UNIT[r.trigger]}
                 </p>
               </div>
               {!r.isActive && (

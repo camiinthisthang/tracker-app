@@ -1,21 +1,18 @@
-import { Sparkles, CheckCircle2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import type { BonusSummary } from "@/lib/bonus";
 
-function formatTriggerCopy(
-  trigger: string,
-  threshold: number
-) {
-  if (trigger === "VIEW_THRESHOLD")
-    return `Land a post with ${threshold.toLocaleString()}+ views`;
-  if (trigger === "VIRAL_COUNT")
-    return `Hit ${threshold} viral videos this month`;
-  if (trigger === "REFERRAL_COUNT")
-    return `Drive ${threshold.toLocaleString()}+ referrals this month`;
-  if (trigger === "USER_DOWNLOAD")
-    return `Drive ${threshold.toLocaleString()}+ downloads this month`;
-  if (trigger === "USER_PAID_PLAN")
-    return `Drive ${threshold.toLocaleString()}+ paid conversions this month`;
-  return `Hit ${threshold.toLocaleString()}+ ${trigger.toLowerCase().replace(/_/g, " ")}`;
+const TRIGGER_UNIT: Record<
+  "VIRAL_COUNT" | "REFERRAL_COUNT" | "USER_DOWNLOAD" | "USER_PAID_PLAN",
+  string
+> = {
+  VIRAL_COUNT: "viral video",
+  REFERRAL_COUNT: "referral",
+  USER_DOWNLOAD: "signup",
+  USER_PAID_PLAN: "paid signup",
+};
+
+function pluralize(n: number, word: string) {
+  return n === 1 ? word : `${word}s`;
 }
 
 export function BonusTracker({ summary }: { summary: BonusSummary }) {
@@ -34,9 +31,8 @@ export function BonusTracker({ summary }: { summary: BonusSummary }) {
             ${summary.earnedUsd.toLocaleString()} earned this month
           </p>
           <p className="text-xs text-slate-500">
-            Out of ${summary.totalPossibleUsd.toLocaleString()} possible across{" "}
-            {summary.rules.length} bonus{" "}
-            {summary.rules.length === 1 ? "rule" : "rules"}.
+            Across {summary.rules.length} active{" "}
+            {pluralize(summary.rules.length, "rule")}.
           </p>
         </div>
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
@@ -44,63 +40,30 @@ export function BonusTracker({ summary }: { summary: BonusSummary }) {
         </div>
       </div>
 
-      {summary.nextMilestone && (
-        <div className="mt-4 rounded-xl bg-blue-50/60 p-4">
-          <p className="text-xs font-medium text-blue-700">
-            Next milestone: {summary.nextMilestone.label}
-          </p>
-          <p className="mt-1 text-sm text-slate-800">
-            {formatTriggerCopy(
-              summary.nextMilestone.trigger,
-              summary.nextMilestone.threshold
-            )}{" "}
-            for{" "}
-            <span className="font-semibold text-emerald-600">
-              +${summary.nextMilestone.amountUsd.toLocaleString()}
-            </span>
-          </p>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-blue-100">
-            <div
-              className="h-full bg-blue-500 transition-all"
-              style={{
-                width: `${Math.round(summary.nextMilestone.progress * 100)}%`,
-              }}
-            />
-          </div>
-          <p className="mt-1 text-[11px] text-slate-500">
-            {summary.nextMilestone.current.toLocaleString()} /{" "}
-            {summary.nextMilestone.threshold.toLocaleString()}
-          </p>
-        </div>
-      )}
-
       <div className="mt-4 space-y-2">
-        {summary.rules.map((r) => (
-          <div
-            key={r.ruleId}
-            className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-slate-800">
-                {r.label}
-                {r.isEarned && (
-                  <CheckCircle2 className="ml-1 inline h-3.5 w-3.5 text-emerald-500" />
-                )}
-              </p>
-              <p className="text-[11px] text-slate-500">
-                {formatTriggerCopy(r.trigger, r.threshold)}
-              </p>
+        {summary.rules.map((r) => {
+          const unit = TRIGGER_UNIT[r.trigger];
+          return (
+            <div
+              key={r.ruleId}
+              className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-slate-800">{r.label}</p>
+                <p className="text-[11px] text-slate-500">
+                  ${r.ratePerUnit.toLocaleString()} per {unit} ·{" "}
+                  {r.current.toLocaleString()} {pluralize(r.current, unit)} this
+                  month
+                </p>
+              </div>
+              <div className="ml-3 text-right text-sm">
+                <p className="font-semibold text-emerald-600">
+                  ${r.earnedUsd.toLocaleString()}
+                </p>
+              </div>
             </div>
-            <div className="ml-3 text-right text-sm">
-              <p className="font-semibold text-emerald-600">
-                ${r.amountUsd.toLocaleString()}
-              </p>
-              <p className="text-[11px] text-slate-500">
-                {r.current.toLocaleString()} / {r.threshold.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

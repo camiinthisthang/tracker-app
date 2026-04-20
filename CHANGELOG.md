@@ -27,6 +27,15 @@ tangent.
 
 ---
 
+## 2026-04-21 02:05 — follow-up: drop threshold, make bonuses per-unit
+- **Bonus rules are now per-unit.** Removed the "Threshold" input + help-text logic from `BonusRulesManager`. Form is now just Trigger + "USD per {unit}" + Label. Unit label auto-updates with the trigger ("USD per signup", "USD per paid signup", "USD per viral video", "USD per referral").
+- `VIEW_THRESHOLD` dropped from the dropdown (per-unit on max-views-on-a-single-post doesn't make sense). Enum value + legacy rows stay — `src/lib/bonus.ts` skips them in the per-unit computation; API rejects new VIEW_THRESHOLD writes.
+- **Calculation rewrite:** `computeCreatorBonusSummary` now returns `earnedUsd = current × ratePerUnit` per rule. No more `threshold / progress / isEarned / nextMilestone` fields. `BonusProgress` shape shrunk accordingly.
+- **Creator UI (`BonusTracker`):** no more progress bars / next-milestone callouts. Each rule now shows `$X per {unit} · N {units} this month` → `$earnedUsd`. Total across all rules still at the top.
+- Per the example Cami gave: `$1 per signed-up user (USER_DOWNLOAD)` + `$5 per paid-plan signup (USER_PAID_PLAN)`.
+- DB schema unchanged. `BonusRule.threshold` column stays NOT NULL — API writes `1` on new rows since it's no longer meaningful.
+- Tested: `npm run build` passes.
+
 ## 2026-04-21 01:55 — follow-up: prod reset + managers-list filter
 - **Ran prod reset** — `DATABASE_URL="<prod>" npx tsx scripts/reset-data.ts --confirm` against the Neon prod DB (hit the pooler from `.env.production.backup`). Renamed Cami's pre-existing team `cmnvxmktv000104jrj12ma2ki` → "Tapmore" in place so her session stays valid. Final counts: `Creator=0, User=2, Team=1, TeamMember=2`. Jacqueline still needs to set a password via the `/register` or invite flow (her User row exists with passwordHash=null).
 - **Transaction timeout bump** — first attempt timed out at 5s (prod Neon round-trip is ~100ms vs local ~1ms). Reset script now passes `{ maxWait: 10_000, timeout: 120_000 }` to `$transaction`. Local re-tested; still runs in under a second.

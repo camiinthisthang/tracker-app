@@ -67,14 +67,24 @@ export default async function ClientDetailPage({
     }),
   ]);
 
-  const bonusRulesSerialized = bonusRules.map((r) => ({
-    id: r.id,
-    trigger: r.trigger,
-    threshold: r.threshold,
-    amountUsd: r.amountUsd.toString(),
-    label: r.label,
-    isActive: r.isActive,
-  }));
+  const bonusRulesSerialized = bonusRules
+    .filter(
+      (r): r is typeof r & {
+        trigger:
+          | "VIRAL_COUNT"
+          | "REFERRAL_COUNT"
+          | "USER_DOWNLOAD"
+          | "USER_PAID_PLAN";
+      } => r.trigger !== "VIEW_THRESHOLD"
+    )
+    .map((r) => ({
+      id: r.id,
+      trigger: r.trigger,
+      threshold: r.threshold,
+      amountUsd: r.amountUsd.toString(),
+      label: r.label,
+      isActive: r.isActive,
+    }));
 
   return (
     <div>
