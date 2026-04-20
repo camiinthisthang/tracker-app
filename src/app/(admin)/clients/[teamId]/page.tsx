@@ -96,34 +96,37 @@ export default async function ClientDetailPage({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Managers */}
+        {/* Managers — excludes CREATOR memberships; creators show under the
+            Creators section. */}
         <section className="rounded-xl border border-slate-200 bg-white">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
             <h3 className="text-sm font-semibold text-slate-800">
               <UserPlus className="mr-2 inline h-4 w-4 text-slate-400" />
-              Managers ({team.members.length})
+              Managers (
+              {team.members.filter((m) => m.role !== "CREATOR").length})
             </h3>
           </div>
-          {team.members.length === 0 ? (
+          {team.members.filter((m) => m.role !== "CREATOR").length === 0 ? (
             <p className="px-5 py-6 text-sm text-slate-400">
               No managers yet. Invite one so this client can access their own
               campaigns and creators.
             </p>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {team.members.map((m) => (
-                <li
-                  key={m.id}
-                  className="flex items-center justify-between px-5 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-700">
-                      {m.user.name || m.user.email}
-                    </p>
-                    <p className="text-xs text-slate-400">{m.user.email}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {m.role !== "CREATOR" && (
+              {team.members
+                .filter((m) => m.role !== "CREATOR")
+                .map((m) => (
+                  <li
+                    key={m.id}
+                    className="flex items-center justify-between px-5 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-700">
+                        {m.user.name || m.user.email}
+                      </p>
+                      <p className="text-xs text-slate-400">{m.user.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <Badge
                         className={
                           isAgencyTeam(team.name)
@@ -135,20 +138,17 @@ export default async function ClientDetailPage({
                           ? "Agency manager"
                           : "Client manager"}
                       </Badge>
-                    )}
-                    <Badge className="bg-slate-100 text-slate-600 hover:opacity-90">
-                      {m.role}
-                    </Badge>
-                    {m.role !== "CREATOR" && (
+                      <Badge className="bg-slate-100 text-slate-600 hover:opacity-90">
+                        {m.role}
+                      </Badge>
                       <RemoveMemberButton
                         teamId={team.id}
                         memberId={m.id}
                         label={m.user.name || m.user.email}
                       />
-                    )}
-                  </div>
-                </li>
-              ))}
+                    </div>
+                  </li>
+                ))}
             </ul>
           )}
 

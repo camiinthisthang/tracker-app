@@ -27,6 +27,12 @@ tangent.
 
 ---
 
+## 2026-04-21 01:55 — follow-up: prod reset + managers-list filter
+- **Ran prod reset** — `DATABASE_URL="<prod>" npx tsx scripts/reset-data.ts --confirm` against the Neon prod DB (hit the pooler from `.env.production.backup`). Renamed Cami's pre-existing team `cmnvxmktv000104jrj12ma2ki` → "Tapmore" in place so her session stays valid. Final counts: `Creator=0, User=2, Team=1, TeamMember=2`. Jacqueline still needs to set a password via the `/register` or invite flow (her User row exists with passwordHash=null).
+- **Transaction timeout bump** — first attempt timed out at 5s (prod Neon round-trip is ~100ms vs local ~1ms). Reset script now passes `{ maxWait: 10_000, timeout: 120_000 }` to `$transaction`. Local re-tested; still runs in under a second.
+- **UI bug** — `/clients/[teamId]` rendered CREATOR-role memberships in the "Managers" section (Cami saw "Test Creator (Sophia)" there). Now filters `m.role !== "CREATOR"` both in the count and the list; creators only appear under the Creators section below.
+- Tested: `npm run build` passes.
+
 ## 2026-04-21 01:40 — task #6: specific email-conflict errors
 - **New helper:** `src/lib/email-conflict.ts#findEmailConflict(email, { check })` — checks User / Creator / open-status CreatorApplication (PENDING or REVIEWING) tables in that priority order and returns `{ table, existingId, message, suggestion }` or null. `check` option lets callers narrow to the tables they actually care about (e.g. `register-creator` only checks User so it doesn't false-positive on the invited creator's own Creator row).
 - **API responses** now include three fields on a 409 email-conflict: `error` (the human message, which table has it), `suggestion` (next-action string), and `conflict.{table, existingId}` (so the UI can deep-link to the existing row).

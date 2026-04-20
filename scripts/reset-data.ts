@@ -30,7 +30,8 @@ async function main() {
   const redacted = dbUrl.replace(/\/\/([^:]+):[^@]+@/, "//$1:****@");
   console.log(`Running reset against: ${redacted}`);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(
+    async (tx) => {
     console.log("Preflight: collecting existing Tapmore / super-admin state…");
 
     const existingCami = await tx.user.findUnique({
@@ -203,7 +204,12 @@ async function main() {
         "Post-reset counts don't match expected (0 creators, 2 users, 1 team, 2 members). Rolling back.",
       );
     }
-  });
+    },
+    // Prod Neon has ~100ms round-trips; default 5s transaction timeout is too
+    // tight for the dozen-plus deleteManys to complete. 120s is overkill for
+    // local (runs in <1s there) but necessary for prod.
+    { maxWait: 10_000, timeout: 120_000 }
+  );
 
   console.log("Reset complete.");
 }
