@@ -3,7 +3,6 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { createOnboardingTasks } from "@/lib/tasks/onboarding";
-import { sendCreatorInvite } from "@/lib/email/creator-invite";
 
 export async function PATCH(
   req: Request,
@@ -124,30 +123,6 @@ export async function PATCH(
           // Queue the standard onboarding tasks (tax form + FTC/account setup)
           // so the creator sees them on their first login.
           await createOnboardingTasks(creator.id);
-
-          // Fire the invite email. Failure here is logged but not fatal —
-          // admin can still resend from the creator detail page.
-          const team = await prisma.team.findUnique({
-            where: { id: teamId },
-            select: { name: true },
-          });
-          if (team) {
-            const origin =
-              process.env.NEXT_PUBLIC_APP_URL ||
-              req.headers.get("origin") ||
-              "https://viewtrackr.com";
-            const result = await sendCreatorInvite({
-              to: email,
-              creatorName: creator.name,
-              teamName: team.name,
-              inviteUrl: `${origin}/invite/${token}`,
-            });
-            if (!result.ok) {
-              console.warn(
-                `Invite email failed for ${email}: ${result.reason}`
-              );
-            }
-          }
         }
       }
     }
