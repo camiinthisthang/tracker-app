@@ -1,138 +1,80 @@
 @AGENTS.md
 
-# Autonomous Overnight Session — Task Queue
+# Autonomous Session 2 — Task Queue
 
-These tasks are queued for unattended execution while Cami sleeps. Work through them top-to-bottom. After each meaningful chunk: run `npm run build`, push, append a row to `CHANGELOG.md`. If something is genuinely blocked on a decision only Cami can make, log it under "Blocked — needs Cami" in CHANGELOG and move on to the next task.
+Tasks 1–9 from session 1 are complete (see CHANGELOG). This is a fresh queue. Work top-to-bottom. After each chunk: `npm run build` → push → append a CHANGELOG row. If genuinely blocked on a Cami-only decision, log it under "Blocked — needs Cami" and move on.
+
+**Task 1 is a prerequisite — do it first.** Everything else assumes a clean database.
 
 ## Tasks
 
-### 1. Verify Apify integration end-to-end
-We wired `clockworks/tiktok-scraper` and `apify/instagram-scraper` last session but never proved they actually return useful data. Run a smoke test:
+### 1. Nuclear data reset — wipe everything except Cami
+Production db is polluted with test data: stale creators (e.g. `creator@viewtrackr.com` that can't be deleted), applications, users, and client teams (Merit, Chipped, etc.). Wipe it all and start clean.
 
-- Pick one well-known public TikTok handle (e.g. `nike`) and one public Instagram handle (`nike` again). Use `resultsPerPage` / `resultsLimit` of **3** to keep credit burn near zero.
-- Call `fetchTikTokPostsViaApify("nike", 3)` and `fetchInstagramPostsViaApify("nike", 3)` directly from a tiny script (e.g. `tsx scripts/test-apify.ts`).
-- Inspect the parsed `SocialPost[]`. Confirm fields populate: `views`, `likes`, `comments`, `postedAt`, `link`, `thumbnailUrl`, `title`.
-- If field mappings are off (Apify changed actor output schema), fix `src/lib/social/apify.ts` and re-test.
-- Document in CHANGELOG: actor versions used, fields that worked, fields that needed remapping, total credit cost.
+- **Keep exactly these rows, nothing else:**
+  - One `User` row for `camirgarzon@gmail.com` (Cami's login)
+  - One `Team` row — rename/create one called `Tapmore` (the agency home team)
+  - One `TeamMember` linking Cami to the Tapmore team, role=ADMIN
+  - One `TeamSettings` row for Tapmore (preserve any `schedulingUrl`, `creatorWelcomeTemplate`, PostHog config if set)
+- **Delete all rows from every other table:** `Creator`, `CreatorApplication`, `Post`, `PostMetricsSnapshot`, `CampaignDailyMetric`, `Task`, `CreatorMessage`, `Upload`, `Campaign`, `CampaignCreator`, `Hook`, `BonusRule`, `ViralNotification`, `CreatorAttribution`, `WeeklyReportConfig`, `NotificationRule`, `TeamInvite`, all other `TeamMember`s, all other `Team`s, all other `User`s.
+- **Implementation:** write `scripts/reset-data.ts` that takes a required `--confirm` flag. Inside a single Prisma `$transaction` so partial failure doesn't leave a half-wiped DB.
+- **Run it twice:** once locally against the dev DB, once against production (via `DATABASE_URL=<prod> npx tsx scripts/reset-data.ts --confirm` — Cami will run prod herself, just leave the command in CHANGELOG for her).
+- **After reset:** confirm via Prisma Studio or a quick query that `Creator.count === 0` and `User.count === 1`.
 
-### 2. Auto-create tax-form task for newly onboarded creators
-When a `Creator` row is created via application approval, automatically add a Task to their `/creator-tasks` list:
+### 2. Creator delete action
+Right now there's no UI to delete a creator — you can only mark `isActive=false`. Add a real destructive delete.
 
-- **Title:** Submit your tax form
-- **Body:** "We need a completed tax form before your first payment. Pick whichever applies:
-  - **W-9** (US residents / tax citizens): https://www.irs.gov/pub/irs-pdf/fw9.pdf
-  - **W-8BEN** (non-US): https://www.irs.gov/pub/irs-pdf/fw8ben.pdf
+- On `/creators/[id]`, add a collapsed "Danger zone" section at the bottom of the page (small red-accented card).
+- Inside: a red `Delete creator` button. Clicking opens a confirmation dialog ("Type the creator's name to confirm"). Only enables the confirm button on exact match.
+- `DELETE /api/creators/[creatorId]` — super-admin only for now. Cascade: deleting a Creator should cascade to `Post`, `PostMetricsSnapshot` (via Post FK), `Task`, `CreatorMessage`, `CampaignCreator`, `Upload`, `ViralNotification`, `CreatorAttribution`, `TeamMember` (the `.creatorId` link).
+- Check existing Prisma schema: most FKs should already have `onDelete: Cascade`. If any don't, add them in a migration.
+- After success: toast "Creator deleted" and redirect to `/creators`.
 
-Fill it out and upload the completed PDF in the Uploads tab — pick 'Onboarding documents' as the destination."
+### 3. BonusRule trigger dropdown — expose USER_DOWNLOAD + USER_PAID_PLAN
+The `BonusTrigger` enum in `prisma/schema.prisma` already has `USER_DOWNLOAD` and `USER_PAID_PLAN`. The UI dropdown just doesn't surface them.
 
-- **Type:** new task category `ONBOARDING` if the existing enum needs extending; otherwise reuse the closest existing category.
-- **Due date:** 7 days from creator creation.
-- Hook this into the existing application-approve flow in `src/app/api/applications/[applicationId]/route.ts` right next to the pinned welcome message creation.
-- Add an "Onboarding documents" upload bucket (or generalize the upload form to accept a tax-form upload type).
+- Find the bonus-rule form (likely on `/clients/[teamId]` or a dedicated bonus rules section). Search for `BonusTrigger` / `VIEW_THRESHOLD` usage.
+- Add two options to the trigger dropdown:
+  - `USER_DOWNLOAD` → label: "Bonus per user signup (PostHog)"
+  - `USER_PAID_PLAN` → label: "Bonus per user on paid plan (PostHog)"
+- When these two triggers are selected, the "threshold" field should be repurposed to mean "count of signups" / "count of paid users". Update the form's help text accordingly.
+- Wire them to the existing PostHog attribution path: `CreatorAttribution` already tracks `signupCount`. Compute bonus earnings by summing `signupCount` (or the paid-plan equivalent) across the current period and multiplying by `amountUsd`.
+- Update the creator-facing Bonus tracker card on `/home` to reflect the new rule types (progress toward signup/paid-plan milestones).
 
-### 3. Auto-create FTC + account-warming task for newly onboarded creators
-Add a second auto-task with the body below, exactly as Cami wrote it. Keep markdown formatting intact.
+### 4. Differentiate agency manager vs. client manager
+Current setup only has `User.isSuperAdmin`. No way to distinguish "manager on Cami's Tapmore team" from "manager on a client team" — they're both just `isSuperAdmin=false, role=ADMIN`.
 
-> **Account Setup & FTC Compliance**
->
-> Creators should create an 'incognito brand page' with a username format like `name_chipped`. Per FTC (Federal Trade Commission) guidelines, it's required to include clear disclosure that the account is affiliated with a company. This means adding a phrase like "[Chipped] partner" in the bio. Use a personal-style profile photo rather than a logo or brand asset to maintain authenticity.
->
-> **Bio Options**
->
-> These are casual, organic bios that feel personal and vibe-first:
->
-> - just a girl with good nails and better networking skills
-> - My nails went viral before my face did
-> - Built a better business card. Made it cute.
-> - I don't give out my number. I tap my nail.
-> - Pretty nails. Powerful tech. No one knows.
-> - They asked for my @. I gave them my nail.
->
-> **Algorithm Training Workflow**
->
-> **Goal:** Train TikTok's algorithm to understand the account as part of the beauty/lifestyle/social niche without immediately appearing as a brand.
->
-> 1. Open TikTok and go to your For You Page (FYP).
-> 2. Use the search bar to find content relevant to your niche.
-> 3. Filter results by "Date Posted" and select "This Month".
-> 4. Engage as your target user would. Like, comment, save, and share videos that align with your niche. Comment authentically, using phrasing your ideal audience would naturally say. For example:
->    - wait this is so smart… have you tried chipped yet?
->    - your nails are stunning, you'd love chipped! it's like a business card in your manicure
->    - ok but imagine this with chipped nails… the tap would eat
->    - you're exactly who chipped was made for tbh
->    - deadass just tapped my nail and landed a collab. chipped is wild
->    - girl if you love this, chipped would blow your mind
->    - this plus chipped is how I've been meeting everyone lately
-> 5. Follow relevant creators. Prioritize creators with aesthetic or talk-to-camera content who already engage with your target audience. Keep interacting with their content to train your FYP.
-> 6. Repeat this entire loop 2–3 times a day for 2–3 days. Aim to follow and engage with 50–75 creators.
+- Define semantic rules (no new schema needed — derive from existing data):
+  - **Agency manager** = member of the `Tapmore` team (regardless of `isSuperAdmin`). Sees all clients, all creators, all campaigns.
+  - **Client manager** = member of a non-Tapmore team. Sees only their own team's stuff.
+  - Cami specifically = super admin on Tapmore (isSuperAdmin=true).
+- Helper function `getUserAccessLevel(session)` returning `"super_admin" | "agency_manager" | "client_manager" | "creator"`. Put in `src/lib/auth.ts`.
+- Update `/clients/[teamId]` members list to show the role explicitly (badge: "Agency manager" vs "Client manager").
+- `/clients` page should probably only be visible to agency managers + super admins.
+- Audit existing visibility functions (`creatorVisibilityWhere`, `canAccessCreator`) to use the new helper. Agency managers should see everything; client managers only their team. Add a migration note if anything changes meaningfully.
 
-The copy currently mentions "Chipped" — that's the first client. For multi-client correctness, later we'll templatize the brand name with a `{{clientName}}` token like the welcome message. For now, leave as-is and put a `// TODO: templatize brand name` note next to the copy.
+### 5. Client manager onboarding — PostHog setup step
+When a client manager accepts a team invite (`/invite/team/[token]`), after they set their password, walk them through a PostHog setup screen before they hit `/dashboard`.
 
-### 4. Hook taxonomy + tagging
-Super admin defines hooks; creators tag videos with one (predefined) or "freestyle" (free-text new format). Tracked in the existing `/hooks` tab.
+- **New page:** `/onboarding/posthog` — shown after team-invite signup if the team's `TeamSettings.posthogApiKey` is null/empty.
+- **Fields:**
+  - PostHog API key (required, password-style input)
+  - PostHog project ID (required)
+  - PostHog host (optional, defaults to `https://us.i.posthog.com`, placeholder shows default)
+- **Test connection button:** calls an existing or new endpoint that hits PostHog's `/api/projects/<id>/` with the key. Returns success/failure inline.
+- **Skip for now:** links straight to `/dashboard`. Don't block. Store a `TeamSettings.posthogOnboardingSkippedAt` timestamp so we can remind them later.
+- After save: redirect to `/dashboard` with a toast "PostHog connected ✓".
+- **Routing hook:** update the team-invite accept flow (`src/app/api/invite/team/accept/route.ts` or the signup component) to redirect to `/onboarding/posthog` instead of `/dashboard` when the team has no PostHog creds yet.
+- **Don't force the step on existing users.** Only runs immediately after a fresh team-invite signup.
 
-- **Schema:** `Hook` model probably already exists (we have a `/hooks` page). Confirm or add: `{ id, teamId, text, category?, isActive, createdAt, updatedAt }`. Add a join `PostHook { postId, hookId, isFreestyle }` OR add `Post.hookId String?` + `Post.freestyleHook String?`.
-- **Super admin UI:** `/hooks` page → list + add + edit + archive hooks. Already partially built — extend.
-- **Creator UI:** in the upload form (`creator-upload-form.tsx`), add a hook dropdown with options "use a defined hook" (select from list) or "freestyle: type your own" (text input). Default to defined.
-- **Hooks tab analytics:** show usage count + total views + referral count per hook so Cami can spot winners.
+### 6. Better error messages for the "email already in use" case
+When Cami tried to invite `jacquelinegiale@gmail.com`, she got a generic "email already in use" error. After task 1's data reset this specific case goes away, but the error remains bad for future dupes.
 
-### 5. Per-client bonus structure + creator live view
-Goal: gamify earnings so creators can see "you've earned $X this month, hit 5 viral videos to earn $200 more".
+- Find wherever this error is thrown (POST `/api/creators`, application accept flow, team invite accept, or creator signup).
+- Make the error specify **which table** has the conflict: "A Creator already exists with this email" vs "A User account already exists with this email" vs "An open application exists with this email".
+- Include a next-action suggestion: "Delete the existing creator first" or "Use the invite flow instead of creating a new one".
+- Return the existing row's ID in the error response so the UI can link directly to it.
 
-- **Schema:** add a `BonusRule` model OR a JSON field on Campaign / Team for bonus configuration: `{ trigger: 'view_threshold' | 'viral_count', threshold: number, amountUsd: number, label: string }[]`. Multiple rules per client.
-- **Super admin UI:** new section on `/clients/[id]` (or `/campaigns/[id]/edit`) to add/edit/remove rules.
-- **Creator UI:** on `/home`, add a "Bonus tracker" card showing:
-  - "$X earned this month" (computed from current post performance vs. rules)
-  - "Hit 5 viral videos this month for +$200" (next milestone)
-  - Progress bar toward each unmet milestone
-
-### 6. Reports + Charts pages — initial implementation
-`/reports` and `/charts` are blank scaffolds. Build:
-
-**Reports (weekly digest):**
-- Total views this week
-- Top 5 hooks by view count of tagged videos
-- Top 5 creators by views and referrals
-- New sign-ups attributed (placeholder for now if PostHog isn't wired yet)
-- Generate every Monday at 9 AM team-local-time via cron at `/api/cron/weekly-report`. Send via Resend to recipients listed in `WeeklyReportConfig` (already exists in schema).
-- The report itself should also be viewable in-app at `/reports/[slug]` (route already exists for public weekly report).
-
-**Charts:**
-- Line chart: views over the last 30 days
-- Bar chart: top 10 creators by views (last 30d)
-- Bar chart: top 10 hooks by views (last 30d)
-- Use `recharts` (already installed). Match existing UI (no gradients, slate/blue palette).
-
-### 7. PostHog integration for download attribution
-Per-client, allow connecting PostHog so we can attribute real signups to creators via referral links.
-
-- **Schema:** add `Team.posthogApiKey`, `Team.posthogProjectId`, `Team.posthogHost?` (defaults to `https://us.i.posthog.com`).
-- **Super admin UI:** new section on `/clients/[id]` to paste API key + project ID. Test connection button.
-- **Sync job:** new daily cron at `/api/cron/posthog-sync` that, for each team with PostHog configured, queries PostHog for events where `properties.referral_creator_id` matches one of our creator IDs. Upserts a `CreatorAttribution` row per (creator, day) with signup count.
-- **Surface:** add "Attributed signups" stat to `/creators/[id]` and `/dashboard`.
-- Build it so the only setup step is pasting the API key — everything else "just works".
-
-### 8. Viral video notifications (opt-in email + SMS)
-When a post crosses a viral threshold (default: 50K views in 24h, configurable), notify the creator so they can capitalize.
-
-- **Schema:** add `Creator.notificationPrefs Json` with shape `{ viralEmail: bool, viralSms: bool, phoneNumber?: string, threshold?: number }`. Default `viralEmail: false, viralSms: false`.
-- **Creator UI:** new card on `/profile` to opt in/out + set phone number + threshold override.
-- **Detection:** daily cron compares `PostMetricsSnapshot` for today vs. yesterday; if `viewsDelta >= threshold`, fire notification.
-- **Email:** via Resend (already wired). Subject: "Your video is going viral" + link to the post.
-- **SMS:** via Twilio. If Twilio isn't set up, log a warning and skip SMS — don't block. Add a CHANGELOG note that Twilio creds are needed to enable SMS.
-- Track sent notifications in a `ViralNotification` row (postId, creatorId, channel, sentAt) so we don't spam the same post twice.
-
-### 9. UI audit
-Walk every page, every button, every textbox, every dropdown. For each:
-- If it works → leave alone.
-- If it's broken / orphaned / leftover from an earlier implementation → either remove it OR add a `// TODO(cami): orphan?` comment AND list it in CHANGELOG under "UI audit findings" so Cami can decide.
-- Be conservative — if you're unsure whether something is in use, leave it and flag.
-
-Pages to cover at minimum:
-- `/dashboard`, `/campaigns`, `/campaigns/[id]/*`, `/creators`, `/creators/[id]`, `/posts`, `/posts/gallery`, `/hooks`, `/charts`, `/reports`, `/notifications`, `/settings`
-- `/applications`, `/clients`, `/clients/[id]`, `/clients/new`
-- Creator: `/home`, `/profile`, `/creator-tasks`, `/creator-uploads`, `/creator-resources`, `/creator-notifications`, `/creator-settings`
-- Public: `/apply`, `/login`, `/register`, `/invite/[token]`, `/invite/team/[token]`, `/pending-approval`
 
 # Rules
 
