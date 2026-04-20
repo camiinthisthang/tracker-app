@@ -29,9 +29,31 @@ const TRIGGER_LABEL: Record<BonusRuleRow["trigger"], string> = {
   VIEW_THRESHOLD: "views on a single post",
   VIRAL_COUNT: "viral videos this month",
   REFERRAL_COUNT: "referrals this month",
-  USER_DOWNLOAD: "user downloads this month",
-  USER_PAID_PLAN: "paid plan conversions this month",
+  USER_DOWNLOAD: "Bonus per user signup (PostHog)",
+  USER_PAID_PLAN: "Bonus per user on paid plan (PostHog)",
 };
+
+const POSTHOG_TRIGGERS = new Set<BonusRuleRow["trigger"]>([
+  "USER_DOWNLOAD",
+  "USER_PAID_PLAN",
+]);
+
+function thresholdHelpText(trigger: BonusRuleRow["trigger"]): string {
+  if (trigger === "VIEW_THRESHOLD") return "Views on a single post.";
+  if (trigger === "VIRAL_COUNT") return "Number of viral videos this month.";
+  if (trigger === "REFERRAL_COUNT") return "Referrals this month.";
+  if (trigger === "USER_DOWNLOAD")
+    return "Count of attributed signups this month (from PostHog).";
+  if (trigger === "USER_PAID_PLAN")
+    return "Count of attributed paid-plan users this month (from PostHog).";
+  return "";
+}
+
+function thresholdPlaceholder(trigger: BonusRuleRow["trigger"]): string {
+  if (trigger === "VIEW_THRESHOLD") return "100000";
+  if (POSTHOG_TRIGGERS.has(trigger)) return "10";
+  return "5";
+}
 
 export function BonusRulesManager({
   teamId,
@@ -122,6 +144,15 @@ export function BonusRulesManager({
               <SelectItem value="VIRAL_COUNT">
                 {TRIGGER_LABEL.VIRAL_COUNT}
               </SelectItem>
+              <SelectItem value="REFERRAL_COUNT">
+                {TRIGGER_LABEL.REFERRAL_COUNT}
+              </SelectItem>
+              <SelectItem value="USER_DOWNLOAD">
+                {TRIGGER_LABEL.USER_DOWNLOAD}
+              </SelectItem>
+              <SelectItem value="USER_PAID_PLAN">
+                {TRIGGER_LABEL.USER_PAID_PLAN}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -134,8 +165,11 @@ export function BonusRulesManager({
             min={1}
             value={threshold}
             onChange={(e) => setThreshold(e.target.value)}
-            placeholder={trigger === "VIEW_THRESHOLD" ? "100000" : "5"}
+            placeholder={thresholdPlaceholder(trigger)}
           />
+          <p className="text-[11px] text-slate-400">
+            {thresholdHelpText(trigger)}
+          </p>
         </div>
         <div className="space-y-1">
           <Label className="text-xs font-medium text-slate-700">USD</Label>

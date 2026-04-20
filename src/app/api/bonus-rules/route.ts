@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 
-const VALID_TRIGGERS = new Set(["VIEW_THRESHOLD", "VIRAL_COUNT"]);
+const VALID_TRIGGERS = new Set([
+  "VIEW_THRESHOLD",
+  "VIRAL_COUNT",
+  "REFERRAL_COUNT",
+  "USER_DOWNLOAD",
+  "USER_PAID_PLAN",
+]);
 
 export async function GET(req: Request) {
   try {

@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-04-21 00:25 — task #3: expose USER_DOWNLOAD + USER_PAID_PLAN bonus triggers
+- **UI:** `BonusRulesManager` trigger dropdown now shows all five `BonusTrigger` enum values (added `REFERRAL_COUNT`, `USER_DOWNLOAD`, `USER_PAID_PLAN`). Labels match the task spec: "Bonus per user signup (PostHog)" and "Bonus per user on paid plan (PostHog)".
+- **UI:** Threshold field gains per-trigger placeholder + help-text — the PostHog triggers read "Count of attributed signups/paid-plan users this month (from PostHog)" so the number's meaning is obvious.
+- **API:** `POST /api/bonus-rules` whitelist widened from `{VIEW_THRESHOLD, VIRAL_COUNT}` → all five triggers.
+- **Computation / creator UI:** `src/lib/bonus.ts#computeCreatorBonusSummary` already aggregates `CreatorAttribution.signupCount` for both PostHog triggers (matches the task's "or paid-plan equivalent" fallback — schema doesn't distinguish paid vs free signups yet). `BonusTracker` `formatTriggerCopy` already renders "Drive N+ downloads / paid conversions this month". No changes needed there — the feature was pre-wired at the data layer, just gated off at the form.
+- Tested: `npm run build` passes.
+
 ## 2026-04-21 00:05 — task #2: creator delete action
 - **New:** `DELETE /api/creators/[creatorId]` — super-admin only. Inside a `$transaction`: deletes the linked `User` first (cascades `TeamMember`/`Session`/`Account`), then the `Creator` (cascades `Post`, `PostMetricsSnapshot` via Post, `Task`, `CreatorMessage`, `Upload`, `CampaignCreator`, `ViralNotification`, `CreatorAttribution`, `CreatorEarning`). Schema already had `onDelete: Cascade` on every FK — no migration needed.
 - **New:** `src/components/creators/delete-creator-danger-zone.tsx` — collapsed "Danger zone" card at the bottom of `/creators/[id]` with red accent. Click to expand, reveals a red `Delete creator` button. Opens a confirm dialog that requires typing the creator's exact name before the permanent-delete button enables.
