@@ -8,18 +8,19 @@ Tasks 1–9 from session 1 are complete (see CHANGELOG). This is a fresh queue. 
 
 ## Tasks
 
-### 1. Nuclear data reset — wipe everything except Cami
-Production db is polluted with test data: stale creators (e.g. `creator@viewtrackr.com` that can't be deleted), applications, users, and client teams (Merit, Chipped, etc.). Wipe it all and start clean.
+### 1. Nuclear data reset — keep only Cami + Jacqueline as super admins
+Production db is polluted with test data: stale creators (e.g. `creator@viewtrackr.com` that can't be deleted), applications, users, and client teams (Merit, Chipped, etc.). Wipe everything except the two super admins.
 
 - **Keep exactly these rows, nothing else:**
-  - One `User` row for `camirgarzon@gmail.com` (Cami's login)
-  - One `Team` row — rename/create one called `Tapmore` (the agency home team)
-  - One `TeamMember` linking Cami to the Tapmore team, role=ADMIN
-  - One `TeamSettings` row for Tapmore (preserve any `schedulingUrl`, `creatorWelcomeTemplate`, PostHog config if set)
+  - `User` for `camirgarzon@gmail.com` — `isSuperAdmin=true`
+  - `User` for `jacquelinegiale@gmail.com` — `isSuperAdmin=true`. If a `User` row with that email doesn't exist yet, create it (leave `password` null so she goes through the /register or invite flow to set it). If a stale `Creator` / `CreatorApplication` / `TeamMember` row exists for that email, delete those first to unblock her signup.
+  - One `Team` row called `Tapmore` (the agency home team — create or rename as needed)
+  - Two `TeamMember` rows linking Cami and Jacqueline to the Tapmore team, both `role=ADMIN`
+  - One `TeamSettings` row for Tapmore (preserve any `schedulingUrl`, `creatorWelcomeTemplate`, PostHog config if already set)
 - **Delete all rows from every other table:** `Creator`, `CreatorApplication`, `Post`, `PostMetricsSnapshot`, `CampaignDailyMetric`, `Task`, `CreatorMessage`, `Upload`, `Campaign`, `CampaignCreator`, `Hook`, `BonusRule`, `ViralNotification`, `CreatorAttribution`, `WeeklyReportConfig`, `NotificationRule`, `TeamInvite`, all other `TeamMember`s, all other `Team`s, all other `User`s.
 - **Implementation:** write `scripts/reset-data.ts` that takes a required `--confirm` flag. Inside a single Prisma `$transaction` so partial failure doesn't leave a half-wiped DB.
 - **Run it twice:** once locally against the dev DB, once against production (via `DATABASE_URL=<prod> npx tsx scripts/reset-data.ts --confirm` — Cami will run prod herself, just leave the command in CHANGELOG for her).
-- **After reset:** confirm via Prisma Studio or a quick query that `Creator.count === 0` and `User.count === 1`.
+- **After reset:** confirm via Prisma Studio or a quick query that `Creator.count === 0`, `User.count === 2`, and both users have `isSuperAdmin=true`.
 
 ### 2. Creator delete action
 Right now there's no UI to delete a creator — you can only mark `isActive=false`. Add a real destructive delete.
