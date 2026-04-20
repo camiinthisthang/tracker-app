@@ -110,6 +110,7 @@ export default async function CreatorDetailPage({
           <InviteCreatorButton
             creatorId={creator.id}
             creatorName={creator.name}
+            creatorEmail={creator.email}
             hasAccount={!!creator.teamMember}
           />
         </div>

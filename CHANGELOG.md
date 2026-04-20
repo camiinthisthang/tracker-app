@@ -27,6 +27,21 @@ tangent.
 
 ---
 
+## 2026-04-20 21:55 — interactive: super-admin creator-add flow + invite email + creator-self handle setup
+- **New:** `/creators` now has a "New creator" button (top right) that opens a modal. Super admins can pick the client team; everyone else auto-assigned to their own team. Minimum fields: name, email, handle, tier.
+- **New:** `src/lib/email/creator-invite.ts` — `sendCreatorInvite()` composes a branded HTML+text invite email with the `/invite/<token>` magic link.
+- **Wired:** invite email now fires automatically from three places: (1) `POST /api/creators` (new-creator modal), (2) application approval (`PATCH /api/applications/[id]`), (3) "Send email" button in the existing invite dialog on `/creators/[id]`.
+- **New:** third onboarding task "Connect your TikTok & Instagram" added to `createOnboardingTasks()`, pointing creators at `/profile`.
+- **New:** `/profile` now has a creator-self handle form (TikTok + Instagram). Highlighted blue when both are empty.
+- **New:** `PATCH /api/creators/me/social-handles` — creator-self endpoint, scoped to only the two handle fields.
+- **Schema:** no schema changes; reused existing `Creator.tiktokHandle`, `instagramHandle`, `inviteToken` columns.
+- **Tested:** `npm run build` passes (new-creator form, updated invite button, `/profile`, all compile).
+- **Follow-up needed from Cami:**
+  - Verify `send.viewtrackr.com` is marked Verified in the Resend dashboard at resend.com (DNS records are already live).
+  - Set `RESEND_FROM_EMAIL="Viewtrackr <hello@send.viewtrackr.com>"` in `.env` locally + Vercel.
+  - Optionally set `NEXT_PUBLIC_APP_URL` (used for absolute invite links in emails; falls back to request origin then `https://viewtrackr.com`).
+- Until `RESEND_FROM_EMAIL` is configured, invite emails will still send but from `onboarding@resend.dev` (Resend's test sender) and may hit spam.
+
 ## 2026-04-16 22:05 — task #1: verify Apify integration end-to-end
 - Added `scripts/test-apify.ts` — quick smoke test harness for both actors.
 - Ran against `@nike` (public) with limit=3 per actor.

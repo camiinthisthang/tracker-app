@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 import { creatorVisibilityWhere } from "@/lib/visibility";
 import { createCreatorSchema } from "@/lib/validations/creator";
+import { sendCreatorInvite } from "@/lib/email/creator-invite";
 
 export async function GET() {
   try {
@@ -55,19 +57,68 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = createCreatorSchema.parse(body);
 
+    // Only super admins can create a creator for a different team.
+    // Everyone else is locked to their own team.
+    const teamId =
+      session.user.isSuperAdmin && data.teamId
+        ? data.teamId
+        : session.user.teamId;
+
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      select: { id: true, name: true },
+    });
+    if (!team) {
+      return NextResponse.json({ error: "Team not found" }, { status: 400 });
+    }
+
+    const inviteToken = crypto.randomBytes(16).toString("hex");
+    const email = data.email?.trim() || null;
+
     const creator = await prisma.creator.create({
       data: {
-        teamId: session.user.teamId,
+        teamId: team.id,
         name: data.name,
-        handle: data.handle,
-        email: data.email || null,
+        handle: data.handle.trim().replace(/^@+/, ""),
+        email,
         tier: data.tier,
         isActive: data.isActive,
+        inviteToken,
       },
     });
 
-    return NextResponse.json(creator, { status: 201 });
-  } catch {
+    // Fire the invite email if we have an address and the caller didn't opt out.
+    // Don't block the response on send failure — the inviteUrl is returned
+    // regardless so the admin can copy-paste if delivery fails.
+    let inviteEmailSent = false;
+    let inviteEmailError: string | null = null;
+    if (email && data.sendInvite) {
+      const origin =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        req.headers.get("origin") ||
+        "https://viewtrackr.com";
+      const inviteUrl = `${origin}/invite/${inviteToken}`;
+      const result = await sendCreatorInvite({
+        to: email,
+        creatorName: creator.name,
+        teamName: team.name,
+        inviteUrl,
+      });
+      inviteEmailSent = result.ok;
+      if (!result.ok) inviteEmailError = result.reason;
+    }
+
+    return NextResponse.json(
+      {
+        ...creator,
+        inviteUrl: `/invite/${inviteToken}`,
+        inviteEmailSent,
+        inviteEmailError,
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error("POST /api/creators failed", err);
     return NextResponse.json(
       { error: "Failed to create creator" },
       { status: 500 }

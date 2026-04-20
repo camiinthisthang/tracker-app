@@ -6,9 +6,17 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CreatorsTableClient } from "@/components/creators/creators-table-client";
+import { AddCreatorButton } from "@/components/creators/add-creator-button";
 
 export default async function CreatorsPage() {
   const session = await getRequiredSession();
+
+  const teams = session.user.isSuperAdmin
+    ? await prisma.team.findMany({
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
 
   const creators = await prisma.creator.findMany({
     where: creatorVisibilityWhere(session),
@@ -79,13 +87,19 @@ export default async function CreatorsPage() {
       <PageHeader
         title="Creators"
         description="Manage your creator roster and leaderboard"
-      />
+      >
+        <AddCreatorButton
+          isSuperAdmin={session.user.isSuperAdmin}
+          teams={teams}
+          defaultTeamId={session.user.teamId}
+        />
+      </PageHeader>
 
       {creators.length === 0 ? (
         <EmptyState
           icon={Users}
           title="No creators yet"
-          description="Creators will appear here when you add them to campaigns."
+          description="Click 'New creator' above to add your first one."
         />
       ) : (
         <>

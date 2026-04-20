@@ -42,6 +42,16 @@ Goal: Train TikTok's algorithm to understand the account as part of the beauty/l
 5. Follow relevant creators. Prioritize creators with aesthetic or talk-to-camera content who already engage with your target audience. Keep interacting with their content to train your FYP.
 6. Repeat this entire loop 2–3 times a day for 2–3 days. Aim to follow and engage with 50–75 creators.`;
 
+const CONNECT_HANDLES_BODY = `We pull your TikTok and Instagram video stats automatically once a day — but we need your handles first.
+
+Head to your Profile page and add:
+  • Your TikTok handle (the one you post brand content from)
+  • Your Instagram handle
+
+If you haven't created those accounts yet (per the "Account setup + FTC compliance" task), finish that first, then come back here.
+
+Once your handles are saved, your dashboard will populate with your video stats within 24 hours.`;
+
 /**
  * Create the standard onboarding tasks for a freshly approved creator.
  * Idempotent — if an ONBOARDING task with the same title already exists for
@@ -56,6 +66,10 @@ export async function createOnboardingTasks(creatorId: string) {
     {
       title: "Account setup + FTC compliance",
       description: FTC_WARMING_BODY,
+    },
+    {
+      title: "Connect your TikTok & Instagram",
+      description: CONNECT_HANDLES_BODY,
     },
   ];
 
