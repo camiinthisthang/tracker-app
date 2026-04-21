@@ -70,7 +70,7 @@ export function CreatorMessagesFeed({
         </div>
         {showViewAll && (
           <Link
-            href="/creator-notifications"
+            href="/creator-tasks"
             className="text-xs font-medium text-blue-500 hover:text-blue-600"
           >
             View all

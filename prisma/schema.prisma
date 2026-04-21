@@ -24,6 +24,7 @@ model Team {
   invites   TeamInvite[]
   hooks     Hook[]
   bonusRules BonusRule[]
+  resources TeamResource[]
 
   @@map("teams")
 }
@@ -640,6 +641,27 @@ model CreatorAttribution {
   @@unique([creatorId, date])
   @@index([creatorId])
   @@map("creator_attributions")
+}
+
+// ─── TEAM RESOURCES (playbooks, links) ──────────────────────
+
+// Admin-curated list of links shown on the creator-facing /creator-resources
+// page (Creator Playbook, gallery URLs, Drive folders, Loom walkthroughs,
+// brand guidelines). No file storage — just URLs. Per-team.
+model TeamResource {
+  id          String   @id @default(cuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  title       String
+  url         String
+  description String?
+  category    String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([teamId])
+  @@map("team_resources")
 }
 
 // ─── CREATOR EARNINGS (for 1099) ────────────────────────────
