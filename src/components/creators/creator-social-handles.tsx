@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw, Save, Music2, Camera } from "lucide-react";
+import { Save, Music2, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,6 @@ export function CreatorSocialHandles({
   const [tt, setTt] = useState(tiktokHandle ?? "");
   const [ig, setIg] = useState(instagramHandle ?? "");
   const [saving, setSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
 
   async function handleSave() {
     setSaving(true);
@@ -51,53 +50,17 @@ export function CreatorSocialHandles({
     }
   }
 
-  async function handleSync() {
-    setSyncing(true);
-    try {
-      const res = await fetch(`/api/creators/${creatorId}/sync`, {
-        method: "POST",
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        toast.error(data?.error || "Sync failed");
-        return;
-      }
-      const msg = `Fetched ${data.fetched} posts (TT: ${data.tiktokPosts}, IG: ${data.instagramPosts}). Upserted ${data.upserted}.${
-        data.warning ? ` ${data.warning}` : ""
-      }`;
-      toast.success(msg);
-      router.refresh();
-    } catch {
-      toast.error("Sync failed — check server logs");
-    } finally {
-      setSyncing(false);
-    }
-  }
-
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-800">
-            Social handles
-          </h3>
-          <p className="text-xs text-slate-500">
-            Used by the daily Apify sync to pull real TikTok + Instagram
-            metrics into this creator&apos;s dashboard.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleSync}
-          disabled={syncing}
-        >
-          <RefreshCw
-            className={`mr-2 h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`}
-          />
-          {syncing ? "Syncing..." : "Sync now"}
-        </Button>
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-slate-800">
+          Social handles
+        </h3>
+        <p className="text-xs text-slate-500">
+          Creators set these themselves on their profile. You can override
+          here if they typed them wrong. The daily Apify sync uses these to
+          pull TikTok + Instagram metrics.
+        </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

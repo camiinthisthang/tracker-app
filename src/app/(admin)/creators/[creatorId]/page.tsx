@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 import { canAccessCreator } from "@/lib/visibility";
@@ -9,6 +11,7 @@ import { InviteCreatorButton } from "@/components/creators/invite-creator-button
 import { CreatorSocialHandles } from "@/components/creators/creator-social-handles";
 import { AssignToCampaign } from "@/components/creators/assign-to-campaign";
 import { DeleteCreatorDangerZone } from "@/components/creators/delete-creator-danger-zone";
+import { SyncCreatorButton } from "@/components/creators/sync-creator-button";
 import { Badge } from "@/components/ui/badge";
 import { PLATFORM_LABELS } from "@/lib/constants";
 
@@ -40,31 +43,48 @@ export default async function CreatorDetailPage({
   const allowed = await canAccessCreator(prisma, creator, session);
   if (!allowed) notFound();
 
-  const [totalViews, totalSignups, allCampaigns] = await Promise.all([
-    prisma.post.aggregate({
-      where: { creatorId },
-      _sum: { views: true },
-    }),
-    prisma.creatorAttribution.aggregate({
-      where: { creatorId },
-      _sum: { signupCount: true },
-    }),
-    session.user.isSuperAdmin
-      ? prisma.campaign.findMany({
-          select: { id: true, name: true, isActive: true },
-          orderBy: { name: "asc" },
-        })
-      : prisma.campaign.findMany({
-          where: { teamId: session.user.teamId },
-          select: { id: true, name: true, isActive: true },
-          orderBy: { name: "asc" },
-        }),
-  ]);
+  const [totalViews, totalSignups, allCampaigns, recentPosts] =
+    await Promise.all([
+      prisma.post.aggregate({
+        where: { creatorId },
+        _sum: { views: true },
+      }),
+      prisma.creatorAttribution.aggregate({
+        where: { creatorId },
+        _sum: { signupCount: true },
+      }),
+      session.user.isSuperAdmin
+        ? prisma.campaign.findMany({
+            select: { id: true, name: true, isActive: true },
+            orderBy: { name: "asc" },
+          })
+        : prisma.campaign.findMany({
+            where: { teamId: session.user.teamId },
+            select: { id: true, name: true, isActive: true },
+            orderBy: { name: "asc" },
+          }),
+      prisma.post.findMany({
+        where: { creatorId },
+        orderBy: { postedAt: "desc" },
+        take: 10,
+        include: { campaign: { select: { id: true, name: true } } },
+      }),
+    ]);
   const attributedSignups = totalSignups._sum.signupCount ?? 0;
+  const hasActiveCampaign = creator.campaignCreators.some(
+    (cc) => cc.campaign.isActive,
+  );
+  const hasHandles = Boolean(creator.tiktokHandle || creator.instagramHandle);
 
   return (
     <div>
-      <PageHeader title={creator.name} description={`@${creator.handle}`} />
+      <PageHeader title={creator.name} description={`@${creator.handle}`}>
+        <SyncCreatorButton
+          creatorId={creator.id}
+          hasActiveCampaign={hasActiveCampaign}
+          hasHandles={hasHandles}
+        />
+      </PageHeader>
 
       {/* Profile Card */}
       <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -189,6 +209,74 @@ export default async function CreatorDetailPage({
           )}
           campaigns={allCampaigns}
         />
+      </div>
+
+      {/* Recent posts */}
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-800">Recent posts</h3>
+          {recentPosts.length > 0 && (
+            <Link
+              href={`/posts?creatorId=${creator.id}`}
+              className="text-xs text-blue-600 hover:underline"
+            >
+              View all
+            </Link>
+          )}
+        </div>
+        {recentPosts.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-400">
+            {!hasHandles
+              ? "No posts yet — the creator hasn't set their TikTok / Instagram handle."
+              : !hasActiveCampaign
+              ? "No posts yet. Assign this creator to an active campaign, then hit Sync posts above."
+              : "No posts yet. Hit Sync posts above to pull their latest TikTok + Instagram videos."}
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-slate-100">
+            {recentPosts.map((p) => (
+              <li
+                key={p.id}
+                className="flex items-center gap-3 py-2"
+              >
+                {p.thumbnailUrl ? (
+                  <div className="h-12 w-9 shrink-0 overflow-hidden rounded-md bg-slate-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.thumbnailUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="h-12 w-9 shrink-0 rounded-md bg-slate-100" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <a
+                    href={p.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block truncate text-sm font-medium text-slate-800 hover:text-blue-600"
+                  >
+                    {p.title || "(no title)"}
+                  </a>
+                  <p className="truncate text-xs text-slate-400">
+                    {PLATFORM_LABELS[p.platform]} ·{" "}
+                    {format(p.postedAt, "MMM d, yyyy")} · {p.campaign.name}
+                  </p>
+                </div>
+                <div className="ml-3 shrink-0 text-right text-xs">
+                  <p className="font-semibold text-slate-800">
+                    {p.views.toLocaleString()}
+                  </p>
+                  <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                    views
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {session.user.isSuperAdmin && (
