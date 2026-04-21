@@ -3,7 +3,6 @@ import { getRequiredSession } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
-import { ConnectTikTokButton } from "@/components/creators/connect-tiktok-button";
 import { SelfSocialHandles } from "@/components/creators/self-social-handles";
 import { ViralNotificationPrefs } from "@/components/creators/viral-notification-prefs";
 import { Badge } from "@/components/ui/badge";
@@ -101,16 +100,6 @@ export default async function ProfilePage() {
         <SelfSocialHandles
           tiktokHandle={creator.tiktokHandle}
           instagramHandle={creator.instagramHandle}
-        />
-      </div>
-
-      {/* Connected Accounts (OAuth — optional) */}
-      <div className="mt-4">
-        <ConnectTikTokButton
-          creatorId={creator.id}
-          isConnected={!!creator.tiktokAccessToken}
-          tiktokUsername={creator.tiktokUsername}
-          connectedAt={creator.tiktokConnectedAt?.toISOString() || null}
         />
       </div>
 

@@ -13,14 +13,21 @@ export default async function EditCampaignPage({
   const session = await getRequiredSession();
   const { campaignId } = await params;
 
-  const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, teamId: session.user.teamId },
-    include: {
-      campaignCreators: {
-        include: { creator: true },
+  const [campaign, availableCreators] = await Promise.all([
+    prisma.campaign.findFirst({
+      where: { id: campaignId, teamId: session.user.teamId },
+      include: {
+        campaignCreators: {
+          include: { creator: true },
+        },
       },
-    },
-  });
+    }),
+    prisma.creator.findMany({
+      where: { teamId: session.user.teamId, isActive: true },
+      select: { id: true, name: true, handle: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   if (!campaign) notFound();
 
@@ -35,8 +42,7 @@ export default async function EditCampaignPage({
     galleryUrls: campaign.galleryUrls,
     creators: campaign.campaignCreators.map((cc) => ({
       id: cc.id,
-      handle: cc.creator.handle,
-      creatorName: cc.creator.name,
+      creatorId: cc.creatorId,
       platform: cc.platform as "TIKTOK" | "INSTAGRAM" | "YOUTUBE" | "FACEBOOK",
       videosPerDay: cc.videosPerDay,
       isActive: cc.isActive,
@@ -49,7 +55,11 @@ export default async function EditCampaignPage({
         title={`Edit: ${campaign.name}`}
         description="Update campaign settings"
       />
-      <CampaignForm campaignId={campaignId} initialData={initialData} />
+      <CampaignForm
+        campaignId={campaignId}
+        availableCreators={availableCreators}
+        initialData={initialData}
+      />
     </div>
   );
 }

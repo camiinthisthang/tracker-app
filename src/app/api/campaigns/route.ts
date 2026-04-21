@@ -46,34 +46,15 @@ export async function POST(req: Request) {
         previewLinks: data.previewLinks,
         galleryUrls: data.galleryUrls,
         campaignCreators: {
-          create: await Promise.all(
-            data.creators.map(async (c) => {
-              // Find or create the creator
-              let creator = await prisma.creator.findFirst({
-                where: {
-                  teamId: session.user.teamId,
-                  handle: c.handle,
-                },
-              });
-
-              if (!creator) {
-                creator = await prisma.creator.create({
-                  data: {
-                    teamId: session.user.teamId,
-                    name: c.creatorName || c.handle,
-                    handle: c.handle,
-                  },
-                });
-              }
-
-              return {
-                creatorId: creator.id,
-                platform: c.platform,
-                videosPerDay: c.videosPerDay,
-                isActive: c.isActive,
-              };
-            })
-          ),
+          // Creators must already exist on this team — the admin picks from
+          // the roster via the campaign form. New creators are created
+          // through the dedicated "New creator" modal on /creators.
+          create: data.creators.map((c) => ({
+            creatorId: c.creatorId,
+            platform: c.platform,
+            videosPerDay: c.videosPerDay,
+            isActive: c.isActive,
+          })),
         },
       },
       include: {

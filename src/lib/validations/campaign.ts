@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 export const campaignCreatorSchema = z.object({
-  handle: z.string().min(1, "Handle is required"),
-  creatorName: z.string().optional(),
+  // Reference an existing Creator by id — admins pick from the roster rather
+  // than typing handles. Handles are owned by creators via /profile.
+  creatorId: z.string().min(1, "creatorId is required"),
   platform: z.enum(["TIKTOK", "INSTAGRAM", "YOUTUBE", "FACEBOOK"]),
   videosPerDay: z.coerce.number().int().min(1).default(1),
   isActive: z.boolean().default(true),

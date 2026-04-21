@@ -10,7 +10,6 @@ import { CreatorSocialHandles } from "@/components/creators/creator-social-handl
 import { AssignToCampaign } from "@/components/creators/assign-to-campaign";
 import { DeleteCreatorDangerZone } from "@/components/creators/delete-creator-danger-zone";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Music } from "lucide-react";
 import { PLATFORM_LABELS } from "@/lib/constants";
 
 export default async function CreatorDetailPage({
@@ -116,31 +115,6 @@ export default async function CreatorDetailPage({
           />
         </div>
 
-        {/* TikTok status (read-only for admins) */}
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900">
-              <Music className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-800">
-                TikTok account
-              </p>
-              <p className="text-xs text-slate-500">
-                {creator.tiktokAccessToken
-                  ? `@${creator.tiktokUsername} · Connected ${
-                      creator.tiktokConnectedAt
-                        ? new Date(creator.tiktokConnectedAt).toLocaleDateString()
-                        : ""
-                    }`
-                  : "Creator must connect TikTok from their own profile"}
-              </p>
-            </div>
-          </div>
-          {creator.tiktokAccessToken && (
-            <CheckCircle className="h-5 w-5 text-green-600" />
-          )}
-        </div>
       </div>
 
       {/* Social handles + manual sync trigger */}

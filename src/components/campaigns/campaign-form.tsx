@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,8 +23,15 @@ interface CreatorRow extends CampaignCreatorInput {
   id: string;
 }
 
+interface AvailableCreator {
+  id: string;
+  name: string;
+  handle: string;
+}
+
 interface CampaignFormProps {
   campaignId?: string;
+  availableCreators?: AvailableCreator[];
   initialData?: {
     name: string;
     isActive: boolean;
@@ -37,7 +45,11 @@ interface CampaignFormProps {
   };
 }
 
-export function CampaignForm({ campaignId, initialData }: CampaignFormProps = {}) {
+export function CampaignForm({
+  campaignId,
+  availableCreators = [],
+  initialData,
+}: CampaignFormProps = {}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -66,8 +78,7 @@ export function CampaignForm({ campaignId, initialData }: CampaignFormProps = {}
       ...creators,
       {
         id: crypto.randomUUID(),
-        handle: "",
-        creatorName: "",
+        creatorId: "",
         platform: "TIKTOK",
         videosPerDay: 1,
         isActive: true,
@@ -381,29 +392,25 @@ export function CampaignForm({ campaignId, initialData }: CampaignFormProps = {}
         </div>
       </div>
 
-      {/* Creator Details */}
+      {/* Creators on this campaign */}
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-sm font-semibold text-slate-800">
-              Creator details
+              Creators on this campaign
             </h3>
             <p className="text-xs text-slate-400">
-              Information on creators on this campaign.
+              Pick from your team&apos;s roster. Creators set their own TikTok
+              / Instagram handles on their profile — you don&apos;t type them
+              here.
             </p>
           </div>
         </div>
 
         {creators.length > 0 && (
           <div className="mt-4 space-y-3">
-            {/* Header */}
-            <div className="hidden grid-cols-[1fr_1fr_140px_100px_60px_40px] gap-3 sm:grid">
-              <span className="text-xs font-medium text-gray-500">
-                Creator handle
-              </span>
-              <span className="text-xs font-medium text-gray-500">
-                Creator name (optional)
-              </span>
+            <div className="hidden grid-cols-[1fr_140px_100px_60px_40px] gap-3 sm:grid">
+              <span className="text-xs font-medium text-gray-500">Creator</span>
               <span className="text-xs font-medium text-gray-500">
                 Platform
               </span>
@@ -414,71 +421,98 @@ export function CampaignForm({ campaignId, initialData }: CampaignFormProps = {}
               <span />
             </div>
             <Separator />
-            {creators.map((creator) => (
-              <div
-                key={creator.id}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_140px_100px_60px_40px] sm:items-center"
-              >
-                <Input
-                  placeholder="@janesmith"
-                  value={creator.handle}
-                  onChange={(e) =>
-                    updateCreator(creator.id, "handle", e.target.value)
-                  }
-                />
-                <Input
-                  placeholder="Select creator"
-                  value={creator.creatorName || ""}
-                  onChange={(e) =>
-                    updateCreator(creator.id, "creatorName", e.target.value)
-                  }
-                />
-                <Select
-                  value={creator.platform}
-                  onValueChange={(v) =>
-                    updateCreator(creator.id, "platform", v)
-                  }
+            {creators.map((creator) => {
+              const pickedIds = new Set(
+                creators
+                  .filter((c) => c.id !== creator.id && c.creatorId)
+                  .map((c) => c.creatorId),
+              );
+              const selectableCreators = availableCreators.filter(
+                (ac) => !pickedIds.has(ac.id),
+              );
+              const selected = availableCreators.find(
+                (ac) => ac.id === creator.creatorId,
+              );
+              return (
+                <div
+                  key={creator.id}
+                  className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_140px_100px_60px_40px] sm:items-center"
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ACTIVE_PLATFORMS.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>
-                        {p.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  min={1}
-                  value={creator.videosPerDay}
-                  onChange={(e) =>
-                    updateCreator(
-                      creator.id,
-                      "videosPerDay",
-                      parseInt(e.target.value) || 1
-                    )
-                  }
-                />
-                <Switch
-                  checked={creator.isActive}
-                  onCheckedChange={(v) =>
-                    updateCreator(creator.id, "isActive", v)
-                  }
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
-                  onClick={() => removeCreator(creator.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+                  <Select
+                    value={creator.creatorId}
+                    onValueChange={(v) =>
+                      v && updateCreator(creator.id, "creatorId", v)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pick a creator">
+                        {selected
+                          ? `${selected.name} · @${selected.handle}`
+                          : undefined}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectableCreators.length === 0 ? (
+                        <div className="px-3 py-2 text-xs text-slate-400">
+                          No more creators on this team.
+                        </div>
+                      ) : (
+                        selectableCreators.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}{" "}
+                            <span className="text-slate-400">· @{c.handle}</span>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={creator.platform}
+                    onValueChange={(v) =>
+                      updateCreator(creator.id, "platform", v)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ACTIVE_PLATFORMS.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={creator.videosPerDay}
+                    onChange={(e) =>
+                      updateCreator(
+                        creator.id,
+                        "videosPerDay",
+                        parseInt(e.target.value) || 1,
+                      )
+                    }
+                  />
+                  <Switch
+                    checked={creator.isActive}
+                    onCheckedChange={(v) =>
+                      updateCreator(creator.id, "isActive", v)
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
+                    onClick={() => removeCreator(creator.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -487,14 +521,24 @@ export function CampaignForm({ campaignId, initialData }: CampaignFormProps = {}
           variant="outline"
           className="mt-4"
           onClick={addCreatorRow}
+          disabled={availableCreators.length === 0}
         >
           <Plus className="mr-1 h-4 w-4" />
-          Add handle
+          Add creator
         </Button>
+        {availableCreators.length === 0 && (
+          <p className="mt-2 text-xs text-slate-400">
+            No creators on this team yet. Add one first from the{" "}
+            <Link href="/creators" className="text-blue-600 hover:underline">
+              Creators
+            </Link>{" "}
+            tab.
+          </p>
+        )}
 
         {creators.length > 0 && (
           <p className="mt-2 text-xs text-slate-400">
-            Total active handles: {creators.filter((c) => c.isActive).length}
+            Total active: {creators.filter((c) => c.isActive).length}
           </p>
         )}
       </div>
