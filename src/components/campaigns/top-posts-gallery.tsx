@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 
 interface TopPost {
@@ -8,7 +7,10 @@ interface TopPost {
   thumbnailUrl: string | null;
   views: number;
   referrals: number;
-  creator: { handle: string };
+  // `username` is the scraped author of the post (real TikTok/IG handle).
+  // Prefer it over the creator's internal display slug so the @handle
+  // matches who actually posted the video.
+  username: string;
 }
 
 export function TopPostsGallery({ posts }: { posts: TopPost[] }) {
@@ -33,12 +35,16 @@ export function TopPostsGallery({ posts }: { posts: TopPost[] }) {
           >
             <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-slate-100">
               {post.thumbnailUrl ? (
-                <Image
+                // Raw <img> rather than next/image — TikTok / Instagram
+                // thumbnail URLs are signed + expiring, and the Next image
+                // proxy mishandles them (request ends up mismatching the
+                // signature and the optimizer returns 404 or a blank img).
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={post.thumbnailUrl}
                   alt={post.title || "Post thumbnail"}
-                  fill
-                  className="object-cover transition-transform group-hover:scale-105"
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
+                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                  loading="lazy"
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-xs text-slate-400">
@@ -52,7 +58,7 @@ export function TopPostsGallery({ posts }: { posts: TopPost[] }) {
                   {post.views.toLocaleString()} views
                 </p>
                 <p className="truncate text-[11px] text-white/80">
-                  @{post.creator.handle}
+                  @{post.username}
                 </p>
               </div>
               <div className="absolute right-2 top-2 rounded-full bg-white/90 p-1 opacity-0 transition-opacity group-hover:opacity-100">

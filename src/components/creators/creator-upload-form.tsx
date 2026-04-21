@@ -125,17 +125,15 @@ export function CreatorUploadForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-slate-700">
-            Destination
-          </Label>
+          <Label className="text-xs font-medium text-slate-700">Campaign</Label>
           <Select
             value={campaignId}
             onValueChange={(v) => v && setCampaignId(v)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select destination">
+              <SelectValue placeholder="Pick a campaign">
                 {campaignId === ONBOARDING_OPTION_ID
-                  ? "Onboarding documents"
+                  ? "Tax form / ID"
                   : campaigns.find((c) => c.id === campaignId)?.name}
               </SelectValue>
             </SelectTrigger>
@@ -146,7 +144,7 @@ export function CreatorUploadForm({
                 </SelectItem>
               ))}
               <SelectItem value={ONBOARDING_OPTION_ID}>
-                Onboarding documents
+                Tax form / ID (onboarding)
               </SelectItem>
             </SelectContent>
           </Select>

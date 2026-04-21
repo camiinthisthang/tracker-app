@@ -6,6 +6,7 @@ import { creatorVisibilityWhere } from "@/lib/visibility";
 import { createCreatorSchema } from "@/lib/validations/creator";
 import { sendCreatorInvite } from "@/lib/email/creator-invite";
 import { findEmailConflict } from "@/lib/email-conflict";
+import { createOnboardingTasks } from "@/lib/tasks/onboarding";
 
 export async function GET() {
   try {
@@ -106,6 +107,12 @@ export async function POST(req: Request) {
         inviteToken,
       },
     });
+
+    // Queue the standard onboarding tasks (tax form + FTC/account warming) so
+    // the creator sees them on their first login. Idempotent in the helper —
+    // safe to call without checking first. Matches the application-approve
+    // path in src/app/api/applications/[applicationId]/route.ts.
+    await createOnboardingTasks(creator.id);
 
     // Fire the invite email if we have an address and the caller didn't opt out.
     // Don't block the response on send failure — the inviteUrl is returned

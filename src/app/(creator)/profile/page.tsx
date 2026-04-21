@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
 import { SelfSocialHandles } from "@/components/creators/self-social-handles";
-import { ViralNotificationPrefs } from "@/components/creators/viral-notification-prefs";
 import { Badge } from "@/components/ui/badge";
 import { PLATFORM_LABELS } from "@/lib/constants";
 
@@ -48,21 +47,6 @@ export default async function ProfilePage() {
     where: { creatorId },
     _sum: { views: true },
   });
-
-  const prefsRaw =
-    (creator.notificationPrefs as Record<string, unknown> | null) ?? {};
-  const initialPrefs = {
-    viralEmail: Boolean(prefsRaw.viralEmail),
-    viralSms: Boolean(prefsRaw.viralSms),
-    phoneNumber:
-      typeof prefsRaw.phoneNumber === "string"
-        ? (prefsRaw.phoneNumber as string)
-        : null,
-    threshold:
-      typeof prefsRaw.threshold === "number"
-        ? (prefsRaw.threshold as number)
-        : null,
-  };
 
   return (
     <div>
@@ -114,11 +98,6 @@ export default async function ProfilePage() {
           label="Active Campaigns"
           value={creator.campaignCreators.filter((cc) => cc.campaign.isActive).length}
         />
-      </div>
-
-      {/* Viral notification preferences */}
-      <div className="mt-4">
-        <ViralNotificationPrefs initial={initialPrefs} />
       </div>
 
       {/* Campaigns */}

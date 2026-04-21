@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 import { FilterPills } from "@/components/creators/creator-filter-pills";
 import {
@@ -112,12 +111,14 @@ export function PostsGalleryClient({
               className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-slate-100"
             >
               {post.thumbnailUrl ? (
-                <Image
+                // Raw <img> — TikTok/IG signed thumbnail URLs break Next's
+                // image proxy. See top-posts-gallery.tsx for the same fix.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={post.thumbnailUrl}
                   alt={post.title || "Post thumbnail"}
-                  fill
-                  className="object-cover transition-transform group-hover:scale-105"
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+                  loading="lazy"
                 />
               ) : (
                 <div className="flex h-full items-center justify-center">
