@@ -1,5 +1,31 @@
 @AGENTS.md
 
+# TODO — deferred to later
+
+## Wire Cloudflare R2 for direct video uploads
+Code is already in place (`src/lib/r2.ts`, `src/app/api/uploads/presign/route.ts`, tabbed file/link upload form). Idle until these env vars are set on Vercel `tracker-app` Production:
+
+```
+R2_ACCOUNT_ID        = Cloudflare account ID
+R2_ACCESS_KEY_ID     = token ID from an R2 API token
+R2_SECRET_ACCESS_KEY = token secret
+R2_BUCKET            = bucket name
+R2_PUBLIC_BASE_URL   = https://<r2-dev-subdomain>.r2.dev  OR  custom domain
+```
+
+Setup steps:
+1. Cloudflare → R2 → create a bucket (e.g. `viewtrackr-uploads`)
+2. Bucket → **Public Access** → enable the r2.dev subdomain (or bind a custom domain like `assets.viewtrackr.com`)
+3. R2 → **Manage API tokens** → create a token scoped to "Object Read & Write" on that bucket. Copy Access Key ID + Secret.
+4. Paste the five vars into Vercel env, redeploy.
+
+Without the env vars, the upload form falls back to link-paste cleanly — no crash. When the vars are set, creators see a file picker + live progress bar and files land in R2 under `teamId/creatorId/<timestamp>-<safe-filename>`.
+
+## Rough idea: detect bonus paid-plan signups separately
+Today `USER_PAID_PLAN` uses the same `CreatorAttribution.signupCount` as `USER_DOWNLOAD`. Add a `paidCount` column + PostHog query variant when the paid-bonus clients need it (none do yet).
+
+---
+
 # Autonomous Session 2 — Task Queue
 
 Tasks 1–9 from session 1 are complete (see CHANGELOG). This is a fresh queue. Work top-to-bottom. After each chunk: `npm run build` → push → append a CHANGELOG row. If genuinely blocked on a Cami-only decision, log it under "Blocked — needs Cami" and move on.
