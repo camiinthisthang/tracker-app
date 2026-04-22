@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { findEmailConflict } from "@/lib/email-conflict";
+import { sendManagerInvite } from "@/lib/email/manager-invite";
 
 export async function POST(
   req: Request,
@@ -58,12 +59,28 @@ export async function POST(
   });
 
   const origin =
+    process.env.NEXT_PUBLIC_APP_URL ||
     req.headers.get("origin") ||
-    (process.env.NEXT_PUBLIC_APP_URL ?? "https://viewtrackr.com");
+    "https://viewtrackr.com";
+  const inviteUrl = `${origin}/invite/team/${token}`;
+
+  // Fire the branded invite email via Resend. Don't block the response on
+  // send failure — the caller always gets the link back and can copy/paste
+  // manually if delivery fails.
+  const inviterName =
+    typeof session.user.name === "string" ? session.user.name : null;
+  const emailResult = await sendManagerInvite({
+    to: email,
+    teamName: team.name,
+    inviteUrl,
+    inviterName,
+  });
 
   return NextResponse.json({
     token,
-    url: `${origin}/invite/team/${token}`,
+    url: inviteUrl,
     expiresAt,
+    emailSent: emailResult.ok,
+    emailError: emailResult.ok ? null : emailResult.reason,
   });
 }

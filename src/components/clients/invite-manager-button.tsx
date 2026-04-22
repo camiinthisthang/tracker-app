@@ -26,6 +26,8 @@ export function InviteManagerButton({
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [inviteUrl, setInviteUrl] = useState("");
+  const [emailSent, setEmailSent] = useState<boolean | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -49,9 +51,19 @@ export function InviteManagerButton({
         setLoading(false);
         return;
       }
-      const { url } = await res.json();
-      setInviteUrl(url);
-      toast.success("Invite link ready — copy it to the manager");
+      const data = await res.json();
+      setInviteUrl(data.url);
+      setEmailSent(Boolean(data.emailSent));
+      setEmailError(data.emailError ?? null);
+      if (data.emailSent) {
+        toast.success(`Invite emailed to ${email.trim()}`);
+      } else {
+        toast.warning(
+          data.emailError
+            ? `Email delivery failed: ${data.emailError}. Copy the link below.`
+            : "Invite link ready — copy it to the manager",
+        );
+      }
     } catch {
       toast.error("Something went wrong");
     } finally {
@@ -80,6 +92,8 @@ export function InviteManagerButton({
     if (!next) {
       setEmail("");
       setInviteUrl("");
+      setEmailSent(null);
+      setEmailError(null);
       setCopied(false);
     }
     setOpen(next);
@@ -119,10 +133,19 @@ export function InviteManagerButton({
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
-              <strong>Invite created.</strong> Share this link with {email}. It
-              expires in 14 days.
-            </div>
+            {emailSent ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+                <strong>Invite emailed to {email}.</strong> They have 14 days
+                to accept. The link is also below in case you want to share
+                it another way.
+              </div>
+            ) : (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                <strong>Invite created, but email didn&apos;t send.</strong>
+                {emailError ? ` (${emailError})` : ""} Copy the link below and
+                send it manually.
+              </div>
+            )}
             <div className="flex gap-2">
               <Input value={inviteUrl} readOnly className="font-mono text-xs" />
               <Button
@@ -157,16 +180,18 @@ export function InviteManagerButton({
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={() => handleClose(false)}>
-                Done
-              </Button>
               <Button
-                onClick={handleMailto}
+                onClick={() => handleClose(false)}
                 className="bg-slate-900 text-white hover:bg-slate-800"
               >
-                <Mail className="mr-2 h-4 w-4" />
-                Send via email
+                Done
               </Button>
+              {!emailSent && (
+                <Button variant="outline" onClick={handleMailto}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Open in mail app
+                </Button>
+              )}
             </>
           )}
         </DialogFooter>
