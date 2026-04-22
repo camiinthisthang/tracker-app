@@ -9,6 +9,7 @@ declare module "next-auth" {
       image?: string | null;
       teamId: string;
       teamName: string;
+      teamSlug: string;
       role: "ADMIN" | "MEMBER" | "CREATOR";
       creatorId?: string;
       isSuperAdmin: boolean;
@@ -21,6 +22,7 @@ declare module "next-auth" {
     name?: string | null;
     teamId?: string;
     teamName?: string;
+    teamSlug?: string;
     role?: "ADMIN" | "MEMBER" | "CREATOR";
     creatorId?: string;
     isSuperAdmin?: boolean;
@@ -32,6 +34,7 @@ declare module "next-auth/jwt" {
     id: string;
     teamId: string;
     teamName: string;
+    teamSlug: string;
     role: "ADMIN" | "MEMBER" | "CREATOR";
     creatorId?: string;
     isSuperAdmin?: boolean;

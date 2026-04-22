@@ -47,6 +47,11 @@ const agencyNavItems = [
   { href: "/team", label: "Agency team", icon: UserCog },
 ];
 
+// Agency-team marker. Keep in sync with AGENCY_TEAM_SLUG in src/lib/auth.ts.
+// Client component can't import from server-only modules so we duplicate the
+// literal here. `teamName` fallback is for sessions issued before the slug
+// was added to the JWT.
+const AGENCY_TEAM_SLUG = "tapmore";
 const AGENCY_TEAM_NAME = "Tapmore";
 
 export function AdminSidebar() {
@@ -72,7 +77,9 @@ export function AdminSidebar() {
           <SidebarNavItem key={item.href} {...item} />
         ))}
         {(session?.user?.isSuperAdmin ||
-          session?.user?.teamName === AGENCY_TEAM_NAME) && (
+          session?.user?.teamSlug === AGENCY_TEAM_SLUG ||
+          (!session?.user?.teamSlug &&
+            session?.user?.teamName === AGENCY_TEAM_NAME)) && (
           <>
             <div className="mt-4 mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               Agency

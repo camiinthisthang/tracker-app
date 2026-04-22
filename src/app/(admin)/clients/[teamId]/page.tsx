@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { format } from "date-fns";
 import { Users, Megaphone, UserPlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requireAgencyAccess, AGENCY_TEAM_NAME } from "@/lib/auth";
+import { requireAgencyAccess, AGENCY_TEAM_SLUG, AGENCY_TEAM_NAME } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -40,8 +40,8 @@ export default async function ClientDetailPage({
   if (!team) notFound();
 
   // The agency team has its own management page at /team — don't render it
-  // under /clients. Keeps a single source of truth for the two flows.
-  if (team.name === AGENCY_TEAM_NAME) redirect("/team");
+  // under /clients. Identified by slug so rename-safe.
+  if (team.slug === AGENCY_TEAM_SLUG) redirect("/team");
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

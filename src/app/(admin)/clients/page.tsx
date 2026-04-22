@@ -2,7 +2,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Building2, Plus, Users, Megaphone, Film } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requireAgencyAccess, AGENCY_TEAM_NAME } from "@/lib/auth";
+import { requireAgencyAccess, AGENCY_TEAM_SLUG } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/shared/stat-card";
@@ -14,9 +14,9 @@ export default async function ClientsPage() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const teams = await prisma.team.findMany({
-    // Exclude the agency team (Tapmore) from the clients list — it's managed
-    // separately on /team. This page only shows real client workspaces.
-    where: { name: { not: AGENCY_TEAM_NAME } },
+    // Exclude the agency team from the clients list — it's managed separately
+    // on /team. Identified by slug so a display-name rename doesn't break it.
+    where: { slug: { not: AGENCY_TEAM_SLUG } },
     orderBy: { createdAt: "asc" },
     include: {
       _count: {

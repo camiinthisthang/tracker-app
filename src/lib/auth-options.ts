@@ -122,6 +122,7 @@ export const authOptions: NextAuthOptions = {
           image: user.image,
           teamId: membership?.teamId ?? "",
           teamName: membership?.team.name ?? "",
+          teamSlug: membership?.team.slug ?? "",
           role: (membership?.role ?? "MEMBER") as "ADMIN" | "MEMBER" | "CREATOR",
           creatorId: membership?.creatorId ?? undefined,
           isSuperAdmin: user.isSuperAdmin,
@@ -165,6 +166,7 @@ export const authOptions: NextAuthOptions = {
         if (user.teamId !== undefined) {
           token.teamId = user.teamId ?? "";
           token.teamName = user.teamName ?? "";
+          token.teamSlug = user.teamSlug ?? "";
           token.role = user.role ?? "MEMBER";
           token.creatorId = user.creatorId;
         } else {
@@ -181,6 +183,7 @@ export const authOptions: NextAuthOptions = {
           const membership = dbUser?.memberships[0];
           token.teamId = membership?.teamId ?? "";
           token.teamName = membership?.team.name ?? "";
+          token.teamSlug = membership?.team.slug ?? "";
           token.role = (membership?.role ?? "MEMBER") as
             | "ADMIN"
             | "MEMBER"
@@ -202,6 +205,7 @@ export const authOptions: NextAuthOptions = {
         const membership = dbUser?.memberships[0];
         token.teamId = membership?.teamId ?? "";
         token.teamName = membership?.team.name ?? "";
+        token.teamSlug = membership?.team.slug ?? "";
         token.role = (membership?.role ?? "MEMBER") as
           | "ADMIN"
           | "MEMBER"
@@ -216,6 +220,7 @@ export const authOptions: NextAuthOptions = {
       session.user.id = token.id;
       session.user.teamId = token.teamId;
       session.user.teamName = token.teamName;
+      session.user.teamSlug = token.teamSlug ?? "";
       session.user.role = token.role;
       session.user.creatorId = token.creatorId;
       session.user.isSuperAdmin = token.isSuperAdmin ?? false;

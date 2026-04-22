@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { UserPlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requireAgencyAccess, AGENCY_TEAM_NAME } from "@/lib/auth";
+import { requireAgencyAccess, AGENCY_TEAM_SLUG } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { InviteManagerButton } from "@/components/clients/invite-manager-button";
@@ -12,7 +12,7 @@ export default async function AgencyTeamPage() {
   await requireAgencyAccess();
 
   const team = await prisma.team.findFirst({
-    where: { name: AGENCY_TEAM_NAME },
+    where: { slug: AGENCY_TEAM_SLUG },
     include: {
       members: {
         include: { user: true },
