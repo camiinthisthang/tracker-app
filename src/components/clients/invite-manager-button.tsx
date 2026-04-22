@@ -19,10 +19,25 @@ import { toast } from "sonner";
 export function InviteManagerButton({
   teamId,
   teamName,
+  variant = "client",
 }: {
   teamId: string;
   teamName: string;
+  /**
+   * "client" = inviting a client-side manager (ADMIN of a single client
+   * workspace like Poncho). "agency" = inviting a fellow agency admin
+   * (ADMIN of the Tapmore team — cross-client visibility).
+   */
+  variant?: "client" | "agency";
 }) {
+  const isAgency = variant === "agency";
+  const buttonLabel = isAgency ? "Invite agency admin" : "Invite manager";
+  const dialogTitle = isAgency
+    ? `Invite an agency admin to ${teamName}`
+    : `Invite a manager to ${teamName}`;
+  const dialogDescription = isAgency
+    ? "They'll get ADMIN access to every client workspace you operate — same visibility as you, minus super-admin-only actions like creating new clients or deleting creators."
+    : `They'll get ADMIN access to this client workspace only — they won't see other clients or the master admin view.`;
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [inviteUrl, setInviteUrl] = useState("");
@@ -41,7 +56,7 @@ export function InviteManagerButton({
       const res = await fetch(`/api/clients/${teamId}/invite`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), variant }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -107,16 +122,13 @@ export function InviteManagerButton({
           className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
         >
           <UserPlus className="mr-2 h-4 w-4" />
-          Invite manager
+          {buttonLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Invite a manager to {teamName}</DialogTitle>
-          <DialogDescription>
-            They&apos;ll get ADMIN access to this client workspace only — they
-            won&apos;t see other clients or the master admin view.
-          </DialogDescription>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
 
         {!inviteUrl ? (

@@ -17,6 +17,11 @@ export async function POST(
   const { teamId } = await params;
   const body = await req.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  // "agency" = inviting a fellow Tapmore admin. "client" = inviting a client-
+  // side manager. Only affects email copy + dialog framing; the DB row is the
+  // same TeamInvite(role=ADMIN) on the given teamId either way.
+  const variant: "client" | "agency" =
+    body?.variant === "agency" ? "agency" : "client";
 
   if (!email || !email.includes("@")) {
     return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
@@ -74,6 +79,7 @@ export async function POST(
     teamName: team.name,
     inviteUrl,
     inviterName,
+    variant,
   });
 
   return NextResponse.json({

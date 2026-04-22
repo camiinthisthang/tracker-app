@@ -5,30 +5,45 @@ interface SendManagerInviteArgs {
   teamName: string;
   inviteUrl: string;
   inviterName?: string | null;
+  /**
+   * "client" = recipient gets scoped visibility into a single client
+   * workspace. "agency" = recipient gets cross-client visibility (Tapmore
+   * team membership). Affects copy only; the invite row is identical.
+   */
+  variant?: "client" | "agency";
 }
 
 /**
- * Invite a client-team manager (ADMIN role) to an existing Team workspace.
- * Parallel to sendCreatorInvite but worded for the manager flow —
- * recipient gets admin visibility into campaigns / creators / analytics for
- * that one client only.
+ * Invite a manager or agency admin to a Team workspace via Resend. Parallel
+ * to sendCreatorInvite but worded for the manager/admin flow.
  */
 export async function sendManagerInvite({
   to,
   teamName,
   inviteUrl,
   inviterName,
+  variant = "client",
 }: SendManagerInviteArgs) {
   if (!isEmailConfigured() || !resend) {
     return { ok: false as const, reason: "email_not_configured" };
   }
 
   const fromLabel = inviterName ? `${inviterName} (Tapmore)` : "Tapmore";
-  const subject = `You're invited to manage ${teamName} on Viewtrackr`;
+  const isAgency = variant === "agency";
+
+  const subject = isAgency
+    ? `You're invited to join ${teamName} on Viewtrackr`
+    : `You're invited to manage ${teamName} on Viewtrackr`;
+
+  const pitch = isAgency
+    ? `You'll get admin access to every client workspace we operate — campaigns, creators, posts, and analytics across the board.`
+    : `You'll get admin access to see campaigns, creators, posts, and analytics for ${teamName} — nothing else.`;
+
+  const ctaVerb = isAgency ? "join" : "manage";
 
   const text = `Hi,
 
-${fromLabel} invited you to manage ${teamName} on Viewtrackr. You'll get admin access to see campaigns, creators, posts, and analytics for ${teamName} — nothing else.
+${fromLabel} invited you to ${ctaVerb} ${teamName} on Viewtrackr. ${pitch}
 
 Accept the invite:
 ${inviteUrl}
@@ -39,8 +54,8 @@ This link expires in 14 days.
 
   const html = `<div style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.6;color:#0f172a;max-width:560px;">
   <p style="margin:0 0 14px;">Hi,</p>
-  <p style="margin:0 0 14px;"><strong>${fromLabel}</strong> invited you to manage <strong>${teamName}</strong> on Viewtrackr.</p>
-  <p style="margin:0 0 14px;">You'll get admin access to see campaigns, creators, posts, and analytics for ${teamName} — nothing else.</p>
+  <p style="margin:0 0 14px;"><strong>${fromLabel}</strong> invited you to ${ctaVerb} <strong>${teamName}</strong> on Viewtrackr.</p>
+  <p style="margin:0 0 14px;">${pitch}</p>
   <p style="margin:0 0 20px;">
     <a href="${inviteUrl}" style="display:inline-block;background:#1e293b;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:500;">Accept invite</a>
   </p>

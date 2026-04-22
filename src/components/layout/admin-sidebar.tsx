@@ -15,6 +15,7 @@ import {
   Inbox,
   Lightbulb,
   Building2,
+  UserCog,
 } from "lucide-react";
 import { SidebarNavItem } from "./sidebar-nav-item";
 import {
@@ -38,11 +39,12 @@ const navItems = [
 ];
 
 // Agency-wide items — super admins + agency managers (Tapmore team) see these.
-// Applications (review creator applicants) and Clients (multi-tenant dashboard)
-// both require cross-client visibility.
+// Applications (review creator applicants), Clients (multi-tenant dashboard),
+// and Agency team (Tapmore members) all require cross-client visibility.
 const agencyNavItems = [
   { href: "/applications", label: "Applications", icon: Inbox },
   { href: "/clients", label: "Clients", icon: Building2 },
+  { href: "/team", label: "Agency team", icon: UserCog },
 ];
 
 const AGENCY_TEAM_NAME = "Tapmore";

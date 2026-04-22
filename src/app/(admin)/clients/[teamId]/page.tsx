@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { format } from "date-fns";
 import { Users, Megaphone, UserPlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -38,6 +38,10 @@ export default async function ClientDetailPage({
   });
 
   if (!team) notFound();
+
+  // The agency team has its own management page at /team — don't render it
+  // under /clients. Keeps a single source of truth for the two flows.
+  if (team.name === AGENCY_TEAM_NAME) redirect("/team");
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -92,7 +96,11 @@ export default async function ClientDetailPage({
         title={team.name}
         description={`Client workspace · ${team.slug}`}
       >
-        <InviteManagerButton teamId={team.id} teamName={team.name} />
+        <InviteManagerButton
+          teamId={team.id}
+          teamName={team.name}
+          variant="client"
+        />
       </PageHeader>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-4">
