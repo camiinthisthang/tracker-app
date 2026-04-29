@@ -27,6 +27,19 @@ tangent.
 
 ---
 
+## 2026-04-29 12:26 — follow-up: sync now fetches both platforms + truthful toast
+- **Sync was silently skipping Instagram for most creators.** Old code used `CampaignCreator.platform` (which we just stopped surfacing in the UI — defaults to TIKTOK on every new row) to pick a single platform per creator. Rewrote `syncCampaign` in `src/lib/social/sync.ts` to fan out per-creator across both TikTok and Instagram whenever the creator has the corresponding handle on their profile.
+- Removed the unsafe `instagramHandle || handle` fallback — the generic `handle` was returning random Instagram accounts when the creator hadn't set their IG. Now a missing handle = skip (with a reason).
+- **Sync button no longer always says "success."** `SyncButton` now reads the API response and shows `"Synced N posts."`, or a yellow `toast.warning` with the skipped creators + reasons when 0 posts came back. Also calls `router.refresh()` so the page picks up new posts immediately.
+- API return shape: `{ postsUpserted, creatorsAttempted, platformAttempts, skipped: [{creator, reason}] }`.
+- Tested: `npm run build` passes; Cami confirmed posts loaded after the fix.
+- Cost: one Apify run per (creator × platform) per click. Still rate-limited to once per hour per campaign.
+
+## 2026-04-29 12:26 — follow-up: campaign delete + drop platform dropdown
+- **Campaign delete UI.** New `DeleteCampaignDangerZone` mounted at the bottom of `/campaigns/[id]/edit`, mirroring the creator danger-zone pattern. Confirmation dialog requires typing the campaign name. Hits the existing `DELETE /api/campaigns/[campaignId]` route, toasts, redirects to `/campaigns`.
+- **Removed Platform dropdown from add-creator-to-campaign flow.** All creators are treated as multi-platform now. Stripped the column from `CampaignForm`, `CampaignCreatorsTable` (overview), and the per-creator badge in `CreatorProgressCard`. Page-level mappings in `overview/page.tsx` and `progress/page.tsx` no longer pass `platform`. Schema column `CampaignCreator.platform` left in place (default TIKTOK) — harmless and avoids a migration.
+- Tested: `npm run build` passes.
+
 ## 2026-04-21 02:05 — follow-up: drop threshold, make bonuses per-unit
 - **Bonus rules are now per-unit.** Removed the "Threshold" input + help-text logic from `BonusRulesManager`. Form is now just Trigger + "USD per {unit}" + Label. Unit label auto-updates with the trigger ("USD per signup", "USD per paid signup", "USD per viral video", "USD per referral").
 - `VIEW_THRESHOLD` dropped from the dropdown (per-unit on max-views-on-a-single-post doesn't make sense). Enum value + legacy rows stay — `src/lib/bonus.ts` skips them in the per-unit computation; API rejects new VIEW_THRESHOLD writes.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,7 @@ export function SyncButton({
   campaignName,
   lastSyncAt,
 }: SyncButtonProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -42,15 +44,36 @@ export function SyncButton({
         return;
       }
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        toast.error("Failed to start sync.");
+        toast.error(data?.error ?? "Failed to sync.");
         setOpen(false);
         setSyncing(false);
         return;
       }
 
-      toast.success("Sync started! Metrics will update in a few minutes.");
+      const upserted = typeof data?.postsUpserted === "number" ? data.postsUpserted : 0;
+      const skipped: { creator: string; reason: string }[] = Array.isArray(data?.skipped)
+        ? data.skipped
+        : [];
+
+      if (upserted === 0) {
+        const sample = skipped.slice(0, 3).map((s) => `@${s.creator} (${s.reason})`).join(", ");
+        toast.warning(
+          skipped.length > 0
+            ? `Sync ran but added 0 posts. Skipped: ${sample}${skipped.length > 3 ? ` +${skipped.length - 3} more` : ""}`
+            : "Sync ran but found no new posts. Check creators have TikTok/Instagram handles set, and that any campaign hashtag filter matches the actual post titles.",
+          { duration: 10000 }
+        );
+      } else {
+        toast.success(
+          `Synced ${upserted} post${upserted === 1 ? "" : "s"}.${skipped.length > 0 ? ` (${skipped.length} skipped)` : ""}`
+        );
+      }
+
       setOpen(false);
+      router.refresh();
     } catch {
       toast.error("Something went wrong.");
     } finally {

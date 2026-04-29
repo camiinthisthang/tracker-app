@@ -5,32 +5,23 @@ import {
 } from "./apify";
 import type { SocialPost } from "./types";
 
-function resolveHandle(
-  platform: "TIKTOK" | "INSTAGRAM" | "YOUTUBE" | "FACEBOOK",
-  creator: {
-    handle: string;
-    tiktokHandle: string | null;
-    tiktokUsername: string | null;
-    instagramHandle: string | null;
-  }
-): string | null {
-  if (platform === "TIKTOK") {
-    return creator.tiktokHandle || creator.tiktokUsername || creator.handle;
-  }
-  if (platform === "INSTAGRAM") {
-    return creator.instagramHandle || creator.handle;
-  }
-  return null;
+type CreatorHandles = {
+  handle: string;
+  tiktokHandle: string | null;
+  tiktokUsername: string | null;
+  instagramHandle: string | null;
+};
+
+// Every creator is treated as multi-platform: we try TikTok and Instagram for
+// each one, regardless of the CampaignCreator.platform column (kept around for
+// historical reasons but no longer surfaced in the UI). A platform is only
+// attempted when the creator actually has a handle for it.
+function resolveTikTokHandle(c: CreatorHandles): string | null {
+  return c.tiktokHandle || c.tiktokUsername || null;
 }
 
-async function fetchPostsForPlatform(
-  platform: "TIKTOK" | "INSTAGRAM" | "YOUTUBE" | "FACEBOOK",
-  handle: string
-): Promise<SocialPost[]> {
-  if (platform === "TIKTOK") return fetchTikTokPostsViaApify(handle);
-  if (platform === "INSTAGRAM") return fetchInstagramPostsViaApify(handle);
-  // YouTube / Facebook: not yet wired to Apify, skip silently.
-  return [];
+function resolveInstagramHandle(c: CreatorHandles): string | null {
+  return c.instagramHandle || null;
 }
 
 /**
@@ -55,31 +46,56 @@ export async function syncCampaign(campaignId: string) {
   today.setHours(0, 0, 0, 0);
 
   let totalPostsUpserted = 0;
+  const skipped: { creator: string; reason: string }[] = [];
 
-  // Fetch all creators in parallel — each Apify run is independent and the
-  // actors rate-limit internally. Keeps a 10-creator sync well under Vercel's
-  // 300s Pro timeout vs. serial (~10×60s).
-  const fetches = campaign.campaignCreators.map(async (cc) => {
-    const handle = resolveHandle(cc.platform, cc.creator);
-    if (!handle) return { cc, posts: [] as SocialPost[] };
+  // Build (creator, platform, handle) tasks — one per platform the creator has
+  // a handle for. Run all of them in parallel; each Apify run is independent
+  // and the actors rate-limit internally.
+  type FetchTask = {
+    cc: (typeof campaign.campaignCreators)[number];
+    platform: "TIKTOK" | "INSTAGRAM";
+    handle: string;
+  };
+  const tasks: FetchTask[] = [];
+  for (const cc of campaign.campaignCreators) {
+    const tiktok = resolveTikTokHandle(cc.creator);
+    const instagram = resolveInstagramHandle(cc.creator);
+    if (tiktok) tasks.push({ cc, platform: "TIKTOK", handle: tiktok });
+    if (instagram) tasks.push({ cc, platform: "INSTAGRAM", handle: instagram });
+    if (!tiktok && !instagram) {
+      skipped.push({
+        creator: cc.creator.handle,
+        reason: "no TikTok or Instagram handle on profile",
+      });
+    }
+  }
+
+  const fetches = tasks.map(async (task) => {
     try {
-      const posts = await fetchPostsForPlatform(cc.platform, handle);
-      return { cc, posts: filterByHashtags(posts, campaign.hashtags) };
+      const fetched =
+        task.platform === "TIKTOK"
+          ? await fetchTikTokPostsViaApify(task.handle)
+          : await fetchInstagramPostsViaApify(task.handle);
+      return { task, posts: filterByHashtags(fetched, campaign.hashtags) };
     } catch (error) {
       console.error(
-        `Sync error for creator ${cc.creator.handle} on ${cc.platform}:`,
+        `Sync error for creator ${task.cc.creator.handle} on ${task.platform}:`,
         error
       );
-      return { cc, posts: [] as SocialPost[] };
+      skipped.push({
+        creator: task.cc.creator.handle,
+        reason: `${task.platform} fetch failed`,
+      });
+      return { task, posts: [] as SocialPost[] };
     }
   });
 
   const fetchResults = await Promise.all(fetches);
 
   // DB writes are sequential to avoid overwhelming the connection pool.
-  for (const { cc, posts } of fetchResults) {
+  for (const { task, posts } of fetchResults) {
     for (const post of posts) {
-      await upsertPost(post, campaignId, cc.creatorId);
+      await upsertPost(post, campaignId, task.cc.creatorId);
       totalPostsUpserted++;
     }
   }
@@ -93,7 +109,12 @@ export async function syncCampaign(campaignId: string) {
     data: { lastSyncAt: new Date() },
   });
 
-  return { postsUpserted: totalPostsUpserted };
+  return {
+    postsUpserted: totalPostsUpserted,
+    creatorsAttempted: campaign.campaignCreators.length,
+    platformAttempts: tasks.length,
+    skipped,
+  };
 }
 
 /**
