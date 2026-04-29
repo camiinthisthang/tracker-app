@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { TierBadge } from "@/components/creators/tier-badge";
-import { PLATFORM_LABELS } from "@/lib/constants";
 import { Flame } from "lucide-react";
 
 export interface CampaignCreatorRow {
@@ -8,7 +7,6 @@ export interface CampaignCreatorRow {
   creatorName: string;
   creatorHandle: string;
   tier: string;
-  platform: string;
   videosPerDay: number;
   postCount: number;
   totalViews: number;
@@ -43,9 +41,6 @@ export function CampaignCreatorsTable({
               <th className="px-5 py-3 text-xs font-medium text-gray-500">
                 Tier
               </th>
-              <th className="px-5 py-3 text-xs font-medium text-gray-500">
-                Platform
-              </th>
               <th className="px-5 py-3 text-right text-xs font-medium text-gray-500">
                 Videos/day
               </th>
@@ -73,7 +68,7 @@ export function CampaignCreatorsTable({
             {creators.length === 0 ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={8}
                   className="px-5 py-6 text-center text-sm text-slate-400"
                 >
                   No creators assigned yet
@@ -105,9 +100,6 @@ export function CampaignCreatorsTable({
                   </td>
                   <td className="px-5 py-3">
                     <TierBadge tier={c.tier} />
-                  </td>
-                  <td className="px-5 py-3 text-sm text-slate-600">
-                    {PLATFORM_LABELS[c.platform] || c.platform}
                   </td>
                   <td className="px-5 py-3 text-right text-sm text-slate-600">
                     {c.videosPerDay}

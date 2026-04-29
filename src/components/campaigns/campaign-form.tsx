@@ -17,7 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { CampaignCreatorInput } from "@/lib/validations/campaign";
-import { ACTIVE_PLATFORMS } from "@/lib/constants";
 
 interface CreatorRow extends CampaignCreatorInput {
   id: string;
@@ -409,11 +408,8 @@ export function CampaignForm({
 
         {creators.length > 0 && (
           <div className="mt-4 space-y-3">
-            <div className="hidden grid-cols-[1fr_140px_100px_60px_40px] gap-3 sm:grid">
+            <div className="hidden grid-cols-[1fr_100px_60px_40px] gap-3 sm:grid">
               <span className="text-xs font-medium text-gray-500">Creator</span>
-              <span className="text-xs font-medium text-gray-500">
-                Platform
-              </span>
               <span className="text-xs font-medium text-gray-500">
                 Videos per day
               </span>
@@ -436,7 +432,7 @@ export function CampaignForm({
               return (
                 <div
                   key={creator.id}
-                  className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_140px_100px_60px_40px] sm:items-center"
+                  className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_100px_60px_40px] sm:items-center"
                 >
                   <Select
                     value={creator.creatorId}
@@ -464,23 +460,6 @@ export function CampaignForm({
                           </SelectItem>
                         ))
                       )}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={creator.platform}
-                    onValueChange={(v) =>
-                      updateCreator(creator.id, "platform", v)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ACTIVE_PLATFORMS.map((p) => (
-                        <SelectItem key={p.value} value={p.value}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
                     </SelectContent>
                   </Select>
                   <Input

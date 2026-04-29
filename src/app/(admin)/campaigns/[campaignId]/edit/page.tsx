@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { CampaignForm } from "@/components/campaigns/campaign-form";
+import { DeleteCampaignDangerZone } from "@/components/campaigns/delete-campaign-danger-zone";
 
 export default async function EditCampaignPage({
   params,
@@ -59,6 +60,10 @@ export default async function EditCampaignPage({
         campaignId={campaignId}
         availableCreators={availableCreators}
         initialData={initialData}
+      />
+      <DeleteCampaignDangerZone
+        campaignId={campaign.id}
+        campaignName={campaign.name}
       />
     </div>
   );

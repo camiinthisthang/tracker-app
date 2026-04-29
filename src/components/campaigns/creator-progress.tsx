@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { PLATFORM_LABELS } from "@/lib/constants";
 
 export interface CreatorProgress {
   creatorId: string;
   creatorName: string;
   creatorHandle: string;
-  platform: string;
   videosPerDay: number;
   weeklyTarget: number;
   postsThisWeek: number;
@@ -82,9 +80,6 @@ export function CreatorProgressCard({
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-semibold text-slate-800">
               @{progress.creatorHandle}
-            </span>
-            <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
-              {PLATFORM_LABELS[progress.platform] || progress.platform}
             </span>
           </div>
           <p className="truncate text-xs text-slate-400">

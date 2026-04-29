@@ -57,7 +57,6 @@ export default async function CampaignProgressPage({
       creatorId: cc.creatorId,
       creatorName: cc.creator.name,
       creatorHandle: cc.creator.handle,
-      platform: cc.platform,
       videosPerDay: cc.videosPerDay,
       weeklyTarget,
       postsThisWeek: creatorPosts.length,
