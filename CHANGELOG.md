@@ -27,6 +27,14 @@ tangent.
 
 ---
 
+## 2026-05-04 — hook workshop/publish: admin UI (chunk 2 of 3)
+- New `WorkshopHooksManager` component on `/hooks`. Two tabs (Workshop / Published), each card shows the 3 fields (on-screen text, caption, video direction) + the hook's campaign + the "Used by N creators" count for published ones (from `Upload.hookId`). Inline edit (full form), Publish (sends to a campaign — picker required), Unpublish (back to workshop, no data lost), Delete.
+- "Quick add" dialog at the top — 3 fields + campaign dropdown, two CTAs: "Save to workshop" or "Publish now". The ad-hoc viral-grab flow.
+- `/hooks` page rewritten to fetch hooks split by `publishedAt IS NULL`, with the campaign + creator relations, and to use `campaignVisibilityWhere` for the analytics queries (so the leaderboard respects the agency/client visibility split). Old "Usage by defined hook" table removed — the cards already show that info.
+- Manager visibility: agency admins workshop + publish + delete; client managers (Sam/Ryan/Mitch) see only the analytics for now. Read-only published view for client managers can come in chunk 3 if needed.
+- Dead `HookManager` component deleted.
+- Tested: `npm run build` passes.
+
 ## 2026-05-04 — hook workshop/publish: schema + API (chunk 1 of 3)
 - **Schema change.** Migration `20260504000000_hook_workshop_fields` adds `onScreenText`, `caption`, `videoDirection`, `campaignId`, `publishedAt`, `createdById` to `hooks`. Backfills `onScreenText` from existing `text` on legacy rows and stamps `publishedAt = createdAt` so creators don't lose visibility on published-pre-migration hooks. Index on `(campaignId, publishedAt)` for the creator-side "show me published hooks for my campaigns" query. Legacy `text` column kept and mirrored from `onScreenText` on writes — the existing analytics path that joins `Post.hook` (string) keeps working.
 - Auto-generated companion migration `20260504171913_hook_workshop_fields` drops two indexes (`creator_messages_creatorId_isPinned_createdAt_idx`, `posts_hook_idx`) created in earlier migrations but no longer declared in the schema. Pre-existing drift cleanup, harmless to ship alongside.

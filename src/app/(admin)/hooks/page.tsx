@@ -1,10 +1,14 @@
 import { Sparkles, TrendingUp, ExternalLink } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
+import { campaignVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
-import { HookManager } from "@/components/hooks/hook-manager";
+import {
+  WorkshopHooksManager,
+  type WorkshopHookRow,
+} from "@/components/hooks/workshop-hooks-manager";
 
 interface HookStat {
   hook: string;
@@ -18,21 +22,31 @@ interface HookStat {
 
 export default async function HooksPage() {
   const session = await getRequiredSession();
-  const teamId = session.user.teamId;
-  const canManage =
-    session.user.role === "ADMIN" || session.user.isSuperAdmin;
+  const canManage = hasAgencyWideAccess(session);
+
+  // Hook visibility: agency users see everything, client managers see only
+  // their own team's hooks (mirrors the rule on the API).
+  const hookWhere = canManage ? {} : { teamId: session.user.teamId };
+
+  // Campaigns that this user can publish hooks to.
+  const visibleCampaignsForPicker = await prisma.campaign.findMany({
+    where: campaignVisibilityWhere(session),
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 
   const [hooks, uploadsByHook] = await Promise.all([
     prisma.hook.findMany({
-      where: { teamId },
-      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+      where: { ...hookWhere, isActive: true },
+      include: {
+        campaign: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
     }),
     prisma.upload.groupBy({
       by: ["hookId"],
-      where: {
-        creator: { teamId },
-        hookId: { not: null },
-      },
+      where: { hookId: { not: null } },
       _count: { _all: true },
     }),
   ]);
@@ -40,17 +54,28 @@ export default async function HooksPage() {
   for (const u of uploadsByHook) {
     if (u.hookId) uploadCountByHookId.set(u.hookId, u._count._all);
   }
-  const hooksForManager = hooks.map((h) => ({
-    id: h.id,
-    text: h.text,
-    category: h.category,
-    isActive: h.isActive,
-  }));
 
-  // Get all posts with hooks
+  const toRow = (h: (typeof hooks)[number]): WorkshopHookRow => ({
+    id: h.id,
+    onScreenText: h.onScreenText,
+    caption: h.caption,
+    videoDirection: h.videoDirection,
+    campaignId: h.campaignId,
+    campaign: h.campaign,
+    publishedAt: h.publishedAt?.toISOString() ?? null,
+    createdAt: h.createdAt.toISOString(),
+    createdBy: h.createdBy,
+    isActive: h.isActive,
+    usedByCount: uploadCountByHookId.get(h.id) ?? 0,
+  });
+
+  const workshop = hooks.filter((h) => h.publishedAt === null).map(toRow);
+  const published = hooks.filter((h) => h.publishedAt !== null).map(toRow);
+
+  // Get all posts with hooks (analytics path — unchanged, visibility-scoped).
   const posts = await prisma.post.findMany({
     where: {
-      campaign: { teamId },
+      campaign: campaignVisibilityWhere(session),
       hook: { not: null },
     },
     select: {
@@ -105,7 +130,7 @@ export default async function HooksPage() {
   const topHookPosts = topHook
     ? await prisma.post.findMany({
         where: {
-          campaign: { teamId },
+          campaign: campaignVisibilityWhere(session),
           hook: topHook.hook,
         },
         include: {
@@ -124,58 +149,12 @@ export default async function HooksPage() {
         description="Define the hooks creators can tag videos with, and see which ones perform."
       />
 
-      {canManage && <HookManager hooks={hooksForManager} />}
-
-      {hooks.length > 0 && (
-        <div className="mb-8 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <div className="border-b border-slate-100 px-5 py-3">
-            <h3 className="text-sm font-semibold text-slate-800">
-              Usage by defined hook
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Counts tagged uploads only. Once videos post, referrals and
-              views flow into the leaderboard below.
-            </p>
-          </div>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-100 text-left">
-                <th className="px-5 py-3 text-xs font-medium text-gray-500">
-                  Hook
-                </th>
-                <th className="px-5 py-3 text-xs font-medium text-gray-500">
-                  Category
-                </th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-gray-500">
-                  Tagged uploads
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {hooks.map((h) => (
-                <tr
-                  key={h.id}
-                  className="border-b border-slate-50 last:border-0"
-                >
-                  <td className="px-5 py-3 text-sm text-slate-700">
-                    {h.text}
-                    {!h.isActive && (
-                      <span className="ml-2 text-xs text-slate-400">
-                        (archived)
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-xs text-slate-500">
-                    {h.category ?? "—"}
-                  </td>
-                  <td className="px-5 py-3 text-right text-sm text-slate-700">
-                    {uploadCountByHookId.get(h.id) ?? 0}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {canManage && (
+        <WorkshopHooksManager
+          workshop={workshop}
+          published={published}
+          campaigns={visibleCampaignsForPicker}
+        />
       )}
 
       {hookStats.length === 0 ? (
