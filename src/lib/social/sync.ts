@@ -76,7 +76,11 @@ export async function syncCampaign(campaignId: string) {
         task.platform === "TIKTOK"
           ? await fetchTikTokPostsViaApify(task.handle)
           : await fetchInstagramPostsViaApify(task.handle);
-      return { task, posts: filterByHashtags(fetched, campaign.hashtags) };
+      return {
+        task,
+        posts: filterByHashtags(fetched, campaign.hashtags),
+        success: true,
+      };
     } catch (error) {
       console.error(
         `Sync error for creator ${task.cc.creator.handle} on ${task.platform}:`,
@@ -86,7 +90,7 @@ export async function syncCampaign(campaignId: string) {
         creator: task.cc.creator.handle,
         reason: `${task.platform} fetch failed`,
       });
-      return { task, posts: [] as SocialPost[] };
+      return { task, posts: [] as SocialPost[], success: false };
     }
   });
 
@@ -100,6 +104,27 @@ export async function syncCampaign(campaignId: string) {
     }
   }
 
+  // Prune stale-handle posts: if a creator's TikTok handle was previously
+  // pointed at someone else's account (e.g. used for testing) and then changed
+  // back, the posts scraped under the old handle still sit in the DB with the
+  // old `username`. Drop any rows for this (creator, platform) whose username
+  // doesn't match the handle we just successfully synced. PostMetricsSnapshot
+  // cascades on Post delete.
+  let totalPrunedStale = 0;
+  for (const { task, success } of fetchResults) {
+    if (!success) continue;
+    const cleanHandle = task.handle.trim().replace(/^@+/, "");
+    if (!cleanHandle) continue;
+    const pruned = await prisma.post.deleteMany({
+      where: {
+        creatorId: task.cc.creatorId,
+        platform: task.platform,
+        NOT: { username: { equals: cleanHandle, mode: "insensitive" } },
+      },
+    });
+    totalPrunedStale += pruned.count;
+  }
+
   // Update campaign daily metrics
   await updateCampaignDailyMetrics(campaignId, today);
 
@@ -111,6 +136,7 @@ export async function syncCampaign(campaignId: string) {
 
   return {
     postsUpserted: totalPostsUpserted,
+    prunedStale: totalPrunedStale,
     creatorsAttempted: campaign.campaignCreators.length,
     platformAttempts: tasks.length,
     skipped,

@@ -54,11 +54,16 @@ export function SyncButton({
       }
 
       const upserted = typeof data?.postsUpserted === "number" ? data.postsUpserted : 0;
+      const prunedStale = typeof data?.prunedStale === "number" ? data.prunedStale : 0;
       const skipped: { creator: string; reason: string }[] = Array.isArray(data?.skipped)
         ? data.skipped
         : [];
 
-      if (upserted === 0) {
+      const pruneNote = prunedStale > 0
+        ? ` Removed ${prunedStale} stale post${prunedStale === 1 ? "" : "s"} from old handles.`
+        : "";
+
+      if (upserted === 0 && prunedStale === 0) {
         const sample = skipped.slice(0, 3).map((s) => `@${s.creator} (${s.reason})`).join(", ");
         toast.warning(
           skipped.length > 0
@@ -68,7 +73,7 @@ export function SyncButton({
         );
       } else {
         toast.success(
-          `Synced ${upserted} post${upserted === 1 ? "" : "s"}.${skipped.length > 0 ? ` (${skipped.length} skipped)` : ""}`
+          `Synced ${upserted} post${upserted === 1 ? "" : "s"}.${pruneNote}${skipped.length > 0 ? ` (${skipped.length} skipped)` : ""}`
         );
       }
 

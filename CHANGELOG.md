@@ -27,7 +27,13 @@ tangent.
 
 ---
 
-## 2026-04-29 12:26 — follow-up: sync now fetches both platforms + truthful toast
+## 2026-05-04 — follow-up: sync auto-prunes stale-handle posts
+- **Problem:** when a creator's TikTok/IG handle was previously pointed at someone else's account (e.g. used to test the Apify pipeline) and later changed back, the posts scraped under the old handle stuck around forever — `Post.upsert` keys on `(platform, externalId)` so the old rows have no chance of colliding with the new ones. Symptom: inflated view counts on creator profile + dead thumbnails (signed URLs from the old account had expired).
+- **Fix:** after a successful Apify fetch, `syncCampaign` now runs `prisma.post.deleteMany` for that `(creatorId, platform)` scope where `username` doesn't case-insensitively match the handle just synced. `PostMetricsSnapshot` cascades on Post delete so daily-snapshot rows clean up too. Prune is gated on `success: true` so a flaky Apify run doesn't wipe legitimate data.
+- API return shape: added `prunedStale: number`. `SyncButton` toast now appends ` Removed N stale posts from old handles.` when nonzero.
+- Tested: `npm run build` passes. Cami will trigger a sync to verify the stale Poncho data clears.
+
+
 - **Sync was silently skipping Instagram for most creators.** Old code used `CampaignCreator.platform` (which we just stopped surfacing in the UI — defaults to TIKTOK on every new row) to pick a single platform per creator. Rewrote `syncCampaign` in `src/lib/social/sync.ts` to fan out per-creator across both TikTok and Instagram whenever the creator has the corresponding handle on their profile.
 - Removed the unsafe `instagramHandle || handle` fallback — the generic `handle` was returning random Instagram accounts when the creator hadn't set their IG. Now a missing handle = skip (with a reason).
 - **Sync button no longer always says "success."** `SyncButton` now reads the API response and shows `"Synced N posts."`, or a yellow `toast.warning` with the skipped creators + reasons when 0 posts came back. Also calls `router.refresh()` so the page picks up new posts immediately.
