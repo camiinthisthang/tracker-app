@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { campaignVisibilityWhere } from "@/lib/visibility";
 import { TaskList } from "@/components/tasks/task-list";
 import { GenerateTasksButton } from "@/components/tasks/generate-tasks-button";
 
@@ -14,7 +15,7 @@ export default async function CampaignTasksPage({
   const { campaignId } = await params;
 
   const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, teamId: session.user.teamId },
+    where: { id: campaignId, ...campaignVisibilityWhere(session) },
     select: { id: true, name: true },
   });
 

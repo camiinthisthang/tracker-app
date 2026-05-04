@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { Plus, Megaphone } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { campaignVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ export default async function CampaignsPage() {
   const session = await getRequiredSession();
 
   const campaigns = await prisma.campaign.findMany({
-    where: { teamId: session.user.teamId },
+    where: campaignVisibilityWhere(session),
     include: {
       campaignCreators: true,
       _count: { select: { posts: true } },

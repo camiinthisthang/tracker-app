@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { campaignVisibilityWhere, creatorVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { CampaignForm } from "@/components/campaigns/campaign-form";
 import { DeleteCampaignDangerZone } from "@/components/campaigns/delete-campaign-danger-zone";
@@ -16,7 +17,7 @@ export default async function EditCampaignPage({
 
   const [campaign, availableCreators] = await Promise.all([
     prisma.campaign.findFirst({
-      where: { id: campaignId, teamId: session.user.teamId },
+      where: { id: campaignId, ...campaignVisibilityWhere(session) },
       include: {
         campaignCreators: {
           include: { creator: true },
@@ -24,7 +25,7 @@ export default async function EditCampaignPage({
       },
     }),
     prisma.creator.findMany({
-      where: { teamId: session.user.teamId, isActive: true },
+      where: { ...creatorVisibilityWhere(session), isActive: true },
       select: { id: true, name: true, handle: true },
       orderBy: { name: "asc" },
     }),

@@ -4,6 +4,7 @@ import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
 import { Pencil } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { campaignVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/shared/stat-card";
@@ -32,7 +33,7 @@ export default async function CampaignOverviewPage({
   const { campaignId } = await params;
 
   const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, teamId: session.user.teamId },
+    where: { id: campaignId, ...campaignVisibilityWhere(session) },
     include: {
       campaignCreators: {
         include: { creator: true },

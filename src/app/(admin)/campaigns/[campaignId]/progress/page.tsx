@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { startOfWeek, addDays } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { campaignVisibilityWhere } from "@/lib/visibility";
 import {
   CreatorProgressSection,
   type CreatorProgress,
@@ -18,7 +19,7 @@ export default async function CampaignProgressPage({
   const { campaignId } = await params;
 
   const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, teamId: session.user.teamId },
+    where: { id: campaignId, ...campaignVisibilityWhere(session) },
     include: {
       campaignCreators: { include: { creator: true } },
     },

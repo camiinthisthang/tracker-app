@@ -3,7 +3,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
-import { canAccessCreator } from "@/lib/visibility";
+import { canAccessCreator, campaignVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
@@ -53,16 +53,11 @@ export default async function CreatorDetailPage({
         where: { creatorId },
         _sum: { signupCount: true },
       }),
-      session.user.isSuperAdmin
-        ? prisma.campaign.findMany({
-            select: { id: true, name: true, isActive: true },
-            orderBy: { name: "asc" },
-          })
-        : prisma.campaign.findMany({
-            where: { teamId: session.user.teamId },
-            select: { id: true, name: true, isActive: true },
-            orderBy: { name: "asc" },
-          }),
+      prisma.campaign.findMany({
+        where: campaignVisibilityWhere(session),
+        select: { id: true, name: true, isActive: true },
+        orderBy: { name: "asc" },
+      }),
       prisma.post.findMany({
         where: { creatorId },
         orderBy: { postedAt: "desc" },

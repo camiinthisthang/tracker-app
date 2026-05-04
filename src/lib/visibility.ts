@@ -11,6 +11,22 @@ interface SessionLike {
 }
 
 /**
+ * Visibility filter for Campaign queries.
+ *
+ * Campaigns belong to one client team (Campaign.teamId). Super admins +
+ * agency managers see every campaign; client managers see only their team's.
+ *
+ * Compose with other where conditions, e.g.
+ *   where: { id: campaignId, ...campaignVisibilityWhere(session) }
+ */
+export function campaignVisibilityWhere(
+  session: SessionLike
+): Prisma.CampaignWhereInput {
+  if (hasAgencyWideAccess(session)) return {};
+  return { teamId: session.user.teamId };
+}
+
+/**
  * Visibility filter for Creator queries.
  *
  * Creators are an agency-wide pool: a single Creator can work on campaigns

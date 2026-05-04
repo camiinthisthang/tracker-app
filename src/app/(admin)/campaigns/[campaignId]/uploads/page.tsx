@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { campaignVisibilityWhere } from "@/lib/visibility";
 import { UploadsManager } from "@/components/campaigns/uploads-manager";
 
 export default async function CampaignUploadsPage({
@@ -12,7 +13,7 @@ export default async function CampaignUploadsPage({
   const { campaignId } = await params;
 
   const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, teamId: session.user.teamId },
+    where: { id: campaignId, ...campaignVisibilityWhere(session) },
   });
 
   if (!campaign) notFound();

@@ -27,7 +27,14 @@ tangent.
 
 ---
 
-## 2026-05-04 — follow-up: sync auto-prunes stale-handle posts
+## 2026-05-04 — split agency from Merit + fix campaign visibility for super admins
+- **Migration:** `scripts/migrate-split-agency-from-merit.ts` (run with `--confirm`). The single Merit team had slug `tapmore`, so the code was treating it as the agency team — `/clients` correctly hid it (no other client teams existed) and Sam/Ryan/Mitch had cross-client visibility by accident. Migration: rename Merit's slug → `merit`, create a fresh Tapmore team (slug=`tapmore`) with default TeamSettings, move Cami/Jacqueline/Regan's TeamMember rows to Tapmore, flip `User.isSuperAdmin=true` for Regan. All within one `$transaction`. Zero deletes.
+- **Diagnostic:** `scripts/diagnose-teams.ts` — read-only, lists every team + members + invites + entities matching a search string. Used to confirm DB state before/after.
+- **Visibility fix (was a pre-existing bug, surfaced by the migration):** every `/campaigns/*` page filtered by `session.user.teamId` with no agency-wide bypass. With Cami now sitting on Tapmore (which has 0 campaigns) all the lists and detail pages went empty for her. Added `campaignVisibilityWhere(session)` to `src/lib/visibility.ts` returning `{}` for super_admin / agency_manager and `{ teamId }` for client managers. Applied across `/campaigns`, `/campaigns/new`, `/campaigns/[id]/{overview,edit,tasks,uploads,progress,reports,notifications}`, plus the campaigns query inside `/creators/[id]`. Creator picker on `/campaigns/[id]/edit` and `/campaigns/new` now uses `creatorVisibilityWhere` so super admins see all creators.
+- Tested: `npm run build` passes. Cami/Jacqueline/Regan need to sign out + back in for `session.user.teamId` to refresh.
+- **Known gap left:** `POST /api/campaigns` still assigns `teamId: session.user.teamId`, so an agency super admin creating a new campaign would attach it to Tapmore (wrong — campaigns should belong to a client team). Not in scope for this push; Cami can still edit existing campaigns. Logged for follow-up.
+
+
 - **Problem:** when a creator's TikTok/IG handle was previously pointed at someone else's account (e.g. used to test the Apify pipeline) and later changed back, the posts scraped under the old handle stuck around forever — `Post.upsert` keys on `(platform, externalId)` so the old rows have no chance of colliding with the new ones. Symptom: inflated view counts on creator profile + dead thumbnails (signed URLs from the old account had expired).
 - **Fix:** after a successful Apify fetch, `syncCampaign` now runs `prisma.post.deleteMany` for that `(creatorId, platform)` scope where `username` doesn't case-insensitively match the handle just synced. `PostMetricsSnapshot` cascades on Post delete so daily-snapshot rows clean up too. Prune is gated on `success: true` so a flaky Apify run doesn't wipe legitimate data.
 - API return shape: added `prunedStale: number`. `SyncButton` toast now appends ` Removed N stale posts from old handles.` when nonzero.

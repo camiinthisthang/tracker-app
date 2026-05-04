@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { campaignVisibilityWhere } from "@/lib/visibility";
 import { NotificationsManager } from "@/components/notifications/notifications-manager";
 
 export default async function CampaignNotificationsPage({
@@ -12,7 +13,7 @@ export default async function CampaignNotificationsPage({
   const { campaignId } = await params;
 
   const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, teamId: session.user.teamId },
+    where: { id: campaignId, ...campaignVisibilityWhere(session) },
   });
 
   if (!campaign) notFound();
