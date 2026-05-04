@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-05-04 — Vercel deploy fix: route Prisma migrations through DIRECT_URL
+- Vercel build failed during chunk 1 with `P1002` — `prisma migrate deploy` timed out trying to acquire a Postgres advisory lock. Root cause: `DATABASE_URL` on Vercel points at Neon's pgBouncer transaction-mode pool, which doesn't support session-scoped advisory locks. The migration SQL itself ran successfully (prod schema is in sync) but the deploy aborted.
+- **Manual fix:** ran `DATABASE_URL=<unpooled> prisma migrate deploy` locally to confirm prod schema is at the latest. Status check shows "Database schema is up to date!"
+- **Permanent fix:** `prisma.config.ts` now reads `process.env.DIRECT_URL ?? process.env.DATABASE_URL`. Migrations / Studio / generate use the direct URL (no pooler) when available; runtime PrismaClient still gets `DATABASE_URL` (pooled) for queries. Local `.env` mirrors `DIRECT_URL = DATABASE_URL` since localhost has no pooler.
+- **Required on Vercel:** add a `DIRECT_URL` env var pointing to Neon's unpooled connection (the `DATABASE_URL_UNPOOLED` value from `.env.production.backup`). Without it the next `migrate deploy` will hit the same lock timeout.
+- Note: Prisma 7 deprecated `url` and `directUrl` fields in the schema — they live in `prisma.config.ts` instead.
+
 ## 2026-05-04 — hook workshop/publish: creator-side feed on /home (chunk 3 of 3)
 - New `CreatorHooksFeed` component on the creator's `/home`. Lists every published hook scoped to the creator's active campaigns, newest-first, capped at 20. Each card shows the 3 fields and the campaign badge. Renders nothing when there are no hooks (so an empty state doesn't clutter the page).
 - Source query: `Hook.findMany` filtered to `campaignId IN <active campaign ids>` + `publishedAt NOT NULL` + `isActive = true`. The `(campaignId, publishedAt)` index added in chunk 1 covers this exact path.
