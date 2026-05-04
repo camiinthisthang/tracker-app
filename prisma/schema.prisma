@@ -82,9 +82,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts    Account[]
-  sessions    Session[]
-  memberships TeamMember[]
+  accounts     Account[]
+  sessions     Session[]
+  memberships  TeamMember[]
+  createdHooks Hook[]
 
   @@map("users")
 }
@@ -197,6 +198,7 @@ model Campaign {
   weeklyReports     WeeklyReportConfig[]
   uploads           Upload[]
   creatorMessages   CreatorMessage[]
+  hooks             Hook[]
 
   @@index([teamId])
   @@map("campaigns")
@@ -384,8 +386,26 @@ model Hook {
   id        String   @id @default(cuid())
   teamId    String
   team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  text      String
-  category  String?
+
+  // Legacy single-string column. Kept in sync with onScreenText on writes so
+  // the existing /hooks analytics path (which reads Post.hook by string match)
+  // keeps working without a separate migration.
+  text     String
+  category String?
+
+  // Workshop / publish flow. onScreenText is the new source of truth for the
+  // hook's headline; caption + videoDirection round out the structured spec
+  // creators see. campaignId scopes a hook to one campaign (null on legacy
+  // rows). publishedAt null = draft, set = visible to creators.
+  onScreenText   String
+  caption        String?
+  videoDirection String?
+  campaignId     String?
+  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  publishedAt    DateTime?
+  createdById    String?
+  createdBy      User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -393,6 +413,7 @@ model Hook {
   uploads Upload[]
 
   @@index([teamId, isActive])
+  @@index([campaignId, publishedAt])
   @@map("hooks")
 }
 
