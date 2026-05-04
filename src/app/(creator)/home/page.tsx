@@ -6,6 +6,7 @@ import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-prog
 import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
 import { CreatorMessagesFeed } from "@/components/creators/creator-messages";
 import { CreatorViralVideos } from "@/components/creators/creator-viral-videos";
+import { CreatorHooksFeed } from "@/components/creators/creator-hooks-feed";
 import { BonusTracker } from "@/components/creators/bonus-tracker";
 import { computeCreatorBonusSummary } from "@/lib/bonus";
 
@@ -138,6 +139,34 @@ export default async function CreatorHomePage() {
 
   const bonusSummary = await computeCreatorBonusSummary(creatorId);
 
+  // Published hooks for this creator's active campaigns. Sorted newest-first
+  // so a fresh viral-grab from an admin shows up at the top.
+  const activeCampaignIds = activeCCs.map((cc) => cc.campaign.id);
+  const hooksForFeed =
+    activeCampaignIds.length === 0
+      ? []
+      : await prisma.hook.findMany({
+          where: {
+            campaignId: { in: activeCampaignIds },
+            publishedAt: { not: null },
+            isActive: true,
+          },
+          select: {
+            id: true,
+            onScreenText: true,
+            caption: true,
+            videoDirection: true,
+            publishedAt: true,
+            campaign: { select: { name: true } },
+          },
+          orderBy: { publishedAt: "desc" },
+          take: 20,
+        });
+  const serializedHooks = hooksForFeed.map((h) => ({
+    ...h,
+    publishedAt: h.publishedAt?.toISOString() ?? null,
+  }));
+
   const today = format(new Date(), "EEE, MMM do");
 
   return (
@@ -172,6 +201,13 @@ export default async function CreatorHomePage() {
           showViewAll
         />
       </div>
+
+      {/* Hooks for the creator's active campaigns (only renders when there's at least one). */}
+      {serializedHooks.length > 0 && (
+        <div className="mt-6">
+          <CreatorHooksFeed hooks={serializedHooks} />
+        </div>
+      )}
 
       {/* Bonus tracker (only renders when team has active rules) */}
       {bonusSummary.rules.length > 0 && (

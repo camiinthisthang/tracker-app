@@ -27,6 +27,11 @@ tangent.
 
 ---
 
+## 2026-05-04 — hook workshop/publish: creator-side feed on /home (chunk 3 of 3)
+- New `CreatorHooksFeed` component on the creator's `/home`. Lists every published hook scoped to the creator's active campaigns, newest-first, capped at 20. Each card shows the 3 fields and the campaign badge. Renders nothing when there are no hooks (so an empty state doesn't clutter the page).
+- Source query: `Hook.findMany` filtered to `campaignId IN <active campaign ids>` + `publishedAt NOT NULL` + `isActive = true`. The `(campaignId, publishedAt)` index added in chunk 1 covers this exact path.
+- Hook publishing is now end-to-end: agency admin opens `/hooks` → quick-add → publish to Merit campaign → all 5 Merit creators see it on their home the next time they refresh. Ad-hoc viral-grabs land in seconds.
+
 ## 2026-05-04 — hook workshop/publish: admin UI (chunk 2 of 3)
 - New `WorkshopHooksManager` component on `/hooks`. Two tabs (Workshop / Published), each card shows the 3 fields (on-screen text, caption, video direction) + the hook's campaign + the "Used by N creators" count for published ones (from `Upload.hookId`). Inline edit (full form), Publish (sends to a campaign — picker required), Unpublish (back to workshop, no data lost), Delete.
 - "Quick add" dialog at the top — 3 fields + campaign dropdown, two CTAs: "Save to workshop" or "Publish now". The ad-hoc viral-grab flow.
