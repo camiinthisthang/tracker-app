@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, AGENCY_TEAM_SLUG, hasAgencyWideAccess } from "@/lib/auth";
+import { campaignVisibilityWhere } from "@/lib/visibility";
 import { createCampaignSchema } from "@/lib/validations/campaign";
 
 export async function GET() {
@@ -8,7 +9,7 @@ export async function GET() {
     const session = await getRequiredSession();
 
     const campaigns = await prisma.campaign.findMany({
-      where: { teamId: session.user.teamId },
+      where: campaignVisibilityWhere(session),
       include: {
         campaignCreators: {
           include: { creator: true },
@@ -33,9 +34,39 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = createCampaignSchema.parse(body);
 
+    // Resolve the team this campaign belongs to. Agency super admins / agency
+    // managers must pick a client team explicitly; client managers fall back
+    // to their own team.
+    let teamId = session.user.teamId;
+    if (hasAgencyWideAccess(session)) {
+      if (!data.teamId) {
+        return NextResponse.json(
+          { error: "Pick a client to create the campaign under" },
+          { status: 400 }
+        );
+      }
+      const target = await prisma.team.findUnique({
+        where: { id: data.teamId },
+        select: { id: true, slug: true },
+      });
+      if (!target) {
+        return NextResponse.json(
+          { error: "Client team not found" },
+          { status: 404 }
+        );
+      }
+      if (target.slug === AGENCY_TEAM_SLUG) {
+        return NextResponse.json(
+          { error: "Campaigns must belong to a client, not the agency team" },
+          { status: 400 }
+        );
+      }
+      teamId = target.id;
+    }
+
     const campaign = await prisma.campaign.create({
       data: {
-        teamId: session.user.teamId,
+        teamId,
         name: data.name,
         startDate: new Date(data.startDate),
         endDate: new Date(data.endDate),

@@ -10,6 +10,10 @@ export const campaignCreatorSchema = z.object({
 });
 
 export const createCampaignSchema = z.object({
+  // Optional: agency super admins / agency managers send the client team's id
+  // explicitly so the campaign attaches to the right client. Client managers
+  // omit this and the API falls back to their own teamId.
+  teamId: z.string().optional(),
   name: z.string().min(1, "Campaign name is required"),
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),

@@ -28,9 +28,18 @@ interface AvailableCreator {
   handle: string;
 }
 
+interface AvailableTeam {
+  id: string;
+  name: string;
+}
+
 interface CampaignFormProps {
   campaignId?: string;
   availableCreators?: AvailableCreator[];
+  // When provided, surface a "Client" dropdown at the top of the form. Only
+  // passed in for agency super admins / agency managers on the create flow.
+  // Edit flow + client managers don't see it.
+  availableTeams?: AvailableTeam[];
   initialData?: {
     name: string;
     isActive: boolean;
@@ -47,12 +56,17 @@ interface CampaignFormProps {
 export function CampaignForm({
   campaignId,
   availableCreators = [],
+  availableTeams,
   initialData,
 }: CampaignFormProps = {}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const isEdit = !!campaignId;
+  const showTeamPicker = !isEdit && availableTeams !== undefined;
+  const [teamId, setTeamId] = useState(
+    showTeamPicker && availableTeams!.length === 1 ? availableTeams![0].id : ""
+  );
 
   // Campaign fields
   const [name, setName] = useState(initialData?.name ?? "");
@@ -122,6 +136,12 @@ export function CampaignForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (showTeamPicker && !teamId) {
+      setError("Pick a client to create the campaign under");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -141,6 +161,7 @@ export function CampaignForm({
           previewLinks,
           galleryUrls,
           ...(isEdit ? {} : { creators: creators.map(({ id: _id, ...rest }) => rest) }),
+          ...(showTeamPicker ? { teamId } : {}),
         }),
       });
 
@@ -165,6 +186,36 @@ export function CampaignForm({
       {error && (
         <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
           {error}
+        </div>
+      )}
+
+      {showTeamPicker && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <h3 className="text-sm font-semibold text-slate-800">Client</h3>
+          <p className="text-xs text-slate-400">
+            Which client this campaign belongs to. Only their managers will see
+            it on their dashboard.
+          </p>
+          <div className="mt-3 max-w-md">
+            <Select value={teamId} onValueChange={(v) => setTeamId(v ?? "")}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pick a client" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTeams!.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-slate-400">
+                    No clients yet — add one on /clients first.
+                  </div>
+                ) : (
+                  availableTeams!.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       )}
 
