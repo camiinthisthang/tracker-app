@@ -156,6 +156,7 @@ export default async function CreatorHomePage() {
             onScreenText: true,
             caption: true,
             videoDirection: true,
+            prompt: true,
             publishedAt: true,
             campaign: { select: { name: true } },
           },

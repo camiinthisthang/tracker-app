@@ -60,6 +60,7 @@ export default async function HooksPage() {
     onScreenText: h.onScreenText,
     caption: h.caption,
     videoDirection: h.videoDirection,
+    prompt: h.prompt,
     campaignId: h.campaignId,
     campaign: h.campaign,
     publishedAt: h.publishedAt?.toISOString() ?? null,

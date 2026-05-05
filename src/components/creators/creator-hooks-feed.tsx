@@ -6,6 +6,7 @@ export interface CreatorHookRow {
   onScreenText: string;
   caption: string | null;
   videoDirection: string | null;
+  prompt: string | null;
   campaign: { name: string } | null;
   publishedAt: string | null;
 }
@@ -50,6 +51,12 @@ export function CreatorHooksFeed({ hooks }: { hooks: CreatorHookRow[] }) {
               <p className="mt-1 text-xs text-slate-700">
                 <span className="font-medium text-slate-500">Video:</span>{" "}
                 {h.videoDirection}
+              </p>
+            )}
+            {h.prompt && (
+              <p className="mt-1 text-xs text-slate-700">
+                <span className="font-medium text-slate-500">Prompt:</span>{" "}
+                {h.prompt}
               </p>
             )}
             {h.campaign && (

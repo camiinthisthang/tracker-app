@@ -400,6 +400,7 @@ model Hook {
   onScreenText   String
   caption        String?
   videoDirection String?
+  prompt         String?
   campaignId     String?
   campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   publishedAt    DateTime?

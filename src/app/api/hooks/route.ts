@@ -61,6 +61,7 @@ export async function POST(req: Request) {
 
     const caption = trim(body.caption);
     const videoDirection = trim(body.videoDirection);
+    const prompt = trim(body.prompt);
     const campaignId = trim(body.campaignId);
     const publish = body.publish === true;
 
@@ -96,6 +97,7 @@ export async function POST(req: Request) {
         onScreenText,
         caption,
         videoDirection,
+        prompt,
         campaignId,
         publishedAt: publish ? new Date() : null,
         createdById: session.user.id,

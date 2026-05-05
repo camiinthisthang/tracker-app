@@ -43,6 +43,7 @@ export async function PATCH(
     if (body.caption !== undefined) data.caption = trim(body.caption);
     if (body.videoDirection !== undefined)
       data.videoDirection = trim(body.videoDirection);
+    if (body.prompt !== undefined) data.prompt = trim(body.prompt);
     if (body.category !== undefined) data.category = trim(body.category);
     if (typeof body.isActive === "boolean") data.isActive = body.isActive;
 

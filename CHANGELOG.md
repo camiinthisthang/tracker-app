@@ -27,6 +27,12 @@ tangent.
 
 ---
 
+## 2026-05-05 — optional `prompt` field on hooks
+- Migration `20260505000000_add_hook_prompt` adds nullable `prompt` to `hooks`. No backfill — existing hooks just have `prompt = null`.
+- API: `POST /api/hooks` and `PATCH /api/hooks/[hookId]` accept the field. Trimmed and stored as null when blank.
+- Admin UI: prompt input added to both inline edit form and Quick Add dialog (under "Face / video direction", flagged "optional"). Card view shows `Prompt: …` when set.
+- Creator UI: `/home` "Hooks for you to test" card surfaces the prompt the same way.
+
 ## 2026-05-04 — Vercel deploy fix: route Prisma migrations through DIRECT_URL
 - Vercel build failed during chunk 1 with `P1002` — `prisma migrate deploy` timed out trying to acquire a Postgres advisory lock. Root cause: `DATABASE_URL` on Vercel points at Neon's pgBouncer transaction-mode pool, which doesn't support session-scoped advisory locks. The migration SQL itself ran successfully (prod schema is in sync) but the deploy aborted.
 - **Manual fix:** ran `DATABASE_URL=<unpooled> prisma migrate deploy` locally to confirm prod schema is at the latest. Status check shows "Database schema is up to date!"

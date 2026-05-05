@@ -30,6 +30,7 @@ export interface WorkshopHookRow {
   onScreenText: string;
   caption: string | null;
   videoDirection: string | null;
+  prompt: string | null;
   campaignId: string | null;
   campaign: { id: string; name: string } | null;
   publishedAt: string | null;
@@ -192,6 +193,7 @@ function HookCard({
   const [onScreenText, setOnScreenText] = useState(hook.onScreenText);
   const [caption, setCaption] = useState(hook.caption ?? "");
   const [videoDirection, setVideoDirection] = useState(hook.videoDirection ?? "");
+  const [prompt, setPrompt] = useState(hook.prompt ?? "");
   const [campaignId, setCampaignId] = useState(hook.campaignId ?? "");
   const [busy, setBusy] = useState(false);
 
@@ -208,6 +210,7 @@ function HookCard({
         onScreenText,
         caption,
         videoDirection,
+        prompt,
         campaignId: campaignId || null,
       }),
     });
@@ -312,6 +315,18 @@ function HookCard({
             />
           </div>
           <div>
+            <Label className="text-xs font-medium text-slate-700">
+              Prompt{" "}
+              <span className="font-normal text-slate-400">(optional)</span>
+            </Label>
+            <Input
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="What the creator says when the hook calls for a spoken prompt"
+              className="mt-1"
+            />
+          </div>
+          <div>
             <Label className="text-xs font-medium text-slate-700">Campaign</Label>
             <Select
               value={campaignId}
@@ -365,6 +380,12 @@ function HookCard({
             <p className="text-xs text-slate-600">
               <span className="font-medium text-slate-500">Video:</span>{" "}
               {hook.videoDirection}
+            </p>
+          )}
+          {hook.prompt && (
+            <p className="text-xs text-slate-600">
+              <span className="font-medium text-slate-500">Prompt:</span>{" "}
+              {hook.prompt}
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-400">
@@ -458,6 +479,7 @@ function QuickAddDialog({
   const [onScreenText, setOnScreenText] = useState("");
   const [caption, setCaption] = useState("");
   const [videoDirection, setVideoDirection] = useState("");
+  const [prompt, setPrompt] = useState("");
   const [campaignId, setCampaignId] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -465,6 +487,7 @@ function QuickAddDialog({
     setOnScreenText("");
     setCaption("");
     setVideoDirection("");
+    setPrompt("");
     setCampaignId("");
   }
 
@@ -485,6 +508,7 @@ function QuickAddDialog({
         onScreenText,
         caption,
         videoDirection,
+        prompt,
         campaignId: campaignId || null,
         publish,
       }),
@@ -539,6 +563,18 @@ function QuickAddDialog({
               value={videoDirection}
               onChange={(e) => setVideoDirection(e.target.value)}
               placeholder="POV walking into store, surprised face..."
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-slate-700">
+              Prompt{" "}
+              <span className="font-normal text-slate-400">(optional)</span>
+            </Label>
+            <Input
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="What the creator says aloud, when the hook calls for one"
               className="mt-1"
             />
           </div>
