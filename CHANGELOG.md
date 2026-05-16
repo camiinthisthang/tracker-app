@@ -27,6 +27,61 @@ tangent.
 
 ---
 
+## 2026-05-16 17:00 — creator onboarding + hook field restructure for Monday launch
+Context: creators are being onboarded on Monday. Goal is to make the in-app
+experience copy/paste simple — "ring light out, copy this, click play."
+
+**Schema** — `20260516180000_add_hook_poncho_and_inspiration`
+- `hooks.ponchoPrompt TEXT` (nullable) — copy/paste-ready prompt for Poncho.
+- `hooks.inspirationLink TEXT` (nullable) — optional reference video URL.
+- Existing `prompt` column repurposed semantically as "Spoken voice" (it was
+  already used that way in the UI; no DB rename, no data migration).
+
+**API**
+- `POST /api/hooks` + `PATCH /api/hooks/[hookId]` accept the two new fields,
+  trimmed -> null when blank. Same shape as the existing fields.
+
+**Admin /hooks workshop** (`workshop-hooks-manager.tsx`)
+- Restructured the inline edit form + Quick-add dialog around a single
+  `FieldRow` helper: label, optional flag, helper text, control. Every field
+  now has explicit hand-holding copy under the label.
+- New labels + order: On-screen text -> Spoken voice (optional) -> Face / video
+  direction (optional) -> Caption (optional) -> Poncho prompt (optional) ->
+  Inspiration link (optional) -> Campaign.
+- Spoken voice and Poncho prompt are textareas (multi-line). Poncho prompt
+  uses font-mono so creators see exactly what they're pasting.
+- Hook cards now render all five fields + the inspiration link as a clickable
+  anchor.
+
+**Creator /home hooks feed** (`creator-hooks-feed.tsx`)
+- Now a client component. Each copy-friendly field (on-screen text, spoken
+  voice, caption, Poncho prompt) has its own Copy button + uppercase label
+  + one-line helper. Reduces decision-making to literal copy/paste.
+- Inspiration link renders as a "Watch reference" outbound link.
+- Lead-in copy: "Ring light out, grab your phone, copy what you need, hit
+  record."
+
+**Creator /home start guide** (`creator-start-guide.tsx`)
+- New playbook card auto-shown until a creator has 10+ posts (or any time
+  their TikTok / Instagram handle isn't connected). Numbered steps:
+  connect handles -> pick a hook -> copy text + caption -> paste Poncho
+  prompt -> record + post -> drop link in Uploads.
+- Slim, blue-tinted card. Falls off automatically as creators ramp.
+
+**Tested**
+- `npx prisma generate` (Prisma 7.7.0 client OK).
+- `npx tsc --noEmit` — clean.
+- `npx eslint` on touched files — clean.
+- `npx next build` — clean (all routes compile, /home and /hooks bundle OK).
+- Migration not yet applied (prod runs `migrate deploy` on Vercel build).
+
+**Out of scope this PR (per the original brief — flagged for follow-up)**
+- Persona section: no existing persona infra in the repo; would need its own
+  model + admin UI. Brief said not to block on it. Recommended next step.
+- Merit prompt-template reuse: searched the repo + no template assets here.
+  If the Merit team shared them in another repo or doc, they'd feed straight
+  into the new Poncho-prompt field.
+
 ## 2026-05-05 — optional `prompt` field on hooks
 - Migration `20260505000000_add_hook_prompt` adds nullable `prompt` to `hooks`. No backfill — existing hooks just have `prompt = null`.
 - API: `POST /api/hooks` and `PATCH /api/hooks/[hookId]` accept the field. Trimmed and stored as null when blank.

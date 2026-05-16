@@ -61,6 +61,8 @@ export default async function HooksPage() {
     caption: h.caption,
     videoDirection: h.videoDirection,
     prompt: h.prompt,
+    ponchoPrompt: h.ponchoPrompt,
+    inspirationLink: h.inspirationLink,
     campaignId: h.campaignId,
     campaign: h.campaign,
     publishedAt: h.publishedAt?.toISOString() ?? null,

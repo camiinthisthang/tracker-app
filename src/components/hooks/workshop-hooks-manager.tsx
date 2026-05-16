@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Send, Undo2, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Send, Undo2, X, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -31,6 +32,8 @@ export interface WorkshopHookRow {
   caption: string | null;
   videoDirection: string | null;
   prompt: string | null;
+  ponchoPrompt: string | null;
+  inspirationLink: string | null;
   campaignId: string | null;
   campaign: { id: string; name: string } | null;
   publishedAt: string | null;
@@ -178,6 +181,33 @@ function HookList({
   );
 }
 
+// Shared field block: label + helper text + control. Keeps every field in the
+// workshop and quick-add dialog visually consistent and self-explanatory.
+function FieldRow({
+  label,
+  helper,
+  optional,
+  children,
+}: {
+  label: string;
+  helper: string;
+  optional?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <Label className="text-xs font-medium text-slate-700">
+        {label}
+        {optional ? (
+          <span className="font-normal text-slate-400"> (optional)</span>
+        ) : null}
+      </Label>
+      <p className="mb-1 text-[11px] leading-snug text-slate-400">{helper}</p>
+      {children}
+    </div>
+  );
+}
+
 function HookCard({
   hook,
   campaigns,
@@ -194,6 +224,10 @@ function HookCard({
   const [caption, setCaption] = useState(hook.caption ?? "");
   const [videoDirection, setVideoDirection] = useState(hook.videoDirection ?? "");
   const [prompt, setPrompt] = useState(hook.prompt ?? "");
+  const [ponchoPrompt, setPonchoPrompt] = useState(hook.ponchoPrompt ?? "");
+  const [inspirationLink, setInspirationLink] = useState(
+    hook.inspirationLink ?? ""
+  );
   const [campaignId, setCampaignId] = useState(hook.campaignId ?? "");
   const [busy, setBusy] = useState(false);
 
@@ -211,6 +245,8 @@ function HookCard({
         caption,
         videoDirection,
         prompt,
+        ponchoPrompt,
+        inspirationLink,
         campaignId: campaignId || null,
       }),
     });
@@ -283,56 +319,84 @@ function HookCard({
     return (
       <li className="rounded-lg border border-blue-200 bg-blue-50/30 p-4">
         <div className="space-y-3">
-          <div>
-            <Label className="text-xs font-medium text-slate-700">
-              On-screen text
-            </Label>
+          <FieldRow
+            label="On-screen text"
+            helper="The short overlay text shown on the video itself. Keep it punchy — under ~6 words is ideal."
+          >
             <Input
               value={onScreenText}
               onChange={(e) => setOnScreenText(e.target.value)}
-              placeholder="The words on the video"
-              className="mt-1"
+              placeholder="e.g. POV: you finally found a manicure that pays you back"
             />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-slate-700">Caption</Label>
-            <Input
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="What goes under the post"
-              className="mt-1"
+          </FieldRow>
+          <FieldRow
+            label="Spoken voice"
+            helper="What the creator says out loud. Leave blank for silent / text-only videos."
+            optional
+          >
+            <Textarea
+              rows={2}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="e.g. ‘I just tapped my nail and landed a collab. This is wild.’"
             />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-slate-700">
-              Face / video direction
-            </Label>
+          </FieldRow>
+          <FieldRow
+            label="Face / video direction"
+            helper="What the creator does on camera so the shot is obvious before they hit record."
+            optional
+          >
             <Input
               value={videoDirection}
               onChange={(e) => setVideoDirection(e.target.value)}
-              placeholder="What the creator is doing on camera (e.g. 'POV walking into store, surprised face')"
-              className="mt-1"
+              placeholder="e.g. POV walking into store, surprised face"
             />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-slate-700">
-              Prompt{" "}
-              <span className="font-normal text-slate-400">(optional)</span>
-            </Label>
+          </FieldRow>
+          <FieldRow
+            label="Caption"
+            helper="Goes under the post on TikTok / Instagram."
+            optional
+          >
             <Input
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="What the creator says when the hook calls for a spoken prompt"
-              className="mt-1"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="e.g. the chipped nail era is here ✨"
             />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-slate-700">Campaign</Label>
+          </FieldRow>
+          <FieldRow
+            label="Poncho prompt"
+            helper="Ready-to-paste prompt for Poncho when this hook needs an AI image or screen. Use a random person (not a real identifiable one), simple background, minimal on-image text."
+            optional
+          >
+            <Textarea
+              rows={3}
+              value={ponchoPrompt}
+              onChange={(e) => setPonchoPrompt(e.target.value)}
+              placeholder="e.g. a young woman holding her phone showing a chipped nail, soft natural lighting, plain wall background, realistic, no text"
+              className="font-mono text-xs"
+            />
+          </FieldRow>
+          <FieldRow
+            label="Inspiration link"
+            helper="An example or reference video that shows creators what good looks like."
+            optional
+          >
+            <Input
+              type="url"
+              value={inspirationLink}
+              onChange={(e) => setInspirationLink(e.target.value)}
+              placeholder="https://www.tiktok.com/@creator/video/123…"
+            />
+          </FieldRow>
+          <FieldRow
+            label="Campaign"
+            helper="Which campaign this hook belongs to. Creators on that campaign will see it."
+          >
             <Select
               value={campaignId}
               onValueChange={(v) => setCampaignId(v ?? "")}
             >
-              <SelectTrigger className="mt-1">
+              <SelectTrigger>
                 <SelectValue placeholder="Pick a campaign" />
               </SelectTrigger>
               <SelectContent>
@@ -343,7 +407,7 @@ function HookCard({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FieldRow>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setEditing(false)}>
               Cancel
@@ -370,10 +434,10 @@ function HookCard({
           <p className="text-sm font-medium text-slate-900">
             {hook.onScreenText}
           </p>
-          {hook.caption && (
+          {hook.prompt && (
             <p className="text-xs text-slate-600">
-              <span className="font-medium text-slate-500">Caption:</span>{" "}
-              {hook.caption}
+              <span className="font-medium text-slate-500">Spoken voice:</span>{" "}
+              {hook.prompt}
             </p>
           )}
           {hook.videoDirection && (
@@ -382,10 +446,30 @@ function HookCard({
               {hook.videoDirection}
             </p>
           )}
-          {hook.prompt && (
+          {hook.caption && (
             <p className="text-xs text-slate-600">
-              <span className="font-medium text-slate-500">Prompt:</span>{" "}
-              {hook.prompt}
+              <span className="font-medium text-slate-500">Caption:</span>{" "}
+              {hook.caption}
+            </p>
+          )}
+          {hook.ponchoPrompt && (
+            <p className="text-xs text-slate-600">
+              <span className="font-medium text-slate-500">Poncho prompt:</span>{" "}
+              <span className="font-mono text-[11px]">{hook.ponchoPrompt}</span>
+            </p>
+          )}
+          {hook.inspirationLink && (
+            <p className="text-xs text-slate-600">
+              <span className="font-medium text-slate-500">Inspiration:</span>{" "}
+              <a
+                href={hook.inspirationLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+              >
+                {hook.inspirationLink}
+                <ExternalLink className="h-3 w-3" />
+              </a>
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-400">
@@ -480,6 +564,8 @@ function QuickAddDialog({
   const [caption, setCaption] = useState("");
   const [videoDirection, setVideoDirection] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [ponchoPrompt, setPonchoPrompt] = useState("");
+  const [inspirationLink, setInspirationLink] = useState("");
   const [campaignId, setCampaignId] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -488,6 +574,8 @@ function QuickAddDialog({
     setCaption("");
     setVideoDirection("");
     setPrompt("");
+    setPonchoPrompt("");
+    setInspirationLink("");
     setCampaignId("");
   }
 
@@ -509,6 +597,8 @@ function QuickAddDialog({
         caption,
         videoDirection,
         prompt,
+        ponchoPrompt,
+        inspirationLink,
         campaignId: campaignId || null,
         publish,
       }),
@@ -526,70 +616,95 @@ function QuickAddDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? null : (reset(), onClose()))}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add a hook</DialogTitle>
           <DialogDescription>
-            Park it in workshop to refine, or send it straight live to a campaign.
+            Only on-screen text is required. Fill in the rest so creators have
+            everything they need to copy/paste and shoot.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div>
-            <Label className="text-xs font-medium text-slate-700">
-              On-screen text
-            </Label>
+          <FieldRow
+            label="On-screen text"
+            helper="The short overlay text shown on the video itself. Keep it punchy — under ~6 words is ideal."
+          >
             <Input
               value={onScreenText}
               onChange={(e) => setOnScreenText(e.target.value)}
-              placeholder="The words that appear on the video"
-              className="mt-1"
+              placeholder="e.g. POV: you finally found a manicure that pays you back"
               autoFocus
             />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-slate-700">Caption</Label>
-            <Input
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="What goes under the post"
-              className="mt-1"
+          </FieldRow>
+          <FieldRow
+            label="Spoken voice"
+            helper="What the creator says out loud. Leave blank for silent / text-only videos."
+            optional
+          >
+            <Textarea
+              rows={2}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="e.g. ‘I just tapped my nail and landed a collab. This is wild.’"
             />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-slate-700">
-              Face / video direction
-            </Label>
+          </FieldRow>
+          <FieldRow
+            label="Face / video direction"
+            helper="What the creator does on camera so the shot is obvious before they hit record."
+            optional
+          >
             <Input
               value={videoDirection}
               onChange={(e) => setVideoDirection(e.target.value)}
-              placeholder="POV walking into store, surprised face..."
-              className="mt-1"
+              placeholder="e.g. POV walking into store, surprised face"
             />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-slate-700">
-              Prompt{" "}
-              <span className="font-normal text-slate-400">(optional)</span>
-            </Label>
+          </FieldRow>
+          <FieldRow
+            label="Caption"
+            helper="Goes under the post on TikTok / Instagram."
+            optional
+          >
             <Input
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="What the creator says aloud, when the hook calls for one"
-              className="mt-1"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="e.g. the chipped nail era is here ✨"
             />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-slate-700">
-              Campaign{" "}
-              <span className="font-normal text-slate-400">
-                (required to publish)
-              </span>
-            </Label>
+          </FieldRow>
+          <FieldRow
+            label="Poncho prompt"
+            helper="Ready-to-paste prompt for Poncho when this hook needs an AI image or screen. Use a random person (not a real identifiable one), simple background, minimal on-image text."
+            optional
+          >
+            <Textarea
+              rows={3}
+              value={ponchoPrompt}
+              onChange={(e) => setPonchoPrompt(e.target.value)}
+              placeholder="e.g. a young woman holding her phone showing a chipped nail, soft natural lighting, plain wall background, realistic, no text"
+              className="font-mono text-xs"
+            />
+          </FieldRow>
+          <FieldRow
+            label="Inspiration link"
+            helper="An example or reference video that shows creators what good looks like."
+            optional
+          >
+            <Input
+              type="url"
+              value={inspirationLink}
+              onChange={(e) => setInspirationLink(e.target.value)}
+              placeholder="https://www.tiktok.com/@creator/video/123…"
+            />
+          </FieldRow>
+          <FieldRow
+            label="Campaign"
+            helper="Required to publish. Save to workshop first if you’re still drafting."
+            optional
+          >
             <Select
               value={campaignId}
               onValueChange={(v) => setCampaignId(v ?? "")}
             >
-              <SelectTrigger className="mt-1">
+              <SelectTrigger>
                 <SelectValue placeholder="None — save to workshop" />
               </SelectTrigger>
               <SelectContent>
@@ -600,7 +715,7 @@ function QuickAddDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FieldRow>
         </div>
         <DialogFooter>
           <Button
