@@ -62,6 +62,8 @@ export async function POST(req: Request) {
     const caption = trim(body.caption);
     const videoDirection = trim(body.videoDirection);
     const prompt = trim(body.prompt);
+    const ponchoPrompt = trim(body.ponchoPrompt);
+    const inspirationLink = trim(body.inspirationLink);
     const campaignId = trim(body.campaignId);
     const publish = body.publish === true;
 
@@ -98,6 +100,8 @@ export async function POST(req: Request) {
         caption,
         videoDirection,
         prompt,
+        ponchoPrompt,
+        inspirationLink,
         campaignId,
         publishedAt: publish ? new Date() : null,
         createdById: session.user.id,

@@ -394,14 +394,22 @@ model Hook {
   category String?
 
   // Workshop / publish flow. onScreenText is the new source of truth for the
-  // hook's headline; caption + videoDirection round out the structured spec
+  // hook's headline; the remaining fields round out the structured spec
   // creators see. campaignId scopes a hook to one campaign (null on legacy
   // rows). publishedAt null = draft, set = visible to creators.
-  onScreenText   String
-  caption        String?
-  videoDirection String?
-  prompt         String?
-  campaignId     String?
+  //
+  // prompt          = spoken voice / voiceover (optional). Labelled
+  //                   "Spoken voice" in the UI.
+  // ponchoPrompt    = copy/paste prompt for Poncho when the hook needs an
+  //                   AI-generated image or screen.
+  // inspirationLink = optional reference/example URL.
+  onScreenText    String
+  caption         String?
+  videoDirection  String?
+  prompt          String?
+  ponchoPrompt    String?
+  inspirationLink String?
+  campaignId      String?
   campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   publishedAt    DateTime?
   createdById    String?

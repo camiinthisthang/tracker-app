@@ -7,6 +7,7 @@ import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
 import { CreatorMessagesFeed } from "@/components/creators/creator-messages";
 import { CreatorViralVideos } from "@/components/creators/creator-viral-videos";
 import { CreatorHooksFeed } from "@/components/creators/creator-hooks-feed";
+import { CreatorStartGuide } from "@/components/creators/creator-start-guide";
 import { BonusTracker } from "@/components/creators/bonus-tracker";
 import { computeCreatorBonusSummary } from "@/lib/bonus";
 
@@ -157,6 +158,8 @@ export default async function CreatorHomePage() {
             caption: true,
             videoDirection: true,
             prompt: true,
+            ponchoPrompt: true,
+            inspirationLink: true,
             publishedAt: true,
             campaign: { select: { name: true } },
           },
@@ -169,6 +172,11 @@ export default async function CreatorHomePage() {
   }));
 
   const today = format(new Date(), "EEE, MMM do");
+
+  // Show the playbook automatically until the creator has a few posts under
+  // their belt. After that they know the loop and the card would be noise.
+  const hasHandle = !!(creator.tiktokHandle || creator.instagramHandle);
+  const showStartGuide = totalPosts < 10 || !hasHandle;
 
   return (
     <div>
@@ -187,6 +195,16 @@ export default async function CreatorHomePage() {
         <StatCard label="Viral Videos (50K+)" value={viralCount} />
         <StatCard label="Total Referrals" value={totalReferrals.toLocaleString()} />
       </div>
+
+      {/* Onboarding playbook for fresh creators */}
+      {showStartGuide && (
+        <div className="mt-6">
+          <CreatorStartGuide
+            hasHandle={hasHandle}
+            hasHooks={serializedHooks.length > 0}
+          />
+        </div>
+      )}
 
       {/* Progress + Messages row */}
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
