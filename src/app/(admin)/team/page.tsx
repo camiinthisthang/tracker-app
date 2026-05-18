@@ -14,7 +14,12 @@ export default async function AgencyTeamPage() {
   const team = await prisma.team.findFirst({
     where: { slug: AGENCY_TEAM_SLUG },
     include: {
+      // The agency team is admins-only by intent. CREATOR-role rows here are
+      // bugs (they slipped through when a super admin added a creator without
+      // changing the team picker). Filter them out so they don't render with
+      // the "Agency admin" badge. Same fix pattern as /clients/[teamId].
       members: {
+        where: { role: { not: "CREATOR" } },
         include: { user: true },
         orderBy: { createdAt: "asc" },
       },
