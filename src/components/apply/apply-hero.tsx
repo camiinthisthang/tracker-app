@@ -1,74 +1,75 @@
-import { Sparkles } from "lucide-react";
+import { BrandHeadline } from "@/components/brand/brand-headline";
+import { BrandMark } from "@/components/brand/brand-mark";
+import { BrandPageHeader } from "@/components/brand/brand-page-header";
 
 export function ApplyHero() {
   return (
-    <section className="relative overflow-hidden">
-      {/* Soft gradient background */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-blue-50 via-white to-emerald-50/40" />
+    <section className="brand-surface relative overflow-hidden">
+      <div className="mx-auto max-w-5xl px-6 pb-20 pt-10 sm:pb-28 sm:pt-12">
+        {/* Terminal-log header bar — matches the Poncho deck page chrome */}
+        <BrandPageHeader
+          section="viewtrackr / apply"
+          index="01 / 04"
+          tone="light"
+        />
 
-      <div className="mx-auto max-w-4xl px-6 pb-16 pt-20 sm:pb-24 sm:pt-28">
-        <div className="flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm backdrop-blur">
-            <Sparkles className="h-3.5 w-3.5 text-blue-500" />
-            Now hiring US-based creators
-          </div>
-          <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-            Work when you want.{" "}
-            <span className="bg-gradient-to-r from-blue-500 to-emerald-500 bg-clip-text text-transparent">
-              Build a real portfolio.
-            </span>
-          </h1>
-          <p className="mt-6 max-w-2xl text-base text-slate-600 sm:text-lg">
-            We&apos;re a UGC agency building a roster of US creators for our
-            brand partners. We give you hooks, direction, and a review process
-            — you create, cross-post, and grow a portfolio that lands more
-            clients.
-          </p>
+        {/* Wordmark sits below the page header, slightly inset */}
+        <div className="mt-10 flex items-center gap-3">
+          <BrandMark tone="light" size="sm" href="/apply" />
+          <span className="brand-label">
+            now hiring US-based creators.
+          </span>
+        </div>
 
-          {/* Quick stats */}
-          <div className="mt-8 grid grid-cols-3 divide-x divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur">
-            <div className="flex flex-col items-center justify-center px-2 py-5 sm:py-6">
-              <p className="whitespace-nowrap text-xl font-semibold text-slate-900 sm:text-2xl lg:text-3xl">
-                $700–$1.8K
-              </p>
-              <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-                monthly retainer
-              </p>
-            </div>
-            <div className="flex flex-col items-center justify-center px-2 py-5 sm:py-6">
-              <p className="whitespace-nowrap text-xl font-semibold text-slate-900 sm:text-2xl lg:text-3xl">
-                60/month
-              </p>
-              <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-                videos cross-posted
-              </p>
-            </div>
-            <div className="flex flex-col items-center justify-center px-2 py-5 sm:py-6">
-              <p className="whitespace-nowrap text-xl font-semibold text-slate-900 sm:text-2xl lg:text-3xl">
-                $5–10K+
-              </p>
-              <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-                top earners stacked
-              </p>
-            </div>
-          </div>
+        {/* Headline — Geist Bold lowercase, chartreuse highlight on the
+            verb that does the work. */}
+        <div className="mt-12 max-w-4xl">
+          <BrandHeadline size="xl" highlight="portfolio." tone="light">
+            work when you want. build a real
+          </BrandHeadline>
+        </div>
 
-          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
-            <a
-              href="#apply"
-              className="rounded-lg bg-slate-900 px-6 py-3 text-sm font-medium text-white shadow-sm hover:bg-slate-800"
-            >
-              Start your application
-            </a>
-            <a
-              href="#how-it-works"
-              className="text-sm font-medium text-slate-600 hover:text-slate-900"
-            >
-              See how it works →
-            </a>
-          </div>
+        <p className="mt-8 max-w-2xl font-mono text-sm text-white/85 sm:text-base">
+          we&apos;re a ugc agency building a roster of us creators for our brand
+          partners. we hand you hooks, direction, and a review process. you
+          create, cross-post, and grow a portfolio that lands more clients.
+        </p>
+
+        {/* Quick stats — terminal log style, lowercase, mono labels */}
+        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl bg-white/20 sm:grid-cols-3">
+          <StatBlock value="$700–$1.8k" label="monthly retainer" />
+          <StatBlock value="60/month" label="videos cross-posted" />
+          <StatBlock value="$5–10k+" label="top earners stacked" />
+        </div>
+
+        <div className="mt-12 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+          <a
+            href="#apply"
+            className="rounded-md bg-[var(--brand-chartreuse)] px-6 py-3 font-mono text-sm font-medium text-[#0a0a0a] hover:opacity-90"
+          >
+            start your application →
+          </a>
+          <a
+            href="#how-it-works"
+            className="font-mono text-sm text-white/85 underline-offset-4 hover:underline"
+          >
+            see how it works
+          </a>
         </div>
       </div>
     </section>
+  );
+}
+
+function StatBlock({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="bg-[var(--brand-blue)] px-6 py-7">
+      <p className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+        {value}
+      </p>
+      <p className="mt-2 font-mono text-xs uppercase tracking-wider text-white/70">
+        {label}
+      </p>
+    </div>
   );
 }
