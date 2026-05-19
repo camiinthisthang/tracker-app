@@ -27,6 +27,45 @@ tangent.
 
 ---
 
+## 2026-05-18 23:30 — backfill Poncho prompts for 20 recent hooks
+Most recent 20 hooks without a `ponchoPrompt` get one. All written in
+Jacqueline's pattern — [BRACKETS] for user-fillable variables, named
+tools (apollo, hunter, clado, exa, hinge profile uploads, npi registry,
+etc), structured output asks (one-page brief, green/yellow/red, side-
+by-side, ranked list), spend caps where it makes sense.
+
+**Coverage**
+- 10 Regan hooks from May 7-9 (agency-job-quit, height fish, $1500
+  logo, future roommate, 800-followers brand deal, childhood friend,
+  salary negotiation, "girls before any man," hinge founder check,
+  Pedro Pascal contact reveal).
+- 10 Cami hooks from May 4 (fat-shirts, CEO email reveal, three
+  variants of the job-hunt-via-CEO-email play, hinge profile vet x2,
+  AI-tool car comparison, delulumaxxing, boss-makes-$500K demo).
+
+**Skipped (intentionally — observational, not demos):**
+- "5 years wasted on a CS degree"
+- "lmao my friend who is already psycho is now background checking"
+- "btw my manager just got me in trouble for using AI"
+These read as TikTok-vibe commentary rather than product demos. Adding
+a forced prompt would weaken them. Convert to demos in a follow-up if
+desired.
+
+**Script** — `scripts/patch-poncho-prompts.ts`
+- Dry-run by default; `--confirm` to write.
+- Reads each hook by id, only patches where `ponchoPrompt IS NULL` so
+  re-running can't clobber an edit.
+- Single `$transaction`.
+- Run against prod:
+  ```bash
+  DATABASE_URL="<prod>" npx tsx scripts/patch-poncho-prompts.ts          # preview
+  DATABASE_URL="<prod>" npx tsx scripts/patch-poncho-prompts.ts --confirm
+  ```
+
+**Tested**
+- `tsc --noEmit` clean.
+- `eslint` clean.
+
 ## 2026-05-18 22:00 — viewtrackr brand pass (public/auth surfaces)
 Applies the viewtrackr / poncho brand system (same colors, same typography)
 to the public-facing surfaces and global tokens. App interior keeps its
