@@ -14,7 +14,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { BarChart3 } from "lucide-react";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 
 export default function LoginPage() {
@@ -45,16 +44,16 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardHeader className="text-center">
-        <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500">
-          <BarChart3 className="h-6 w-6 text-white" />
-        </div>
-        <CardTitle className="text-xl font-semibold text-slate-800">
-          Welcome back
+    <Card className="border-0 shadow-2xl">
+      <CardHeader>
+        <p className="font-mono text-xs uppercase tracking-wider text-foreground/55">
+          sign in
+        </p>
+        <CardTitle className="text-3xl font-bold tracking-tight lowercase">
+          welcome back<span className="text-[var(--brand-blue)]">.</span>
         </CardTitle>
-        <CardDescription className="text-slate-500">
-          Sign in to your account
+        <CardDescription className="font-mono text-xs text-foreground/60">
+          sign in to your viewtrackr account.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -103,19 +102,19 @@ export default function LoginPage() {
           </div>
           <Button
             type="submit"
-            className="w-full bg-slate-800 text-white hover:bg-slate-700"
+            className="w-full bg-[var(--brand-blue)] font-mono text-sm text-white hover:opacity-90"
             disabled={loading}
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "signing in..." : "sign in →"}
           </Button>
         </form>
-        <p className="mt-4 text-center text-sm text-slate-500">
-          Don&apos;t have an account?{" "}
+        <p className="mt-4 text-center font-mono text-xs text-foreground/60">
+          don&apos;t have an account?{" "}
           <Link
             href="/register"
-            className="font-medium text-blue-500 hover:text-blue-600"
+            className="font-medium text-[var(--brand-blue)] hover:underline"
           >
-            Create one
+            create one
           </Link>
         </p>
       </CardContent>

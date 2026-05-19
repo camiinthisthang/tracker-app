@@ -27,6 +27,71 @@ tangent.
 
 ---
 
+## 2026-05-18 22:00 — viewtrackr brand pass (public/auth surfaces)
+Applies the viewtrackr / poncho brand system (same colors, same typography)
+to the public-facing surfaces and global tokens. App interior keeps its
+existing layout — only colors + fonts shift there.
+
+**Tokens** — `src/app/globals.css`
+- Brand color CSS vars: `--brand-blue` (#054FF0), `--brand-chartreuse`
+  (#DCFC73), `--brand-lavender` (#E1D2F3), `--brand-bone` (#F9F8F3).
+- Shadcn primary now maps to brand blue; accent to chartreuse; ring to
+  blue. So every existing button / input / focus state inherits the new
+  palette without per-component edits.
+- New utility class `.brand-surface` for blue-background, white-text
+  hero sections (used by apply, login, invite).
+
+**Fonts** — `src/app/layout.tsx`
+- Swap Inter → Geist + Geist Mono via `next/font/google`. `--font-sans`
+  is Geist, `--font-geist-mono` is Geist Mono. Already referenced from
+  globals.css via `@theme inline`.
+
+**Reusable brand components** — `src/components/brand/`
+- `BrandMark` — the "viewtrackr." wordmark (Geist Bold, lowercase,
+  chartreuse period). `tone="light"` for blue surfaces, `tone="dark"`
+  for white. Links to /apply by default.
+- `BrandHeadline` — the deck's signature pattern: bold lowercase text
+  with the last word wrapped in a chartreuse highlight block.
+- `BrandPageHeader` — terminal-log header bar in Geist Mono (section
+  name + page index, e.g. "viewtrackr / apply" + "01 / 04").
+
+**Rebranded surfaces (full deck treatment):**
+- `src/components/apply/apply-hero.tsx` + `apply-nav.tsx` — blue
+  background, lowercase brand voice, chartreuse highlight on the
+  promise word, mono stat blocks. Nav uses the wordmark + chartreuse
+  CTA button.
+- `src/app/(auth)/layout.tsx` — blue surface wrapping login/register
+  with the brand mark in the corner and a terminal-log footer.
+- `src/app/(auth)/login/page.tsx` + `register/page.tsx` — white cards
+  on the blue surface, lowercase headlines with blue period accent,
+  mono labels + body, brand-blue submit button.
+- `src/app/invite/[token]/page.tsx` + `invite/team/[token]/page.tsx`
+  — same full brand treatment for the creator + manager invite
+  landing pages.
+
+**Logo + sidebar wordmark** — admin + creator sidebars
+- Replaced the generic BarChart3-in-blue-square logo with a "v" square
+  in brand blue + the team name wordmark (lowercase, brand-blue
+  period). Falls back to "viewtrackr." when no team name is in session.
+
+**Out of scope this PR (intentionally):**
+- App interior pages (creator /home, admin /dashboard, /campaigns, etc)
+  keep their current layout. They inherit the new colors via the
+  shadcn token rewire but aren't visually overhauled. Doing that
+  cleanly would be a much bigger PR — coming next if Cami wants it.
+- Email templates (creator-invite.ts, team-invite.ts) still use the
+  old visuals. Worth a follow-up so the first impression matches.
+- Dashboard graphs / charts colors. The chart-1..5 tokens are remapped
+  to a blue gradient but individual chart configs may still hardcode
+  hex values.
+
+**Tested**
+- `tsc --noEmit` clean.
+- `eslint` on touched files clean (only the globals.css "no eslint
+  config" warning, which is expected for CSS).
+- `next build` clean — all routes compile, /login + /register + /apply
+  + /invite/[token] + /invite/team/[token] all render server-side.
+
 ## 2026-05-16 18:30 — fix: creators leaking onto the agency team
 Context: Cami spotted three creators (Alexa Lunario, Claire Yao, Mark Sanchez)
 showing up on /team with an "Agency admin" badge. Root cause is two bugs +

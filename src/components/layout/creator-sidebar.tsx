@@ -6,7 +6,6 @@ import {
   User,
   BookOpen,
   Settings,
-  BarChart3,
   ChevronDown,
   LogOut,
   Upload,
@@ -37,11 +36,14 @@ export function CreatorSidebar() {
     <aside className="fixed left-0 top-0 z-30 flex h-screen w-60 flex-col border-r border-slate-200 bg-white">
       {/* Logo */}
       <div className="flex h-14 items-center gap-2 px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500">
-          <BarChart3 className="h-4 w-4 text-white" />
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--brand-blue)]">
+          <span className="text-base font-bold leading-none text-white">v</span>
         </div>
-        <span className="text-base font-semibold text-slate-800">
-          {session?.user?.teamName || "Tracker"}
+        <span className="text-base font-bold tracking-tight lowercase text-foreground">
+          {session?.user?.teamName
+            ? session.user.teamName.toLowerCase()
+            : "viewtrackr"}
+          <span className="text-[var(--brand-blue)]">.</span>
         </span>
       </div>
 
