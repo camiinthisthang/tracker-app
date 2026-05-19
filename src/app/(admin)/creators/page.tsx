@@ -1,6 +1,6 @@
 import { Users } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, AGENCY_TEAM_SLUG } from "@/lib/auth";
 import { creatorVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -11,8 +11,12 @@ import { AddCreatorButton } from "@/components/creators/add-creator-button";
 export default async function CreatorsPage() {
   const session = await getRequiredSession();
 
+  // Super admins can pick any team when adding a creator — except the agency
+  // team itself, which is admins-only by intent. Hiding it from the picker
+  // stops the recurring mistake of adding creators to Tapmore.
   const teams = session.user.isSuperAdmin
     ? await prisma.team.findMany({
+        where: { slug: { not: AGENCY_TEAM_SLUG } },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       })
@@ -91,7 +95,10 @@ export default async function CreatorsPage() {
         <AddCreatorButton
           isSuperAdmin={session.user.isSuperAdmin}
           teams={teams}
-          defaultTeamId={session.user.teamId}
+          // Super admins must pick a client every time — defaulting to their
+          // own team is what put creators onto the agency team. Non-super
+          // admins are locked to their own team server-side anyway.
+          defaultTeamId={session.user.isSuperAdmin ? "" : session.user.teamId}
         />
       </PageHeader>
 

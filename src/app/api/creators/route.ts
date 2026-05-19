@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, AGENCY_TEAM_SLUG } from "@/lib/auth";
 import { creatorVisibilityWhere } from "@/lib/visibility";
 import { createCreatorSchema } from "@/lib/validations/creator";
 import { sendCreatorInvite } from "@/lib/email/creator-invite";
@@ -68,10 +68,22 @@ export async function POST(req: Request) {
 
     const team = await prisma.team.findUnique({
       where: { id: teamId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, slug: true },
     });
     if (!team) {
       return NextResponse.json({ error: "Team not found" }, { status: 400 });
+    }
+    // Belt-and-suspenders for the UI fix on /creators. The agency team is
+    // admins-only by intent — creators here pollute /team and break visibility
+    // rules. Refuse it explicitly with an actionable message.
+    if (team.slug === AGENCY_TEAM_SLUG) {
+      return NextResponse.json(
+        {
+          error:
+            "Creators can't belong to the agency team. Pick a client team (e.g. Merit) instead.",
+        },
+        { status: 400 }
+      );
     }
 
     const inviteToken = crypto.randomBytes(16).toString("hex");

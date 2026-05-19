@@ -27,6 +27,50 @@ tangent.
 
 ---
 
+## 2026-05-16 18:30 — fix: creators leaking onto the agency team
+Context: Cami spotted three creators (Alexa Lunario, Claire Yao, Mark Sanchez)
+showing up on /team with an "Agency admin" badge. Root cause is two bugs +
+no API guardrail.
+
+**Display fix** — `src/app/(admin)/team/page.tsx`
+- The agency Team's `members` include now filters `role: { not: "CREATOR" }`.
+  Mirrors the same fix that landed on /clients/[teamId] on 2026-04-21.
+- CREATOR-role rows on Tapmore are still bugs (see below), but at least they
+  stop rendering as "Agency admin" while we sort the data.
+
+**Form fix** — `src/app/(admin)/creators/page.tsx` + AddCreator button
+- Super admins now see only client teams in the picker (agency team excluded
+  via `where: { slug: { not: AGENCY_TEAM_SLUG } }`).
+- `defaultTeamId` is empty string for super admins so the picker forces an
+  explicit choice. Non-super-admins still get `session.user.teamId` (they're
+  locked to it server-side anyway).
+
+**API guardrail** — `POST /api/creators`
+- Refuses with 400 if the resolved team's slug equals `AGENCY_TEAM_SLUG`.
+  Error message: "Creators can't belong to the agency team. Pick a client
+  team (e.g. Merit) instead."
+
+**Backfill script** — `scripts/move-creator-team.ts`
+- Takes `--creator <id-or-email> --to <teamId-or-slug>` and optionally
+  `--confirm`. Without `--confirm` it's a dry run.
+- In a single `$transaction`, updates `Creator.teamId` and (if present) the
+  linked `TeamMember.teamId`. Leaves campaigns / posts / uploads alone.
+- For Alexa, Claire, Mark: Cami runs against prod like the previous reset:
+  ```bash
+  DATABASE_URL="<prod>" npx tsx scripts/move-creator-team.ts \
+    --creator content.alexa@gmail.com --to merit --confirm
+  DATABASE_URL="<prod>" npx tsx scripts/move-creator-team.ts \
+    --creator hi.claireyao@gmail.com --to merit --confirm
+  DATABASE_URL="<prod>" npx tsx scripts/move-creator-team.ts \
+    --creator unapologetic.genxer@gmail.com --to merit --confirm
+  ```
+  (Assumes the Merit team's slug is `merit` — if it's different, swap in.)
+
+**Tested**
+- `tsc --noEmit` clean.
+- `eslint` on touched files clean.
+- `next build` clean.
+
 ## 2026-05-16 17:00 — creator onboarding + hook field restructure for Monday launch
 Context: creators are being onboarded on Monday. Goal is to make the in-app
 experience copy/paste simple — "ring light out, copy this, click play."
