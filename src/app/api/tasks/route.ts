@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
@@ -12,9 +12,10 @@ export async function GET(req: Request) {
 
     // Tenant-check via the creator's team so we still pick up onboarding tasks
     // (campaignId = null). The old campaign-based check filtered them out.
-    const where: Record<string, unknown> = {
-      creator: { teamId: session.user.teamId },
-    };
+    // Agency users see tasks across every client team.
+    const where: Record<string, unknown> = hasAgencyWideAccess(session)
+      ? {}
+      : { creator: { teamId: session.user.teamId } };
 
     if (campaignId) where.campaignId = campaignId;
     if (creatorId) where.creatorId = creatorId;
@@ -51,12 +52,11 @@ export async function PATCH(req: Request) {
     }
 
     // Verify task belongs to user's team (via creator, since onboarding tasks
-    // have no campaign).
+    // have no campaign). Agency users can update tasks for any client.
     const task = await prisma.task.findFirst({
-      where: {
-        id: taskId,
-        creator: { teamId: session.user.teamId },
-      },
+      where: hasAgencyWideAccess(session)
+        ? { id: taskId }
+        : { id: taskId, creator: { teamId: session.user.teamId } },
     });
 
     if (!task) {

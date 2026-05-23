@@ -164,7 +164,9 @@ export default async function CreatorHomePage() {
             campaign: { select: { name: true } },
           },
           orderBy: { publishedAt: "desc" },
-          take: 20,
+          // Was take: 20 — a hardcoded UI limit, not a DB limit. Raised so
+          // creators see their full hooks feed.
+          take: 200,
         });
   const serializedHooks = hooksForFeed.map((h) => ({
     ...h,

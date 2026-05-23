@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { findEmailConflict } from "@/lib/email-conflict";
 import { sendManagerInvite } from "@/lib/email/manager-invite";
+import { BRAND_URL } from "@/lib/brand";
 
 export async function POST(
   req: Request,
@@ -66,7 +67,7 @@ export async function POST(
   const origin =
     process.env.NEXT_PUBLIC_APP_URL ||
     req.headers.get("origin") ||
-    "https://viewtrackr.com";
+    BRAND_URL;
   const inviteUrl = `${origin}/invite/team/${token}`;
 
   // Fire the branded invite email via Resend. Don't block the response on

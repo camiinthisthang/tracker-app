@@ -1,4 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured } from "@/lib/email/resend";
+import { BRAND_NAME } from "@/lib/brand";
 
 interface SendManagerInviteArgs {
   to: string;
@@ -32,8 +33,8 @@ export async function sendManagerInvite({
   const isAgency = variant === "agency";
 
   const subject = isAgency
-    ? `You're invited to join ${teamName} on Viewtrackr`
-    : `You're invited to manage ${teamName} on Viewtrackr`;
+    ? `You're invited to join ${teamName} on ${BRAND_NAME}`
+    : `You're invited to manage ${teamName} on ${BRAND_NAME}`;
 
   const pitch = isAgency
     ? `You'll get admin access to every client workspace we operate — campaigns, creators, posts, and analytics across the board.`
@@ -43,7 +44,7 @@ export async function sendManagerInvite({
 
   const text = `Hi,
 
-${fromLabel} invited you to ${ctaVerb} ${teamName} on Viewtrackr. ${pitch}
+${fromLabel} invited you to ${ctaVerb} ${teamName} on ${BRAND_NAME}. ${pitch}
 
 Accept the invite:
 ${inviteUrl}
@@ -54,7 +55,7 @@ This link expires in 14 days.
 
   const html = `<div style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.6;color:#0f172a;max-width:560px;">
   <p style="margin:0 0 14px;">Hi,</p>
-  <p style="margin:0 0 14px;"><strong>${fromLabel}</strong> invited you to ${ctaVerb} <strong>${teamName}</strong> on Viewtrackr.</p>
+  <p style="margin:0 0 14px;"><strong>${fromLabel}</strong> invited you to ${ctaVerb} <strong>${teamName}</strong> on ${BRAND_NAME}.</p>
   <p style="margin:0 0 14px;">${pitch}</p>
   <p style="margin:0 0 20px;">
     <a href="${inviteUrl}" style="display:inline-block;background:#1e293b;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:500;">Accept invite</a>

@@ -1,4 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured } from "@/lib/email/resend";
+import { BRAND_NAME } from "@/lib/brand";
 
 interface SendCreatorInviteArgs {
   to: string;
@@ -22,7 +23,7 @@ export async function sendCreatorInvite({
 
   const text = `Hi ${firstName},
 
-${teamName} invited you to join as a creator on Viewtrackr.
+${teamName} invited you to join as a creator on ${BRAND_NAME}.
 
 Click the link below to set your password and finish setting up your account — should take about 2 minutes.
 
@@ -35,7 +36,7 @@ ${teamName}`;
 
   const html = `<div style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.6;color:#0f172a;max-width:560px;">
   <p style="margin:0 0 14px;">Hi ${firstName},</p>
-  <p style="margin:0 0 14px;"><strong>${teamName}</strong> invited you to join as a creator on Viewtrackr.</p>
+  <p style="margin:0 0 14px;"><strong>${teamName}</strong> invited you to join as a creator on ${BRAND_NAME}.</p>
   <p style="margin:0 0 14px;">Click the button below to set your password and finish setting up your account — should take about 2 minutes.</p>
   <p style="margin:0 0 20px;">
     <a href="${inviteUrl}" style="display:inline-block;background:#1e293b;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:500;">Accept invite</a>

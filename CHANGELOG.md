@@ -27,6 +27,30 @@ tangent.
 
 ---
 
+## 2026-05-22 — P0 Sunday recovery fixes (branch: p0-sunday-fixes)
+- FIX A: Team-filter bypass for agency users. API route handlers that scoped
+  `session.user.teamId` to LOCATE a campaign/creator/upload/hook/task/post/
+  bonus-rule/notification/report now bypass the filter for agency users
+  (super admins + agency managers) via `hasAgencyWideAccess()`; client
+  managers stay tenant-scoped. Routes touched: campaigns/[campaignId]/sync,
+  campaigns/[campaignId], campaigns/[campaignId]/generate-tasks,
+  campaigns/[campaignId]/creators, uploads, posts, reports, notifications,
+  tasks, bonus-rules, bonus-rules/[ruleId]. settings left scoped with a
+  TODO(P1) for a future team selector.
+- FIX B: Unified the product name. Added `src/lib/brand.ts` as the single
+  source of truth (`BRAND_NAME`/`BRAND_WORDMARK`/`BRAND_URL`). Replaced all
+  user-facing "viewtrackr"/"Viewtrackr" strings across sidebars, emails,
+  apply pages, invite pages, auth pages, and metadata. Sidebars now always
+  render the brand wordmark and never the client team name.
+- FIX C: Raised the creator hooks feed cap from `take: 20` to `take: 200`
+  (it was a hardcoded UI limit, not a DB limit).
+- FIX D: Hid the non-functional Upload entry points (creator sidebar nav
+  item and campaign detail "Uploads" tab) until Cloudflare R2 is configured.
+  Code/routes left intact.
+- FIX E: Client detail page creator query now includes creators assigned to
+  the client's campaigns, not just creators "homed" on the team — so the
+  "Creators (N)" count is accurate.
+
 ## 2026-05-18 23:30 — backfill Poncho prompts for 20 recent hooks
 Most recent 20 hooks without a `ponchoPrompt` get one. All written in
 Jacqueline's pattern — [BRACKETS] for user-fillable variables, named

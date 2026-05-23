@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { AcceptTeamInviteForm } from "@/components/clients/accept-team-invite-form";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { BrandPageHeader } from "@/components/brand/brand-page-header";
+import { BRAND_WORDMARK } from "@/lib/brand";
 
 export default async function AcceptTeamInvitePage({
   params,
@@ -48,7 +49,7 @@ export default async function AcceptTeamInvitePage({
   return (
     <div className="brand-surface flex min-h-screen flex-col">
       <header className="mx-auto w-full max-w-6xl px-6 pt-6">
-        <BrandPageHeader section="viewtrackr / team invite" tone="light" />
+        <BrandPageHeader section={`${BRAND_WORDMARK} / team invite`} tone="light" />
         <div className="mt-6">
           <BrandMark href="/apply" tone="light" size="sm" />
         </div>
@@ -66,8 +67,8 @@ export default async function AcceptTeamInvitePage({
               </span>
             </h1>
             <p className="mt-4 font-mono text-sm text-white/85">
-              set up your account to access the {invite.team.name} workspace on
-              viewtrackr.
+              set up your account to access the {invite.team.name} workspace on{" "}
+              {BRAND_WORDMARK}.
             </p>
           </div>
           <div className="rounded-2xl bg-white p-6 shadow-2xl">
@@ -76,7 +77,7 @@ export default async function AcceptTeamInvitePage({
         </div>
       </div>
       <footer className="mx-auto w-full max-w-6xl px-6 pb-6 font-mono text-xs text-white/60">
-        viewtrackr. ugc campaign management.
+        {BRAND_WORDMARK}. ugc campaign management.
       </footer>
     </div>
   );
@@ -92,7 +93,7 @@ function FallbackShell({
   return (
     <div className="brand-surface flex min-h-screen flex-col">
       <header className="mx-auto w-full max-w-6xl px-6 pt-6">
-        <BrandPageHeader section="viewtrackr / team invite" tone="light" />
+        <BrandPageHeader section={`${BRAND_WORDMARK} / team invite`} tone="light" />
         <div className="mt-6">
           <BrandMark href="/apply" tone="light" size="sm" />
         </div>

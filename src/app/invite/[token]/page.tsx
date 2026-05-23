@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { CreatorSignupForm } from "@/components/creators/creator-signup-form";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { BrandPageHeader } from "@/components/brand/brand-page-header";
+import { BRAND_WORDMARK } from "@/lib/brand";
 
 export default async function InvitePage({
   params,
@@ -30,7 +31,7 @@ export default async function InvitePage({
   return (
     <div className="brand-surface flex min-h-screen flex-col">
       <header className="mx-auto w-full max-w-6xl px-6 pt-6">
-        <BrandPageHeader section="viewtrackr / invite" tone="light" />
+        <BrandPageHeader section={`${BRAND_WORDMARK} / invite`} tone="light" />
         <div className="mt-6">
           <BrandMark href="/apply" tone="light" size="sm" />
         </div>
@@ -65,7 +66,7 @@ export default async function InvitePage({
         </div>
       </div>
       <footer className="mx-auto w-full max-w-6xl px-6 pb-6 font-mono text-xs text-white/60">
-        viewtrackr. ugc campaign management.
+        {BRAND_WORDMARK}. ugc campaign management.
       </footer>
     </div>
   );

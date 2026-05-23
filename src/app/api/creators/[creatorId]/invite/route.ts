@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 import { canAccessCreator } from "@/lib/visibility";
 import { sendCreatorInvite } from "@/lib/email/creator-invite";
+import { BRAND_URL } from "@/lib/brand";
 
 export async function POST(
   req: Request,
@@ -47,7 +48,7 @@ export async function POST(
     const origin =
       process.env.NEXT_PUBLIC_APP_URL ||
       req.headers.get("origin") ||
-      "https://viewtrackr.com";
+      BRAND_URL;
     const absoluteInviteUrl = `${origin}/invite/${token}`;
 
     let emailSent = false;

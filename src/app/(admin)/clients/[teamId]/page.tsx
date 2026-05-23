@@ -48,7 +48,14 @@ export default async function ClientDetailPage({
 
   const [creators, campaigns, recentPosts, viewsAgg, bonusRules] = await Promise.all([
     prisma.creator.findMany({
-      where: { teamId },
+      // Include creators "homed" on this team OR assigned to one of this
+      // client's campaigns, so the count reflects everyone working for them.
+      where: {
+        OR: [
+          { teamId },
+          { campaignCreators: { some: { campaign: { teamId } } } },
+        ],
+      },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),

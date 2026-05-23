@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { BRAND_NAME } from "@/lib/brand";
 
 const TIMEZONES = [
   "America/New_York",
@@ -164,7 +165,7 @@ export default function SettingsPage() {
             </p>
             <Textarea
               rows={10}
-              placeholder="Welcome to Viewtrackr — you're on the roster..."
+              placeholder={`Welcome to ${BRAND_NAME} — you're on the roster...`}
               value={creatorWelcomeTemplate}
               onChange={(e) => setCreatorWelcomeTemplate(e.target.value)}
               className="font-mono text-xs"

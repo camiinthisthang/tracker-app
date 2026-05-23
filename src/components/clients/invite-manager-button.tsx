@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { BRAND_NAME } from "@/lib/brand";
 
 export function InviteManagerButton({
   teamId,
@@ -93,8 +94,8 @@ export function InviteManagerButton({
   }
 
   function handleMailto() {
-    const subject = `You're invited to manage ${teamName} on Viewtrackr`;
-    const body = `Hey,\n\nI've set up a Viewtrackr workspace for ${teamName} so you can see everything we're running for you — creators, campaigns, posts, analytics. Accept the invite here:\n\n${inviteUrl}\n\nThis link expires in 14 days.\n\n— Cami`;
+    const subject = `You're invited to manage ${teamName} on ${BRAND_NAME}`;
+    const body = `Hey,\n\nI've set up a ${BRAND_NAME} workspace for ${teamName} so you can see everything we're running for you — creators, campaigns, posts, analytics. Accept the invite here:\n\n${inviteUrl}\n\nThis link expires in 14 days.\n\n— Cami`;
     window.open(
       `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(
         subject

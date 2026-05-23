@@ -9,7 +9,8 @@ const tabs = [
   { label: "Reports", segment: "reports" },
   { label: "Notifications", segment: "notifications" },
   { label: "Tasks", segment: "tasks" },
-  { label: "Uploads", segment: "uploads" },
+  // Uploads hidden until R2 is configured — see CLAUDE.md TODO and the audit doc.
+  // { label: "Uploads", segment: "uploads" },
 ];
 
 export default function CampaignDetailLayout({

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BRAND_WORDMARK } from "@/lib/brand";
 
 interface Props {
   // Where the wordmark links to. Defaults to /apply (the marketing surface).
@@ -15,14 +16,14 @@ const SIZE_CLASS: Record<NonNullable<Props["size"]>, string> = {
   lg: "text-4xl",
 };
 
-// The viewtrackr wordmark. Lowercase, period-terminated, Geist Bold.
-// Mirrors the "Poncho." / "viewtrackr / brand concept" pattern from the deck.
+// The product wordmark. Lowercase, period-terminated, Geist Bold.
+// Sourced from BRAND_WORDMARK in @/lib/brand so a rebrand is a one-file change.
 export function BrandMark({ href = "/apply", tone = "dark", size = "md" }: Props) {
   const color = tone === "light" ? "text-white" : "text-foreground";
   const cls = `${SIZE_CLASS[size]} font-bold tracking-tight lowercase ${color}`;
   return (
     <Link href={href} className={cls}>
-      viewtrackr<span className="text-[var(--brand-chartreuse)]">.</span>
+      {BRAND_WORDMARK}<span className="text-[var(--brand-chartreuse)]">.</span>
     </Link>
   );
 }

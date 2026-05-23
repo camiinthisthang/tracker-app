@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { Building2, Plus, Users, Megaphone, Film } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireAgencyAccess, AGENCY_TEAM_SLUG } from "@/lib/auth";
+import { BRAND_NAME } from "@/lib/brand";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/shared/stat-card";
@@ -66,7 +67,7 @@ export default async function ClientsPage() {
     <div>
       <PageHeader
         title="Clients"
-        description="All client brands using Viewtrackr. Create new clients and invite their managers."
+        description={`All client brands using ${BRAND_NAME}. Create new clients and invite their managers.`}
       >
         <Link href="/clients/new">
           <Button className="bg-slate-900 text-white hover:bg-slate-800">

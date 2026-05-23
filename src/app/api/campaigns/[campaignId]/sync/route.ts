@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 import { syncCampaign } from "@/lib/social/sync";
 
 export async function POST(
@@ -11,8 +11,12 @@ export async function POST(
     const session = await getRequiredSession();
     const { campaignId } = await params;
 
+    // Agency users (super admins / agency managers) can sync any client's
+    // campaign; client managers stay scoped to their own team.
     const campaign = await prisma.campaign.findFirst({
-      where: { id: campaignId, teamId: session.user.teamId },
+      where: hasAgencyWideAccess(session)
+        ? { id: campaignId }
+        : { id: campaignId, teamId: session.user.teamId },
     });
 
     if (!campaign) {

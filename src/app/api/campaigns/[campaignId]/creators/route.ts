@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, hasAgencyWideAccess } from "@/lib/auth";
 
 export async function POST(
   req: Request,
@@ -28,8 +28,10 @@ export async function POST(
     return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
   }
 
+  // Agency users (super admins / agency managers) may assign creators to any
+  // client's campaign; client managers only to their own team's.
   if (
-    !session.user.isSuperAdmin &&
+    !hasAgencyWideAccess(session) &&
     campaign.teamId !== session.user.teamId
   ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -73,7 +75,7 @@ export async function DELETE(req: Request) {
   if (!cc) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (!session.user.isSuperAdmin && cc.campaign.teamId !== session.user.teamId) {
+  if (!hasAgencyWideAccess(session) && cc.campaign.teamId !== session.user.teamId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

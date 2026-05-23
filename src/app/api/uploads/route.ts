@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
@@ -9,10 +9,10 @@ export async function GET(req: Request) {
     const campaignId = searchParams.get("campaignId");
 
     // Tenant-check via creator so onboarding uploads (campaignId = null) are
-    // still visible.
-    const where: Record<string, unknown> = {
-      creator: { teamId: session.user.teamId },
-    };
+    // still visible. Agency users see uploads across every client team.
+    const where: Record<string, unknown> = hasAgencyWideAccess(session)
+      ? {}
+      : { creator: { teamId: session.user.teamId } };
     if (campaignId) where.campaignId = campaignId;
     if (session.user.role === "CREATOR" && session.user.creatorId) {
       where.creatorId = session.user.creatorId;
@@ -44,7 +44,9 @@ export async function POST(req: Request) {
     // Onboarding uploads don't belong to a campaign; regular content uploads do.
     if (category === "CONTENT") {
       const campaign = await prisma.campaign.findFirst({
-        where: { id: body.campaignId, teamId: session.user.teamId },
+        where: hasAgencyWideAccess(session)
+          ? { id: body.campaignId }
+          : { id: body.campaignId, teamId: session.user.teamId },
       });
       if (!campaign) {
         return NextResponse.json(
@@ -67,7 +69,9 @@ export async function POST(req: Request) {
     let hookId: string | null = null;
     if (category === "CONTENT" && typeof body.hookId === "string" && body.hookId) {
       const hook = await prisma.hook.findFirst({
-        where: { id: body.hookId, teamId: session.user.teamId },
+        where: hasAgencyWideAccess(session)
+          ? { id: body.hookId }
+          : { id: body.hookId, teamId: session.user.teamId },
       });
       if (hook) hookId = hook.id;
     }
@@ -103,10 +107,9 @@ export async function PATCH(req: Request) {
     const body = await req.json();
 
     const upload = await prisma.upload.findFirst({
-      where: {
-        id: body.uploadId,
-        creator: { teamId: session.user.teamId },
-      },
+      where: hasAgencyWideAccess(session)
+        ? { id: body.uploadId }
+        : { id: body.uploadId, creator: { teamId: session.user.teamId } },
     });
     if (!upload) {
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
