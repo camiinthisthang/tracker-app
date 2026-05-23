@@ -1,6 +1,7 @@
 import { BrandHeadline } from "@/components/brand/brand-headline";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { BrandPageHeader } from "@/components/brand/brand-page-header";
+import { BRAND_WORDMARK } from "@/lib/brand";
 
 export function ApplyHero() {
   return (
@@ -8,7 +9,7 @@ export function ApplyHero() {
       <div className="mx-auto max-w-5xl px-6 pb-20 pt-10 sm:pb-28 sm:pt-12">
         {/* Terminal-log header bar — matches the Poncho deck page chrome */}
         <BrandPageHeader
-          section="viewtrackr / apply"
+          section={`${BRAND_WORDMARK} / apply`}
           index="01 / 04"
           tone="light"
         />

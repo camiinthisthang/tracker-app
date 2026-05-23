@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
@@ -8,9 +8,12 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const campaignId = searchParams.get("campaignId");
 
+    // Agency users see notification rules across every client team.
     const rules = await prisma.notificationRule.findMany({
       where: {
-        campaign: { teamId: session.user.teamId },
+        ...(hasAgencyWideAccess(session)
+          ? {}
+          : { campaign: { teamId: session.user.teamId } }),
         ...(campaignId ? { campaignId } : {}),
       },
       orderBy: { createdAt: "asc" },
@@ -27,9 +30,11 @@ export async function POST(req: Request) {
     const session = await getRequiredSession();
     const body = await req.json();
 
-    // Verify campaign belongs to team
+    // Verify campaign belongs to team. Agency users may target any campaign.
     const campaign = await prisma.campaign.findFirst({
-      where: { id: body.campaignId, teamId: session.user.teamId },
+      where: hasAgencyWideAccess(session)
+        ? { id: body.campaignId }
+        : { id: body.campaignId, teamId: session.user.teamId },
     });
     if (!campaign) {
       return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
@@ -60,10 +65,9 @@ export async function PATCH(req: Request) {
     const body = await req.json();
 
     const rule = await prisma.notificationRule.findFirst({
-      where: {
-        id: body.ruleId,
-        campaign: { teamId: session.user.teamId },
-      },
+      where: hasAgencyWideAccess(session)
+        ? { id: body.ruleId }
+        : { id: body.ruleId, campaign: { teamId: session.user.teamId } },
     });
     if (!rule) {
       return NextResponse.json({ error: "Rule not found" }, { status: 404 });
@@ -95,7 +99,9 @@ export async function DELETE(req: Request) {
     }
 
     const rule = await prisma.notificationRule.findFirst({
-      where: { id: ruleId, campaign: { teamId: session.user.teamId } },
+      where: hasAgencyWideAccess(session)
+        ? { id: ruleId }
+        : { id: ruleId, campaign: { teamId: session.user.teamId } },
     });
     if (!rule) {
       return NextResponse.json({ error: "Rule not found" }, { status: 404 });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 
 export async function PATCH(
   req: Request,
@@ -14,7 +14,8 @@ export async function PATCH(
     const { ruleId } = await params;
     const body = await req.json();
 
-    const where = session.user.isSuperAdmin
+    // Agency users may edit/delete any client's bonus rule.
+    const where = hasAgencyWideAccess(session)
       ? { id: ruleId }
       : { id: ruleId, teamId: session.user.teamId };
     const existing = await prisma.bonusRule.findFirst({ where });
@@ -61,7 +62,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { ruleId } = await params;
-    const where = session.user.isSuperAdmin
+    // Agency users may edit/delete any client's bonus rule.
+    const where = hasAgencyWideAccess(session)
       ? { id: ruleId }
       : { id: ruleId, teamId: session.user.teamId };
     const existing = await prisma.bonusRule.findFirst({ where });

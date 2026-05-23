@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 import { updateCampaignSchema } from "@/lib/validations/campaign";
 
 export async function GET(
@@ -11,8 +11,11 @@ export async function GET(
     const session = await getRequiredSession();
     const { campaignId } = await params;
 
+    // Agency users can read any client's campaign; client managers only theirs.
     const campaign = await prisma.campaign.findFirst({
-      where: { id: campaignId, teamId: session.user.teamId },
+      where: hasAgencyWideAccess(session)
+        ? { id: campaignId }
+        : { id: campaignId, teamId: session.user.teamId },
       include: {
         campaignCreators: {
           include: { creator: true },
@@ -48,7 +51,9 @@ export async function PATCH(
     const data = updateCampaignSchema.parse(body);
 
     const campaign = await prisma.campaign.update({
-      where: { id: campaignId, teamId: session.user.teamId },
+      where: hasAgencyWideAccess(session)
+        ? { id: campaignId }
+        : { id: campaignId, teamId: session.user.teamId },
       data: {
         ...(data.name !== undefined && { name: data.name }),
         ...(data.startDate !== undefined && {
@@ -90,7 +95,9 @@ export async function DELETE(
     const { campaignId } = await params;
 
     await prisma.campaign.delete({
-      where: { id: campaignId, teamId: session.user.teamId },
+      where: hasAgencyWideAccess(session)
+        ? { id: campaignId }
+        : { id: campaignId, teamId: session.user.teamId },
     });
 
     return NextResponse.json({ success: true });

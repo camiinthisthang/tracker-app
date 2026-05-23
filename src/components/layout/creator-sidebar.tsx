@@ -19,11 +19,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { BRAND_WORDMARK } from "@/lib/brand";
 
 const navItems = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/creator-tasks", label: "Tasks", icon: ListTodo },
-  { href: "/creator-uploads", label: "Uploads", icon: Upload },
+  // Uploads hidden until R2 is configured — see CLAUDE.md TODO and the audit doc.
+  // { href: "/creator-uploads", label: "Uploads", icon: Upload },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/creator-resources", label: "Resources", icon: BookOpen },
   { href: "/creator-settings", label: "Settings", icon: Settings },
@@ -37,12 +39,12 @@ export function CreatorSidebar() {
       {/* Logo */}
       <div className="flex h-14 items-center gap-2 px-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--brand-blue)]">
-          <span className="text-base font-bold leading-none text-white">v</span>
+          <span className="text-base font-bold leading-none text-white">
+            {BRAND_WORDMARK[0]}
+          </span>
         </div>
         <span className="text-base font-bold tracking-tight lowercase text-foreground">
-          {session?.user?.teamName
-            ? session.user.teamName.toLowerCase()
-            : "viewtrackr"}
+          {BRAND_WORDMARK}
           <span className="text-[var(--brand-blue)]">.</span>
         </span>
       </div>

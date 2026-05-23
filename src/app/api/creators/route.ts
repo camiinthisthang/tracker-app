@@ -7,6 +7,7 @@ import { createCreatorSchema } from "@/lib/validations/creator";
 import { sendCreatorInvite } from "@/lib/email/creator-invite";
 import { findEmailConflict } from "@/lib/email-conflict";
 import { createOnboardingTasks } from "@/lib/tasks/onboarding";
+import { BRAND_URL } from "@/lib/brand";
 
 export async function GET() {
   try {
@@ -135,7 +136,7 @@ export async function POST(req: Request) {
       const origin =
         process.env.NEXT_PUBLIC_APP_URL ||
         req.headers.get("origin") ||
-        "https://viewtrackr.com";
+        BRAND_URL;
       const inviteUrl = `${origin}/invite/${inviteToken}`;
       const result = await sendCreatorInvite({
         to: email,

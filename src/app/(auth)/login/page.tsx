@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { BRAND_WORDMARK } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,7 +54,7 @@ export default function LoginPage() {
           welcome back<span className="text-[var(--brand-blue)]">.</span>
         </CardTitle>
         <CardDescription className="font-mono text-xs text-foreground/60">
-          sign in to your viewtrackr account.
+          sign in to your {BRAND_WORDMARK} account.
         </CardDescription>
       </CardHeader>
       <CardContent>

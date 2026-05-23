@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/shared/stat-card";
 import { InterviewInviteButton } from "@/components/applications/interview-invite-button";
 import { ApplicationActions } from "@/components/applications/application-actions";
+import { BRAND_NAME } from "@/lib/brand";
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-yellow-50 text-yellow-700",
@@ -27,7 +28,7 @@ export default async function ApplicationsPage() {
     }),
   ]);
 
-  const teamName = team?.name || "Viewtrackr";
+  const teamName = team?.name || BRAND_NAME;
   const schedulingUrl = team?.settings?.schedulingUrl || null;
 
   const pendingCount = applications.filter((a) => a.status === "PENDING").length;

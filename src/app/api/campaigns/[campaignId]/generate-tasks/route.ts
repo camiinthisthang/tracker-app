@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 import { generateTasksForCampaign } from "@/lib/tasks/generate";
 
 export async function POST(
@@ -11,8 +11,11 @@ export async function POST(
     const session = await getRequiredSession();
     const { campaignId } = await params;
 
+    // Agency users can generate tasks for any client's campaign.
     const campaign = await prisma.campaign.findFirst({
-      where: { id: campaignId, teamId: session.user.teamId },
+      where: hasAgencyWideAccess(session)
+        ? { id: campaignId }
+        : { id: campaignId, teamId: session.user.teamId },
     });
 
     if (!campaign) {

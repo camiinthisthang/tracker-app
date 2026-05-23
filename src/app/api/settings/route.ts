@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 
+// TODO(P1): agency admins editing client settings needs a team selector
+// — this route is intentionally scoped to the caller's own team for now.
 export async function GET() {
   try {
     const session = await getRequiredSession();

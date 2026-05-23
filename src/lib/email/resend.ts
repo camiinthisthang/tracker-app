@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { BRAND_NAME } from "@/lib/brand";
 
 const apiKey = process.env.RESEND_API_KEY;
 
@@ -9,7 +10,7 @@ export const resend = apiKey ? new Resend(apiKey) : null;
 // anything that should actually land in an inbox needs RESEND_FROM_EMAIL set
 // to an address on a domain verified in the Resend dashboard.
 export const FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL || "Viewtrackr <onboarding@resend.dev>";
+  process.env.RESEND_FROM_EMAIL || `${BRAND_NAME} <onboarding@resend.dev>`;
 
 export function isEmailConfigured() {
   return Boolean(apiKey);

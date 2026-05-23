@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import "./globals.css";
+import { BRAND_NAME } from "@/lib/brand";
 
 // Geist + Geist Mono. Matches the viewtrackr / poncho brand deck typography
 // — Geist is the bold lowercase sans for headlines + UI; Geist Mono is the
@@ -18,9 +19,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "viewtrackr — ugc campaign management",
+  title: `${BRAND_NAME} — ugc campaign management`,
   description:
-    "viewtrackr tracks, manages, and ships ugc creator campaigns. built by the team behind poncho.",
+    `${BRAND_NAME} tracks, manages, and ships ugc creator campaigns.`,
 };
 
 export default function RootLayout({

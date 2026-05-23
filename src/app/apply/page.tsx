@@ -9,9 +9,10 @@ import { WhatWeHandle } from "@/components/apply/what-we-handle";
 import { FaqSection } from "@/components/apply/faq-section";
 import { ApplyFooter } from "@/components/apply/apply-footer";
 import { ApplyNav } from "@/components/apply/apply-nav";
+import { BRAND_NAME } from "@/lib/brand";
 
 export const metadata = {
-  title: "Apply to Become a Creator — Viewtrackr",
+  title: `Apply to Become a Creator — ${BRAND_NAME}`,
   description:
     "Join our roster of US-based UGC creators. $850/month base + performance bonuses. Stack clients to earn $5K-$10K+/month.",
 };

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 import type { Prisma } from "@/generated/prisma/client";
 
 export async function GET(req: Request) {
@@ -18,10 +18,11 @@ export async function GET(req: Request) {
     const page = parseInt(searchParams.get("page") || "1");
     const perPage = parseInt(searchParams.get("perPage") || "50");
 
-    // Build where clause — only posts from campaigns belonging to this team
-    const where: Prisma.PostWhereInput = {
-      campaign: { teamId: session.user.teamId },
-    };
+    // Build where clause. Agency users see posts across every client team;
+    // client managers only see posts from their own team's campaigns.
+    const where: Prisma.PostWhereInput = hasAgencyWideAccess(session)
+      ? {}
+      : { campaign: { teamId: session.user.teamId } };
 
     if (campaignId) where.campaignId = campaignId;
     if (creatorId) where.creatorId = creatorId;

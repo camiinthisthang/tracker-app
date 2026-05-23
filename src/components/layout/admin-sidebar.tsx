@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { BRAND_WORDMARK } from "@/lib/brand";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: Home },
@@ -59,19 +60,15 @@ export function AdminSidebar() {
 
   return (
     <aside className="fixed left-0 top-0 z-30 flex h-screen w-60 flex-col border-r border-slate-200 bg-white">
-      {/* Logo — viewtrackr brand mark. Super admins see "tapmore" (the
-          agency umbrella). Client managers see their own team name. Falls
-          back to the viewtrackr wordmark when nothing else is available. */}
+      {/* Logo — always the product wordmark, never the client team name. */}
       <div className="flex h-14 items-center gap-2 px-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--brand-blue)]">
-          <span className="text-base font-bold leading-none text-white">v</span>
+          <span className="text-base font-bold leading-none text-white">
+            {BRAND_WORDMARK[0]}
+          </span>
         </div>
         <span className="text-base font-bold tracking-tight lowercase text-foreground">
-          {session?.user?.isSuperAdmin
-            ? "tapmore"
-            : session?.user?.teamName
-              ? session.user.teamName.toLowerCase()
-              : "viewtrackr"}
+          {BRAND_WORDMARK}
           <span className="text-[var(--brand-blue)]">.</span>
         </span>
       </div>

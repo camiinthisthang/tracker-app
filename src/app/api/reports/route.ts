@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 import crypto from "crypto";
 
 export async function GET(req: Request) {
@@ -9,9 +9,12 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const campaignId = searchParams.get("campaignId");
 
+    // Agency users see report configs across every client team.
     const configs = await prisma.weeklyReportConfig.findMany({
       where: {
-        campaign: { teamId: session.user.teamId },
+        ...(hasAgencyWideAccess(session)
+          ? {}
+          : { campaign: { teamId: session.user.teamId } }),
         ...(campaignId ? { campaignId } : {}),
       },
       include: {
@@ -31,7 +34,9 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const campaign = await prisma.campaign.findFirst({
-      where: { id: body.campaignId, teamId: session.user.teamId },
+      where: hasAgencyWideAccess(session)
+        ? { id: body.campaignId }
+        : { id: body.campaignId, teamId: session.user.teamId },
     });
     if (!campaign) {
       return NextResponse.json({ error: "Campaign not found" }, { status: 404 });

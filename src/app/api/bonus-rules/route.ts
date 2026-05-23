@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 
 // Per-unit triggers: earnings = count × amountUsd. VIEW_THRESHOLD was a
 // milestone-style trigger (flat bonus at N views) — kept in the enum for
@@ -16,9 +16,10 @@ export async function GET(req: Request) {
   try {
     const session = await getRequiredSession();
     const { searchParams } = new URL(req.url);
-    // Super-admins can query any team's rules by passing ?teamId=
+    // Agency users (super admins / agency managers) can query any team's
+    // rules by passing ?teamId=
     const teamId =
-      session.user.isSuperAdmin && searchParams.get("teamId")
+      hasAgencyWideAccess(session) && searchParams.get("teamId")
         ? (searchParams.get("teamId") as string)
         : session.user.teamId;
 
