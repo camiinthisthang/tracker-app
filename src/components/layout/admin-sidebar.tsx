@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import {
   Home,
@@ -62,11 +63,14 @@ export function AdminSidebar() {
     <aside className="fixed left-0 top-0 z-30 flex h-screen w-60 flex-col border-r border-slate-200 bg-white">
       {/* Logo — always the product wordmark, never the client team name. */}
       <div className="flex h-14 items-center gap-2 px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--brand-blue)]">
-          <span className="text-base font-bold leading-none text-white">
-            {BRAND_WORDMARK[0]}
-          </span>
-        </div>
+        <Image
+          src="/dropdeck-logo.png"
+          alt="DropDeck"
+          width={32}
+          height={32}
+          className="h-8 w-8 rounded-md"
+          priority
+        />
         <span className="text-base font-bold tracking-tight lowercase text-foreground">
           {BRAND_WORDMARK}
           <span className="text-[var(--brand-blue)]">.</span>
