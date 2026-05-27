@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-05-28 00:35 — server-side image proxy for IG/TikTok thumbnails
+- The referrer-policy fix from the previous chunk didn't recover IG thumbnails on the campaign overview — they kept rendering the "Thumbnail unavailable" placeholder even immediately after a fresh sync. Browser-side fetches to `cdninstagram.com` get blocked for reasons beyond the Referer header (UA gating, short signed-URL TTLs for non-authed scrapers).
+- New route `src/app/api/img/route.ts` — a server-side image proxy locked to an allowlist of TikTok/IG CDN hostnames. Fetches the upstream image with a browser UA, pipes the bytes back with `Cache-Control: public, max-age=3600`. Hostname allowlist prevents SSRF; only `https` upstreams accepted.
+- `ThumbnailImage` now rewrites any TikTok/IG CDN URL to `/api/img?url=<encoded>` before passing to the `<img>` tag. URLs that aren't on the allowlist (e.g. future R2 / Vercel Blob own-domain URLs) pass through untouched, so the same component keeps working after the durable storage fix.
+- Doesn't fix already-expired URLs — those still return upstream-error from the proxy and the component falls back to the placeholder. The truly durable fix is still the storage-cache path noted in the prior changelog entry.
+- Tested: `npm run build` clean.
+
 ## 2026-05-28 00:05 — thumbnail graceful failure (referrer-policy + fallback)
 - Bug: Instagram thumbnails on the campaign overview's Top Posts gallery (and elsewhere) were rendering as broken `<img>` elements showing the post caption as `alt` text on a transparent background. Two root causes: (1) IG CDN URLs use signed `oe=` expiry timestamps (~24h) and the campaign-level sync hasn't been refreshing them because of the deferred Vercel-timeout bug; (2) Instagram CDN sometimes returns 403 when the `Referer` header points at a non-IG origin.
 - Added `src/components/campaigns/thumbnail-image.tsx` — small client component that wraps `<img>` with `referrerPolicy="no-referrer"` (kills the Referer-based 403) + `onError` fallback to a clean "Thumbnail unavailable" placeholder instead of the alt-text leak.

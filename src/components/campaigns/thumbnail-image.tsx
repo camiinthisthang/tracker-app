@@ -19,6 +19,29 @@ interface Props {
  * When either still fails, we swap to a clean placeholder rather than
  * showing the alt text on a transparent background.
  */
+// Hostnames the server-side proxy will accept. Anything else (including
+// already-cached/own-domain URLs from a future R2 / Vercel Blob switchover)
+// renders directly. Keeps this file as the single decision point for "do we
+// need the proxy?" without each call site having to know.
+const PROXIED_HOSTS = [
+  /\.cdninstagram\.com$/,
+  /\.fbcdn\.net$/,
+  /\.tiktokcdn\.com$/,
+  /\.tiktokcdn-us\.com$/,
+];
+
+function proxiedSrc(raw: string): string {
+  try {
+    const u = new URL(raw);
+    if (PROXIED_HOSTS.some((re) => re.test(u.hostname))) {
+      return `/api/img?url=${encodeURIComponent(raw)}`;
+    }
+  } catch {
+    // Fall through — let the browser try the raw value.
+  }
+  return raw;
+}
+
 export function ThumbnailImage({
   src,
   alt,
@@ -38,7 +61,7 @@ export function ThumbnailImage({
   // eslint-disable-next-line @next/next/no-img-element
   return (
     <img
-      src={src}
+      src={proxiedSrc(src)}
       alt={alt}
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
