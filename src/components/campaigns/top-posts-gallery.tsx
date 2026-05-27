@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { ThumbnailImage } from "./thumbnail-image";
 
 interface TopPost {
   id: string;
@@ -35,16 +36,9 @@ export function TopPostsGallery({ posts }: { posts: TopPost[] }) {
           >
             <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-slate-100">
               {post.thumbnailUrl ? (
-                // Raw <img> rather than next/image — TikTok / Instagram
-                // thumbnail URLs are signed + expiring, and the Next image
-                // proxy mishandles them (request ends up mismatching the
-                // signature and the optimizer returns 404 or a blank img).
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <ThumbnailImage
                   src={post.thumbnailUrl}
                   alt={post.title || "Post thumbnail"}
-                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                  loading="lazy"
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-xs text-slate-400">

@@ -12,6 +12,7 @@ import { CreatorSocialHandles } from "@/components/creators/creator-social-handl
 import { AssignToCampaign } from "@/components/creators/assign-to-campaign";
 import { DeleteCreatorDangerZone } from "@/components/creators/delete-creator-danger-zone";
 import { SyncCreatorButton } from "@/components/creators/sync-creator-button";
+import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 import { Badge } from "@/components/ui/badge";
 import { PLATFORM_LABELS } from "@/lib/constants";
 
@@ -236,11 +237,11 @@ export default async function CreatorDetailPage({
               >
                 {p.thumbnailUrl ? (
                   <div className="h-12 w-9 shrink-0 overflow-hidden rounded-md bg-slate-100">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <ThumbnailImage
                       src={p.thumbnailUrl}
                       alt=""
                       className="h-full w-full object-cover"
+                      fallbackText=""
                     />
                   </div>
                 ) : (

@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { ExternalLink } from "lucide-react";
 import { FilterPills } from "@/components/creators/creator-filter-pills";
+import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 import {
   Select,
   SelectContent,
@@ -111,14 +112,10 @@ export function PostsGalleryClient({
               className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-slate-100"
             >
               {post.thumbnailUrl ? (
-                // Raw <img> — TikTok/IG signed thumbnail URLs break Next's
-                // image proxy. See top-posts-gallery.tsx for the same fix.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <ThumbnailImage
                   src={post.thumbnailUrl}
                   alt={post.title || "Post thumbnail"}
                   className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
-                  loading="lazy"
                 />
               ) : (
                 <div className="flex h-full items-center justify-center">

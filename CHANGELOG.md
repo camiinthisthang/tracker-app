@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-05-28 00:05 — thumbnail graceful failure (referrer-policy + fallback)
+- Bug: Instagram thumbnails on the campaign overview's Top Posts gallery (and elsewhere) were rendering as broken `<img>` elements showing the post caption as `alt` text on a transparent background. Two root causes: (1) IG CDN URLs use signed `oe=` expiry timestamps (~24h) and the campaign-level sync hasn't been refreshing them because of the deferred Vercel-timeout bug; (2) Instagram CDN sometimes returns 403 when the `Referer` header points at a non-IG origin.
+- Added `src/components/campaigns/thumbnail-image.tsx` — small client component that wraps `<img>` with `referrerPolicy="no-referrer"` (kills the Referer-based 403) + `onError` fallback to a clean "Thumbnail unavailable" placeholder instead of the alt-text leak.
+- Migrated every raw-`<img>`-for-thumbnail usage: `top-posts-gallery.tsx`, `posts-gallery-client.tsx`, `creator-viral-videos.tsx` (was using `next/image`, which mishandles signed URLs the same way), `(admin)/creators/[creatorId]/page.tsx`.
+- Tested: `npm run build` clean.
+- **Does not fix expired URLs.** The durable fix is to download thumbnails to our own storage at sync time so the URL never expires. Two paths: (a) R2 — already coded in `src/lib/r2.ts` but blocked on Vercel env vars per the existing TODO; (b) Vercel Blob — simpler, auto-provisions env on `vercel blob` link. Recommend (b) for tonight's reliability; (a) is fine once the env vars land. Either path means a sync-time `fetch + put` for each thumbnail.
+
 ## 2026-05-27 22:50 — sync only attaches posts inside the campaign's date window
 - Campaigns were tracking videos posted outside their `startDate` / `endDate`. E.g. a campaign set May 26 – June 26 still showed April videos because both sync paths fetched the creator's last 30 posts and attached every one of them to the campaign regardless of `postedAt`.
 - `src/lib/social/sync.ts` `syncCampaign`: filter Apify results to `startDate <= postedAt < endDate + 1 day` before upsert. Added an idempotent prune at the start of every sync — `prisma.post.deleteMany` removes any existing posts on the campaign whose `postedAt` falls outside the window. Self-heals legacy bad data on the next sync. Result payload now includes `prunedOutOfRange`.

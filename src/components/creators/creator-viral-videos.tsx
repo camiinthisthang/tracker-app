@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { Flame, ExternalLink } from "lucide-react";
+import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 
 interface ViralPost {
   id: string;
@@ -39,12 +39,10 @@ export function CreatorViralVideos({ posts }: { posts: ViralPost[] }) {
             >
               <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-slate-100">
                 {post.thumbnailUrl ? (
-                  <Image
+                  <ThumbnailImage
                     src={post.thumbnailUrl}
                     alt={post.title || "Thumbnail"}
-                    fill
-                    className="object-cover transition-transform group-hover:scale-105"
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-xs text-slate-400">
