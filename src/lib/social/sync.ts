@@ -45,6 +45,24 @@ export async function syncCampaign(campaignId: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Date window for this campaign. End is inclusive of the full endDate day,
+  // so a post at 5pm on the endDate counts. Apply at both write time (filter
+  // before upsert) and as an idempotent prune (clean up legacy out-of-range
+  // posts on every sync).
+  const windowStart = campaign.startDate;
+  const windowEnd = new Date(campaign.endDate);
+  windowEnd.setDate(windowEnd.getDate() + 1);
+
+  const prunedOutOfRange = await prisma.post.deleteMany({
+    where: {
+      campaignId,
+      OR: [
+        { postedAt: { lt: windowStart } },
+        { postedAt: { gte: windowEnd } },
+      ],
+    },
+  });
+
   let totalPostsUpserted = 0;
   const skipped: { creator: string; reason: string }[] = [];
 
@@ -76,9 +94,12 @@ export async function syncCampaign(campaignId: string) {
         task.platform === "TIKTOK"
           ? await fetchTikTokPostsViaApify(task.handle)
           : await fetchInstagramPostsViaApify(task.handle);
+      const inWindow = fetched.filter(
+        (p) => p.postedAt >= windowStart && p.postedAt < windowEnd
+      );
       return {
         task,
-        posts: filterByHashtags(fetched, campaign.hashtags),
+        posts: filterByHashtags(inWindow, campaign.hashtags),
         success: true,
       };
     } catch (error) {
@@ -137,6 +158,7 @@ export async function syncCampaign(campaignId: string) {
   return {
     postsUpserted: totalPostsUpserted,
     prunedStale: totalPrunedStale,
+    prunedOutOfRange: prunedOutOfRange.count,
     creatorsAttempted: campaign.campaignCreators.length,
     platformAttempts: tasks.length,
     skipped,

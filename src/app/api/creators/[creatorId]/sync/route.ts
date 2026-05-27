@@ -33,7 +33,11 @@ export async function POST(
         where: { isActive: true },
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { campaignId: true },
+        select: {
+          campaign: {
+            select: { id: true, startDate: true, endDate: true },
+          },
+        },
       },
     },
   });
@@ -49,7 +53,36 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const campaignId = creator.campaignCreators[0]?.campaignId;
+  const targetCampaign = creator.campaignCreators[0]?.campaign;
+  const campaignId = targetCampaign?.id;
+
+  // Campaign date window — inclusive of the full endDate day.
+  const windowStart = targetCampaign?.startDate;
+  const windowEnd = targetCampaign
+    ? (() => {
+        const d = new Date(targetCampaign.endDate);
+        d.setDate(d.getDate() + 1);
+        return d;
+      })()
+    : null;
+
+  // Self-healing prune: drop any existing posts for this creator on the
+  // target campaign whose postedAt is outside the campaign's window. Cleans
+  // up legacy bad data from before the date filter was added at write time.
+  let prunedOutOfRange = 0;
+  if (campaignId && windowStart && windowEnd) {
+    const pruned = await prisma.post.deleteMany({
+      where: {
+        campaignId,
+        creatorId,
+        OR: [
+          { postedAt: { lt: windowStart } },
+          { postedAt: { gte: windowEnd } },
+        ],
+      },
+    });
+    prunedOutOfRange = pruned.count;
+  }
 
   const tiktokHandle =
     creator.tiktokHandle || creator.tiktokUsername || creator.handle;
@@ -71,12 +104,19 @@ export async function POST(
   ]);
 
   const allPosts = [...tiktokPosts, ...instagramPosts];
+  const inWindowPosts =
+    windowStart && windowEnd
+      ? allPosts.filter(
+          (p) => p.postedAt >= windowStart && p.postedAt < windowEnd
+        )
+      : [];
+  const droppedOutOfRange = allPosts.length - inWindowPosts.length;
   let upserted = 0;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  for (const post of allPosts) {
+  for (const post of inWindowPosts) {
     // Prefer the creator's active campaign to attach the post. If there is
     // none, skip creating — Post requires campaignId.
     if (!campaignId) continue;
@@ -142,6 +182,8 @@ export async function POST(
     ok: true,
     fetched: allPosts.length,
     upserted,
+    droppedOutOfRange,
+    prunedOutOfRange,
     tiktokPosts: tiktokPosts.length,
     instagramPosts: instagramPosts.length,
     attachedToCampaign: campaignId ?? null,

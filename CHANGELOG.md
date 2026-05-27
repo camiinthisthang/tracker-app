@@ -27,6 +27,15 @@ tangent.
 
 ---
 
+## 2026-05-27 22:50 — sync only attaches posts inside the campaign's date window
+- Campaigns were tracking videos posted outside their `startDate` / `endDate`. E.g. a campaign set May 26 – June 26 still showed April videos because both sync paths fetched the creator's last 30 posts and attached every one of them to the campaign regardless of `postedAt`.
+- `src/lib/social/sync.ts` `syncCampaign`: filter Apify results to `startDate <= postedAt < endDate + 1 day` before upsert. Added an idempotent prune at the start of every sync — `prisma.post.deleteMany` removes any existing posts on the campaign whose `postedAt` falls outside the window. Self-heals legacy bad data on the next sync. Result payload now includes `prunedOutOfRange`.
+- `src/app/api/creators/[creatorId]/sync/route.ts`: same window filter applied to fetched posts before upsert. Also added a creator-scoped prune (only this creator's posts on the target campaign get deleted if out of range). Returns new `droppedOutOfRange` + `prunedOutOfRange` counts.
+- `sync-button.tsx` and `sync-creator-button.tsx` surface the new counts in their success toasts so it's visible when posts get filtered/removed.
+- End-of-day handling: endDate is inclusive — a post at 11pm on the endDate counts. Implemented as `lt: endDate + 1 day`.
+- Tested: `npm run build` passes clean.
+- Cost: zero — no extra Apify calls; this is purely a write/prune-time filter.
+
 ## 2026-05-22 — P0 Sunday recovery fixes (branch: p0-sunday-fixes)
 - FIX A: Team-filter bypass for agency users. API route handlers that scoped
   `session.user.teamId` to LOCATE a campaign/creator/upload/hook/task/post/
@@ -253,7 +262,6 @@ experience copy/paste simple — "ring light out, copy this, click play."
 - Merit prompt-template reuse: searched the repo + no template assets here.
   If the Merit team shared them in another repo or doc, they'd feed straight
   into the new Poncho-prompt field.
-
 ## 2026-05-05 — optional `prompt` field on hooks
 - Migration `20260505000000_add_hook_prompt` adds nullable `prompt` to `hooks`. No backfill — existing hooks just have `prompt = null`.
 - API: `POST /api/hooks` and `PATCH /api/hooks/[hookId]` accept the field. Trimmed and stored as null when blank.

@@ -37,6 +37,16 @@ export function SyncCreatorButton({
         `Fetched ${data.fetched} posts (TikTok: ${data.tiktokPosts}, Instagram: ${data.instagramPosts})`,
         `Saved ${data.upserted} to the DB.`,
       ];
+      if (typeof data.droppedOutOfRange === "number" && data.droppedOutOfRange > 0) {
+        lines.push(
+          `Skipped ${data.droppedOutOfRange} outside the campaign's date range.`
+        );
+      }
+      if (typeof data.prunedOutOfRange === "number" && data.prunedOutOfRange > 0) {
+        lines.push(
+          `Removed ${data.prunedOutOfRange} previously-tracked post${data.prunedOutOfRange === 1 ? "" : "s"} from outside the window.`
+        );
+      }
       if (data.warning) lines.push(data.warning);
       toast.success(lines.join(" "), { duration: 7000 });
       router.refresh();
