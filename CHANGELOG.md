@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-05-28 00:50 — creator-progress cards now honor campaign.weeklyPostTarget
+- Bug: campaign overview's Creator Progress cards showed "X/5 posts" with the headline "5 posts/week target" regardless of what the campaign's Weekly target field was set to. Setting the campaign field to 10 had zero effect on the cards.
+- Root cause: both `overview/page.tsx` and `progress/page.tsx` computed `weeklyTarget = cc.videosPerDay * 5` from `CampaignCreator.videosPerDay` (default 1). Campaign's own `weeklyPostTarget` field was only displayed in the Campaign Details strip and never actually flowed into any progress math.
+- Fix: use `campaign.weeklyPostTarget` as the source of truth for the per-creator weekly target. Ring per-day target derives from `weeklyTarget / DAY_LABELS.length`. So a campaign set to 10/week shows "X/10 posts" with each ring expecting 2/day to fill.
+- `CampaignCreator.videosPerDay` is left untouched — still used by `lib/tasks/generate.ts` for daily task generation. Just stops driving the progress cards.
+- Tested: `npm run build` clean.
+
 ## 2026-05-28 00:35 — server-side image proxy for IG/TikTok thumbnails
 - The referrer-policy fix from the previous chunk didn't recover IG thumbnails on the campaign overview — they kept rendering the "Thumbnail unavailable" placeholder even immediately after a fresh sync. Browser-side fetches to `cdninstagram.com` get blocked for reasons beyond the Referer header (UA gating, short signed-URL TTLs for non-authed scrapers).
 - New route `src/app/api/img/route.ts` — a server-side image proxy locked to an allowlist of TikTok/IG CDN hostnames. Fetches the upstream image with a browser UA, pipes the bytes back with `Cache-Control: public, max-age=3600`. Hostname allowlist prevents SSRF; only `https` upstreams accepted.

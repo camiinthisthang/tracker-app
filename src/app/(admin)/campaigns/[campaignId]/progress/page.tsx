@@ -39,8 +39,10 @@ export default async function CampaignProgressPage({
     select: { creatorId: true, postedAt: true },
   });
 
+  const weeklyTarget = campaign.weeklyPostTarget;
+  const dailyTarget = weeklyTarget / DAY_LABELS.length;
+
   const progresses: CreatorProgress[] = campaign.campaignCreators.map((cc) => {
-    const weeklyTarget = cc.videosPerDay * 5;
     const creatorPosts = weekPosts.filter(
       (p) => p.creatorId === cc.creatorId
     );
@@ -58,7 +60,7 @@ export default async function CampaignProgressPage({
       creatorId: cc.creatorId,
       creatorName: cc.creator.name,
       creatorHandle: cc.creator.handle,
-      videosPerDay: cc.videosPerDay,
+      videosPerDay: dailyTarget,
       weeklyTarget,
       postsThisWeek: creatorPosts.length,
       postsPerDay,
