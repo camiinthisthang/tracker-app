@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { format } from "date-fns";
-import { Users, Megaphone, UserPlus } from "lucide-react";
+import { Users, Megaphone, UserPlus, BarChart3 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireAgencyAccess, isAgencyTeamSlug, isAgencyTeamName } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
@@ -103,6 +103,13 @@ export default async function ClientDetailPage({
         title={team.name}
         description={`Client workspace · ${team.slug}`}
       >
+        <Link
+          href={`/clients/${team.id}/report`}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-blue-300 hover:bg-blue-50"
+        >
+          <BarChart3 className="h-4 w-4 text-blue-500" />
+          View report
+        </Link>
         <InviteManagerButton
           teamId={team.id}
           teamName={team.name}
