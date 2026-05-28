@@ -1,18 +1,22 @@
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
+import { campaignVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { computeWeeklyDigest } from "@/lib/reports/weekly";
 
 export default async function ReportsPage() {
   const session = await getRequiredSession();
-  const teamId = session.user.teamId;
 
-  const digest = await computeWeeklyDigest(teamId);
+  // Agency users (super admin / agency manager) get an aggregated digest
+  // across every team. Client managers stay scoped to their own team — their
+  // digest is the same as what the weekly-report cron emails them.
+  const digestTeam = hasAgencyWideAccess(session) ? null : session.user.teamId;
+  const digest = await computeWeeklyDigest(digestTeam);
 
   const configs = await prisma.weeklyReportConfig.findMany({
-    where: { campaign: { teamId }, isEnabled: true },
+    where: { campaign: campaignVisibilityWhere(session), isEnabled: true },
     include: { campaign: { select: { id: true, name: true } } },
     orderBy: { createdAt: "desc" },
   });
