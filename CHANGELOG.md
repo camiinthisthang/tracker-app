@@ -31,7 +31,8 @@ tangent.
 Follow-up round with Jacqueline now that all deploys are green again. (Root cause of the deploy outage was **not** code: Vercel was blocking every commit authored by `jacquelinegiale-3718` because that Git identity isn't a member of the Vercel team — a team-member with access pushed it through.)
 
 - **Creator-side Posts tab (`src/app/(creator)/creator-posts/page.tsx`, `src/components/posts/creator-posts-table.tsx`, `src/components/layout/creator-sidebar.tsx`).** Creators now have their own "Posts" tab (`/creator-posts`, between Home and Tasks) showing only their own posts scoped by `session.user.creatorId`. Columns: title, platform, link, posted-at, views, likes, shares, saves, comments — same metrics the admin sees, but creator-scoped. Includes a summary strip (post count + total views/likes/shares/saves/comments), campaign filter (only when assigned to >1 campaign), date-range filter, and CSV export. Named `/creator-posts` (not `/posts`) to avoid colliding with the admin `/posts` route; middleware already allows `/creator-*` for the CREATOR role.
-- **Tested:** `npm run build` clean on Node 20.19. New `/creator-posts` route compiles (2.43 kB).
+- **Richer admin creator-profile (`src/app/(admin)/creators/[creatorId]/page.tsx`).** Was bare-bones (4 stat cards + recent posts). Added: a "Viral Videos (50K+)" stat, an IG-vs-TikTok split card (views + posts per platform via `post.groupBy`), the weekly posting-cadence rings (reusing `CreatorWeeklyProgress`, same Mon–Sun shape as creator home), and the 28-day views-over-time chart (reusing `CreatorViewsChart`). No schema change — all derived from existing `Post` data.
+- **Tested:** `npm run build` clean on Node 20.19. New `/creator-posts` route compiles (2.43 kB); `/creators/[creatorId]` grew to 9.37 kB with the chart.
 - **Not yet pushed.** Holding the remote push until Jacqueline is ready, given recent deploy sensitivity.
 
 ---
