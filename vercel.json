@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/sync-posts",
-      "schedule": "0 */4 * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/weekly-report",
