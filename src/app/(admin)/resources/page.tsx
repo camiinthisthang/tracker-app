@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import {
   ResourceManager,
@@ -9,8 +9,15 @@ import {
 export default async function AdminResourcesPage() {
   const session = await getRequiredSession();
 
+  // Agency users see every team's resources so they can curate the full
+  // shared library; client managers stay scoped to their own team.
+  // Newly-added resources still land on session.user.teamId (the API default),
+  // which means agency users write to the DropDeck agency team — i.e. shared
+  // library by default. Adding per-team scoping at create time is a follow-up.
   const resources = await prisma.teamResource.findMany({
-    where: { teamId: session.user.teamId },
+    where: hasAgencyWideAccess(session)
+      ? {}
+      : { teamId: session.user.teamId },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 

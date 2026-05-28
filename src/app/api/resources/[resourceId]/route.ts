@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession } from "@/lib/auth";
+import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 
 export async function PATCH(
   req: Request,
@@ -18,8 +18,11 @@ export async function PATCH(
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+    // Agency users (super admin + agency manager) can edit any team's
+    // resources so they can curate the cross-client library from /resources.
+    // Client managers stay scoped to their own team.
     if (
-      !session.user.isSuperAdmin &&
+      !hasAgencyWideAccess(session) &&
       existing.teamId !== session.user.teamId
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -70,8 +73,11 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+    // Agency users (super admin + agency manager) can edit any team's
+    // resources so they can curate the cross-client library from /resources.
+    // Client managers stay scoped to their own team.
     if (
-      !session.user.isSuperAdmin &&
+      !hasAgencyWideAccess(session) &&
       existing.teamId !== session.user.teamId
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -2,6 +2,10 @@ import Link from "next/link";
 import { List, LayoutGrid } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import {
+  campaignVisibilityWhere,
+  creatorVisibilityWhere,
+} from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PostsTableClient } from "@/components/posts/posts-table-client";
@@ -9,11 +13,18 @@ import { Button } from "@/components/ui/button";
 
 export default async function PostsPage() {
   const session = await getRequiredSession();
-  const teamId = session.user.teamId;
+
+  // Agency users (super admin / agency manager) see posts across every client
+  // team; client managers stay scoped to their own team. Helpers return {} for
+  // agency-wide access or { teamId } for client-scoped access. Filters and
+  // dropdown options need to match — surfacing a creator/campaign in the
+  // filter that's not in the data confuses the UI.
+  const campaignWhere = campaignVisibilityWhere(session);
+  const creatorWhere = creatorVisibilityWhere(session);
 
   const [posts, campaigns, creators] = await Promise.all([
     prisma.post.findMany({
-      where: { campaign: { teamId } },
+      where: { campaign: campaignWhere },
       include: {
         creator: { select: { id: true, name: true, handle: true } },
         campaign: { select: { id: true, name: true } },
@@ -22,12 +33,12 @@ export default async function PostsPage() {
       take: 500,
     }),
     prisma.campaign.findMany({
-      where: { teamId },
+      where: campaignWhere,
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
     prisma.creator.findMany({
-      where: { teamId },
+      where: creatorWhere,
       select: { id: true, handle: true },
       orderBy: { handle: "asc" },
     }),

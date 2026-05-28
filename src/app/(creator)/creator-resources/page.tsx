@@ -5,9 +5,45 @@ import { PageHeader } from "@/components/shared/page-header";
 
 export default async function CreatorResourcesPage() {
   const session = await getRequiredSession();
+  const creatorId = session.user.creatorId;
+
+  // A creator should see resources from:
+  //   (a) the agency team — universal playbooks/guidelines DropDeck uploads
+  //   (b) every client team where they have an active CampaignCreator row
+  //   (c) their own home team (if any), for back-compat with single-team setups
+  // The prior implementation only checked the session's teamId, which for a
+  // creator means their home team — that's almost always not where the
+  // resource was uploaded, so the page rendered empty.
+  const teamIds = new Set<string>();
+  if (session.user.teamId) teamIds.add(session.user.teamId);
+
+  if (creatorId) {
+    const [creator, campaignTeams] = await Promise.all([
+      prisma.creator.findUnique({
+        where: { id: creatorId },
+        select: { teamId: true },
+      }),
+      prisma.campaignCreator.findMany({
+        where: { creatorId, isActive: true },
+        select: { campaign: { select: { teamId: true } } },
+      }),
+    ]);
+    if (creator?.teamId) teamIds.add(creator.teamId);
+    for (const cc of campaignTeams) {
+      if (cc.campaign.teamId) teamIds.add(cc.campaign.teamId);
+    }
+  }
+
+  // Agency team is identified by slug. Accept the legacy "tapmore" slug until
+  // the prod team row is renamed (matches the fallback in src/lib/auth.ts).
+  const agencyTeam = await prisma.team.findFirst({
+    where: { slug: { in: ["dropdeck", "tapmore"] } },
+    select: { id: true },
+  });
+  if (agencyTeam) teamIds.add(agencyTeam.id);
 
   const resources = await prisma.teamResource.findMany({
-    where: { teamId: session.user.teamId },
+    where: { teamId: { in: Array.from(teamIds) } },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 

@@ -2,7 +2,8 @@ import { subDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 
 export interface WeeklyDigest {
-  teamId: string;
+  /** null when computing an agency-wide digest (no single team). */
+  teamId: string | null;
   weekStart: Date;
   weekEnd: Date;
   totalViews: number;
@@ -23,19 +24,26 @@ export interface WeeklyDigest {
 }
 
 /**
- * Compute a week-over-week digest for a team. `weekEnd` defaults to now;
- * `weekStart` is 7 days earlier. Attributed signups is null until the
- * PostHog sync is configured (task #7 wires that up).
+ * Compute a week-over-week digest. Pass a `teamId` to scope to one team
+ * (the per-team weekly cron does this) or `null` to aggregate across every
+ * team (the admin /reports page does this for agency users so they see one
+ * combined view instead of just their home agency team's digest, which is
+ * almost always empty). `weekEnd` defaults to now; `weekStart` is 7 days
+ * earlier. `attributedSignups` is null until the PostHog sync is configured.
  */
 export async function computeWeeklyDigest(
-  teamId: string,
+  teamId: string | null,
   weekEnd: Date = new Date()
 ): Promise<WeeklyDigest> {
   const weekStart = startOfDay(subDays(weekEnd, 7));
+  const teamFilter = teamId ? { teamId } : {};
 
   const [posts, creators] = await Promise.all([
     prisma.post.findMany({
-      where: { creator: { teamId }, postedAt: { gte: weekStart, lte: weekEnd } },
+      where: {
+        creator: teamFilter,
+        postedAt: { gte: weekStart, lte: weekEnd },
+      },
       select: {
         hook: true,
         views: true,
@@ -45,7 +53,7 @@ export async function computeWeeklyDigest(
       },
     }),
     prisma.creator.findMany({
-      where: { teamId },
+      where: teamFilter,
       select: { id: true, name: true, handle: true },
     }),
   ]);

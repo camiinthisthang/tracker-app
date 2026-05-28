@@ -2,6 +2,10 @@ import Link from "next/link";
 import { List, LayoutGrid } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import {
+  campaignVisibilityWhere,
+  creatorVisibilityWhere,
+} from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PostsGalleryClient } from "@/components/posts/posts-gallery-client";
@@ -9,11 +13,14 @@ import { Button } from "@/components/ui/button";
 
 export default async function GalleryPage() {
   const session = await getRequiredSession();
-  const teamId = session.user.teamId;
+
+  // Agency users see across every client team; client managers stay scoped.
+  const campaignWhere = campaignVisibilityWhere(session);
+  const creatorWhere = creatorVisibilityWhere(session);
 
   const [posts, creators] = await Promise.all([
     prisma.post.findMany({
-      where: { campaign: { teamId } },
+      where: { campaign: campaignWhere },
       select: {
         id: true,
         title: true,
@@ -29,7 +36,7 @@ export default async function GalleryPage() {
       take: 200,
     }),
     prisma.creator.findMany({
-      where: { teamId },
+      where: creatorWhere,
       select: { id: true, handle: true },
       orderBy: { handle: "asc" },
     }),

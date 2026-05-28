@@ -2,6 +2,10 @@ import { BarChart3 } from "lucide-react";
 import { startOfDay, subDays, addDays } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import {
+  campaignVisibilityWhere,
+  creatorVisibilityWhere,
+} from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CampaignChartsClient } from "@/components/charts/campaign-charts-client";
@@ -9,10 +13,13 @@ import { TeamOverviewCharts } from "@/components/charts/team-overview-charts";
 
 export default async function ChartsPage() {
   const session = await getRequiredSession();
-  const teamId = session.user.teamId;
+
+  // Agency users see across every client team; client managers stay scoped.
+  const campaignWhere = campaignVisibilityWhere(session);
+  const creatorWhere = creatorVisibilityWhere(session);
 
   const campaigns = await prisma.campaign.findMany({
-    where: { teamId },
+    where: campaignWhere,
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -21,7 +28,7 @@ export default async function ChartsPage() {
   // + top 10 hooks.
   const chartStart = startOfDay(subDays(new Date(), 30));
   const recentPosts = await prisma.post.findMany({
-    where: { creator: { teamId }, postedAt: { gte: chartStart } },
+    where: { creator: creatorWhere, postedAt: { gte: chartStart } },
     select: {
       postedAt: true,
       views: true,
