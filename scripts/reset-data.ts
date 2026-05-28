@@ -2,8 +2,8 @@
  * Nuclear data reset. Wipes everything except:
  *   - Cami (camirgarzon@gmail.com) as super admin
  *   - Jacqueline (jacquelinegiale@gmail.com) as super admin
- *   - The Tapmore agency Team + its TeamSettings
- *   - TeamMember rows linking those two users to Tapmore as ADMIN
+ *   - The DropDeck agency Team + its TeamSettings
+ *   - TeamMember rows linking those two users to DropDeck as ADMIN
  *
  * Run with --confirm flag. Against prod:
  *   DATABASE_URL="<prod>" npx tsx scripts/reset-data.ts --confirm
@@ -15,8 +15,8 @@ import { prisma } from "../src/lib/prisma";
 
 const CAMI_EMAIL = "camirgarzon@gmail.com";
 const JACQ_EMAIL = "jacquelinegiale@gmail.com";
-const TAPMORE_NAME = "Tapmore";
-const TAPMORE_SLUG = "tapmore";
+const DROPDECK_NAME = "DropDeck";
+const DROPDECK_SLUG = "dropdeck";
 
 async function main() {
   if (!process.argv.includes("--confirm")) {
@@ -32,7 +32,7 @@ async function main() {
 
   await prisma.$transaction(
     async (tx) => {
-    console.log("Preflight: collecting existing Tapmore / super-admin state…");
+    console.log("Preflight: collecting existing DropDeck / super-admin state…");
 
     const existingCami = await tx.user.findUnique({
       where: { email: CAMI_EMAIL },
@@ -43,45 +43,55 @@ async function main() {
       select: { id: true },
     });
 
-    // Find or rename a Tapmore team. If a team with the exact name+slug exists,
-    // use it. Otherwise prefer keeping Cami's current team (if she has one) and
-    // renaming to Tapmore. Last resort: create fresh.
-    let tapmore = await tx.team.findFirst({
-      where: { OR: [{ slug: TAPMORE_SLUG }, { name: TAPMORE_NAME }] },
+    // Find or rename a DropDeck team. If a team with the exact name+slug
+    // exists, use it. Also accept the legacy "tapmore"/"Tapmore" slug+name
+    // so a prod DB that still carries the pre-rebrand row gets adopted and
+    // renamed in place rather than orphaned alongside a new row. Otherwise
+    // prefer keeping Cami's current team, renaming it. Last resort: create
+    // fresh.
+    let dropdeck = await tx.team.findFirst({
+      where: {
+        OR: [
+          { slug: DROPDECK_SLUG },
+          { name: DROPDECK_NAME },
+          { slug: "tapmore" },
+          { name: "Tapmore" },
+        ],
+      },
       select: { id: true },
     });
 
-    if (!tapmore && existingCami) {
+    if (!dropdeck && existingCami) {
       const camiTeam = await tx.teamMember.findFirst({
         where: { userId: existingCami.id, role: "ADMIN" },
         select: { teamId: true },
       });
       if (camiTeam) {
-        tapmore = { id: camiTeam.teamId };
+        dropdeck = { id: camiTeam.teamId };
         await tx.team.update({
-          where: { id: tapmore.id },
-          data: { name: TAPMORE_NAME, slug: TAPMORE_SLUG },
+          where: { id: dropdeck.id },
+          data: { name: DROPDECK_NAME, slug: DROPDECK_SLUG },
         });
-        console.log(`  Renamed team ${tapmore.id} → "${TAPMORE_NAME}"`);
+        console.log(`  Renamed team ${dropdeck.id} → "${DROPDECK_NAME}"`);
       }
     }
 
-    if (!tapmore) {
+    if (!dropdeck) {
       const created = await tx.team.create({
-        data: { name: TAPMORE_NAME, slug: TAPMORE_SLUG },
+        data: { name: DROPDECK_NAME, slug: DROPDECK_SLUG },
         select: { id: true },
       });
-      tapmore = created;
-      console.log(`  Created fresh Tapmore team: ${tapmore.id}`);
+      dropdeck = created;
+      console.log(`  Created fresh DropDeck team: ${dropdeck.id}`);
     } else {
       // Force name/slug alignment even if team already existed.
       await tx.team.update({
-        where: { id: tapmore.id },
-        data: { name: TAPMORE_NAME, slug: TAPMORE_SLUG },
+        where: { id: dropdeck.id },
+        data: { name: DROPDECK_NAME, slug: DROPDECK_SLUG },
       });
     }
 
-    const tapmoreId = tapmore.id;
+    const dropdeckId = dropdeck.id;
 
     // Ensure Jacqueline doesn't have a blocking Creator/Application row.
     console.log("Clearing any stale Jacqueline Creator/Application rows…");
@@ -150,17 +160,17 @@ async function main() {
     // Drop every TeamMember except the two we're about to re-assert.
     await tx.teamMember.deleteMany({});
 
-    // Drop every Team other than Tapmore (cascades its TeamSettings).
-    await tx.team.deleteMany({ where: { id: { not: tapmoreId } } });
+    // Drop every Team other than DropDeck (cascades its TeamSettings).
+    await tx.team.deleteMany({ where: { id: { not: dropdeckId } } });
 
-    // Ensure one TeamSettings row exists for Tapmore (preserves any existing
+    // Ensure one TeamSettings row exists for DropDeck (preserves any existing
     // schedulingUrl/creatorWelcomeTemplate/PostHog config via upsert-update
     // with empty update block).
-    console.log("Ensuring Tapmore TeamSettings…");
+    console.log("Ensuring DropDeck TeamSettings…");
     await tx.teamSettings.upsert({
-      where: { teamId: tapmoreId },
+      where: { teamId: dropdeckId },
       update: {},
-      create: { teamId: tapmoreId },
+      create: { teamId: dropdeckId },
     });
 
     // Drop every User except the two super admins. Must happen after
@@ -170,13 +180,13 @@ async function main() {
       where: { id: { notIn: [cami.id, jacq.id] } },
     });
 
-    // Recreate the two canonical TeamMember rows as ADMIN on Tapmore.
-    console.log("Linking super admins to Tapmore as ADMIN…");
+    // Recreate the two canonical TeamMember rows as ADMIN on DropDeck.
+    console.log("Linking super admins to DropDeck as ADMIN…");
     await tx.teamMember.create({
-      data: { userId: cami.id, teamId: tapmoreId, role: "ADMIN" },
+      data: { userId: cami.id, teamId: dropdeckId, role: "ADMIN" },
     });
     await tx.teamMember.create({
-      data: { userId: jacq.id, teamId: tapmoreId, role: "ADMIN" },
+      data: { userId: jacq.id, teamId: dropdeckId, role: "ADMIN" },
     });
 
     // Flag any state that slipped through — existing rows in tables we missed

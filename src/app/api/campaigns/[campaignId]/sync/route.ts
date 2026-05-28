@@ -1,7 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 import { syncCampaign } from "@/lib/social/sync";
+
+// syncCampaign fans out Apify scrapes for every (creator, platform) on the
+// campaign — a real-world 10-creator campaign can easily take 2–4 minutes.
+// We respond to the client immediately and let the work continue via after();
+// 300s is Vercel Pro's max function duration ceiling.
+export const maxDuration = 300;
 
 export async function POST(
   _req: Request,
@@ -26,7 +32,9 @@ export async function POST(
       );
     }
 
-    // Rate limit: once per hour
+    // Rate limit: once per hour. Stamp lastSyncAt up-front so a second click
+    // while the background job is still running is rejected — otherwise the
+    // user could fan out N parallel scrapes by spamming the button.
     if (campaign.lastSyncAt) {
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
       if (campaign.lastSyncAt > hourAgo) {
@@ -36,11 +44,26 @@ export async function POST(
         );
       }
     }
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { lastSyncAt: new Date() },
+    });
 
-    // Run sync (updates lastSyncAt internally)
-    const result = await syncCampaign(campaignId);
+    // Hand off to the background. The HTTP response returns within ~100ms and
+    // syncCampaign continues running up to maxDuration. The UI surfaces a
+    // "sync started" toast; results land on the next page refresh.
+    after(async () => {
+      try {
+        await syncCampaign(campaignId);
+      } catch (err) {
+        console.error(
+          `Background sync failed for campaign ${campaignId}:`,
+          err
+        );
+      }
+    });
 
-    return NextResponse.json({ success: true, ...result });
+    return NextResponse.json({ success: true, started: true });
   } catch {
     return NextResponse.json(
       { error: "Failed to start sync" },

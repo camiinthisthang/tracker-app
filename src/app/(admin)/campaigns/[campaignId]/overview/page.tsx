@@ -21,7 +21,7 @@ import {
   type CampaignCreatorRow,
 } from "@/components/campaigns/campaign-creators-table";
 
-const DAY_LABELS = ["M", "T", "W", "T", "F"];
+const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const VIRAL_THRESHOLD = 50_000;
 
 export default async function CampaignOverviewPage({
@@ -93,17 +93,17 @@ export default async function CampaignOverviewPage({
     views: m.totalViews,
   }));
 
-  // Creator weekly progress (Mon–Fri of current week)
+  // Creator weekly progress (Mon–Sun of current week)
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = addDays(weekStart, 5);
+  const weekEnd = addDays(weekStart, 7);
 
   const weekPosts = allPosts.filter(
     (p) => p.postedAt >= weekStart && p.postedAt < weekEnd
   );
 
   // Campaign-wide weeklyPostTarget is the source of truth for the per-creator
-  // headline + ring target. Per-day target on the rings = weekly / 5 weekdays.
+  // headline + ring target. Per-day target on the rings = weekly / 7.
   const weeklyTarget = campaign.weeklyPostTarget;
   const dailyTarget = weeklyTarget / DAY_LABELS.length;
 

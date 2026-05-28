@@ -8,7 +8,7 @@ import {
   type CreatorProgress,
 } from "@/components/campaigns/creator-progress";
 
-const DAY_LABELS = ["M", "T", "W", "T", "F"];
+const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
 export default async function CampaignProgressPage({
   params,
@@ -29,7 +29,7 @@ export default async function CampaignProgressPage({
 
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = addDays(weekStart, 5);
+  const weekEnd = addDays(weekStart, 7);
 
   const weekPosts = await prisma.post.findMany({
     where: {

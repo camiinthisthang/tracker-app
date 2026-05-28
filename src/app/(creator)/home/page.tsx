@@ -11,7 +11,7 @@ import { CreatorStartGuide } from "@/components/creators/creator-start-guide";
 import { BonusTracker } from "@/components/creators/bonus-tracker";
 import { computeCreatorBonusSummary } from "@/lib/bonus";
 
-const DAY_LABELS = ["M", "T", "W", "T", "F"];
+const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const VIRAL_THRESHOLD = 50_000;
 
 export default async function CreatorHomePage() {
@@ -43,7 +43,9 @@ export default async function CreatorHomePage() {
     return <p>Creator not found</p>;
   }
 
-  // Weekly goal: sum of videosPerDay × 5 across all active campaigns
+  // Weekly goal: sum of videosPerDay × 5 across all active campaigns. We
+  // keep the X*5 baseline so the displayed weekly target doesn't change when
+  // weekends were added — the goal is the same, just spread across 7 days.
   const activeCCs = creator.campaignCreators.filter(
     (cc) => cc.isActive && cc.campaign.isActive
   );
@@ -51,12 +53,12 @@ export default async function CreatorHomePage() {
     (sum, cc) => sum + cc.videosPerDay * 5,
     0
   );
-  const dailyTarget = activeCCs.reduce((sum, cc) => sum + cc.videosPerDay, 0);
+  const dailyTarget = weeklyTarget / DAY_LABELS.length;
 
-  // Posts this week
+  // Posts this week (Mon–Sun)
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = addDays(weekStart, 5);
+  const weekEnd = addDays(weekStart, 7);
 
   const weekPosts = await prisma.post.findMany({
     where: {

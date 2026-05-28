@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession, AGENCY_TEAM_SLUG, hasAgencyWideAccess } from "@/lib/auth";
+import { getRequiredSession, isAgencyTeamSlug, hasAgencyWideAccess } from "@/lib/auth";
 import { campaignVisibilityWhere } from "@/lib/visibility";
 import { createCampaignSchema } from "@/lib/validations/campaign";
 
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
           { status: 404 }
         );
       }
-      if (target.slug === AGENCY_TEAM_SLUG) {
+      if (isAgencyTeamSlug(target.slug)) {
         return NextResponse.json(
           { error: "Campaigns must belong to a client, not the agency team" },
           { status: 400 }

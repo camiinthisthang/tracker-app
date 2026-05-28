@@ -40,9 +40,9 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-// Agency-wide items — super admins + agency managers (Tapmore team) see these.
+// Agency-wide items — super admins + agency managers (DropDeck team) see these.
 // Applications (review creator applicants), Clients (multi-tenant dashboard),
-// and Agency team (Tapmore members) all require cross-client visibility.
+// and Agency team (DropDeck members) all require cross-client visibility.
 const agencyNavItems = [
   { href: "/applications", label: "Applications", icon: Inbox },
   { href: "/clients", label: "Clients", icon: Building2 },
@@ -52,9 +52,12 @@ const agencyNavItems = [
 // Agency-team marker. Keep in sync with AGENCY_TEAM_SLUG in src/lib/auth.ts.
 // Client component can't import from server-only modules so we duplicate the
 // literal here. `teamName` fallback is for sessions issued before the slug
-// was added to the JWT.
-const AGENCY_TEAM_SLUG = "tapmore";
-const AGENCY_TEAM_NAME = "Tapmore";
+// was added to the JWT. The legacy "tapmore" slug/name is accepted as a
+// transitional fallback until the prod DB row is renamed.
+const AGENCY_TEAM_SLUG = "dropdeck";
+const AGENCY_TEAM_NAME = "DropDeck";
+const LEGACY_AGENCY_TEAM_SLUG = "tapmore";
+const LEGACY_AGENCY_TEAM_NAME = "Tapmore";
 
 export function AdminSidebar() {
   const { data: session } = useSession();
@@ -84,8 +87,10 @@ export function AdminSidebar() {
         ))}
         {(session?.user?.isSuperAdmin ||
           session?.user?.teamSlug === AGENCY_TEAM_SLUG ||
+          session?.user?.teamSlug === LEGACY_AGENCY_TEAM_SLUG ||
           (!session?.user?.teamSlug &&
-            session?.user?.teamName === AGENCY_TEAM_NAME)) && (
+            (session?.user?.teamName === AGENCY_TEAM_NAME ||
+              session?.user?.teamName === LEGACY_AGENCY_TEAM_NAME))) && (
           <>
             <div className="mt-4 mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               Agency

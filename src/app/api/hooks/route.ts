@@ -69,7 +69,7 @@ export async function POST(req: Request) {
 
     // Resolve teamId. If a campaign was picked, the hook lives under that
     // client team so its managers can see it. Otherwise it stays parked on
-    // the user's current team (agency, for Tapmore admins).
+    // the user's current team (agency, for DropDeck admins).
     let teamId = session.user.teamId;
     if (campaignId) {
       const campaign = await prisma.campaign.findUnique({

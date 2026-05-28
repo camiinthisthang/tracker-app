@@ -53,34 +53,13 @@ export function SyncButton({
         return;
       }
 
-      const upserted = typeof data?.postsUpserted === "number" ? data.postsUpserted : 0;
-      const prunedStale = typeof data?.prunedStale === "number" ? data.prunedStale : 0;
-      const prunedOutOfRange =
-        typeof data?.prunedOutOfRange === "number" ? data.prunedOutOfRange : 0;
-      const skipped: { creator: string; reason: string }[] = Array.isArray(data?.skipped)
-        ? data.skipped
-        : [];
-
-      const pruneNote = prunedStale > 0
-        ? ` Removed ${prunedStale} stale post${prunedStale === 1 ? "" : "s"} from old handles.`
-        : "";
-      const rangeNote = prunedOutOfRange > 0
-        ? ` Removed ${prunedOutOfRange} post${prunedOutOfRange === 1 ? "" : "s"} outside the campaign's date range.`
-        : "";
-
-      if (upserted === 0 && prunedStale === 0 && prunedOutOfRange === 0) {
-        const sample = skipped.slice(0, 3).map((s) => `@${s.creator} (${s.reason})`).join(", ");
-        toast.warning(
-          skipped.length > 0
-            ? `Sync ran but added 0 posts. Skipped: ${sample}${skipped.length > 3 ? ` +${skipped.length - 3} more` : ""}`
-            : "Sync ran but found no new posts. Check creators have TikTok/Instagram handles set, and that any campaign hashtag filter matches the actual post titles.",
-          { duration: 10000 }
-        );
-      } else {
-        toast.success(
-          `Synced ${upserted} post${upserted === 1 ? "" : "s"}.${pruneNote}${rangeNote}${skipped.length > 0 ? ` (${skipped.length} skipped)` : ""}`
-        );
-      }
+      // Sync now runs in the background to avoid Vercel function timeouts on
+      // campaigns with many creators. We don't have post counts to show — the
+      // user refreshes the page once metrics finish updating (a few minutes).
+      toast.success(
+        "Sync started — give it a couple of minutes, then refresh to see the latest posts and view counts.",
+        { duration: 8000 }
+      );
 
       setOpen(false);
       router.refresh();

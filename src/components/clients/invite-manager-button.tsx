@@ -27,7 +27,7 @@ export function InviteManagerButton({
   /**
    * "client" = inviting a client-side manager (ADMIN of a single client
    * workspace like Poncho). "agency" = inviting a fellow agency admin
-   * (ADMIN of the Tapmore team — cross-client visibility).
+   * (ADMIN of the DropDeck team — cross-client visibility).
    */
   variant?: "client" | "agency";
 }) {

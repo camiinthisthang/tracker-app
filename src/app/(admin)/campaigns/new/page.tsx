@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import {
   getRequiredSession,
   hasAgencyWideAccess,
-  AGENCY_TEAM_SLUG,
+  AGENCY_TEAM_SLUGS,
 } from "@/lib/auth";
 import { creatorVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
@@ -16,7 +16,7 @@ export default async function NewCampaignPage() {
   // to their own teamId.
   const availableTeams = hasAgencyWideAccess(session)
     ? await prisma.team.findMany({
-        where: { slug: { not: AGENCY_TEAM_SLUG } },
+        where: { slug: { notIn: AGENCY_TEAM_SLUGS } },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       })
