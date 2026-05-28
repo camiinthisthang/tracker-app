@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
   Area,
@@ -119,6 +120,62 @@ function SectionCard({
   );
 }
 
+function RangeControl({
+  startDate,
+  endDate,
+}: {
+  startDate: string;
+  endDate: string;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const from = startDate.slice(0, 10);
+  const to = endDate.slice(0, 10);
+
+  const apply = (nextFrom: string, nextTo: string) => {
+    if (!nextFrom || !nextTo) return;
+    const params = new URLSearchParams({ from: nextFrom, to: nextTo });
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const preset = (days: number) => {
+    const end = new Date();
+    const start = new Date(end.getTime() - days * 86_400_000);
+    apply(start.toISOString().slice(0, 10), end.toISOString().slice(0, 10));
+  };
+
+  const inputCls =
+    "rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-700 focus:border-blue-500 focus:outline-none";
+  const presetCls =
+    "rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600";
+
+  return (
+    <div className="print-hidden flex flex-wrap items-center gap-2">
+      <input
+        type="date"
+        value={from}
+        max={to}
+        onChange={(e) => apply(e.target.value, to)}
+        className={inputCls}
+      />
+      <span className="text-slate-400">→</span>
+      <input
+        type="date"
+        value={to}
+        min={from}
+        onChange={(e) => apply(from, e.target.value)}
+        className={inputCls}
+      />
+      <button type="button" onClick={() => preset(7)} className={presetCls}>
+        Week
+      </button>
+      <button type="button" onClick={() => preset(30)} className={presetCls}>
+        Month
+      </button>
+    </div>
+  );
+}
+
 export function ClientReport({ data }: { data: ReportData }) {
   const dateRange = `${format(new Date(data.startDate), "MMM d, yyyy")} – ${format(
     new Date(data.endDate),
@@ -145,14 +202,17 @@ export function ClientReport({ data }: { data: ReportData }) {
               {data.subtitle} · {dateRange}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="print-hidden inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            <Download className="h-4 w-4" />
-            Download PDF
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="print-hidden inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              <Download className="h-4 w-4" />
+              Download PDF
+            </button>
+            <RangeControl startDate={data.startDate} endDate={data.endDate} />
+          </div>
         </div>
 
         {/* Tier 1 — Hero KPIs */}
@@ -190,19 +250,19 @@ export function ClientReport({ data }: { data: ReportData }) {
         {data.wow && (
           <div className="report-card mt-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
             <div>
-              <p className="text-xs text-slate-400">Posts WoW</p>
+              <p className="text-xs text-slate-400">Posts vs prev period</p>
               <div className="mt-1">
                 <DeltaPill delta={data.wow.posts.delta} pctChange={data.wow.posts.pctChange} />
               </div>
             </div>
             <div>
-              <p className="text-xs text-slate-400">Views WoW</p>
+              <p className="text-xs text-slate-400">Views vs prev period</p>
               <div className="mt-1">
                 <DeltaPill delta={data.wow.views.delta} pctChange={data.wow.views.pctChange} />
               </div>
             </div>
             <div>
-              <p className="text-xs text-slate-400">Engagement WoW</p>
+              <p className="text-xs text-slate-400">Engagement vs prev period</p>
               <div className="mt-1">
                 <DeltaPill
                   delta={data.wow.engagements.delta}
@@ -211,7 +271,7 @@ export function ClientReport({ data }: { data: ReportData }) {
               </div>
             </div>
             <div>
-              <p className="text-xs text-slate-400">Viral posts WoW</p>
+              <p className="text-xs text-slate-400">Viral vs prev period</p>
               <div className="mt-1">
                 <DeltaPill
                   delta={data.wow.viralPosts.delta}

@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
-import { computeReport } from "@/lib/reports/report-data";
+import { computeReport, parseReportRange } from "@/lib/reports/report-data";
 import { ClientReport } from "@/components/reports/client-report";
 
 export default async function ClientReportViewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ teamId: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const session = await getRequiredSession();
   const { teamId } = await params;
@@ -16,7 +18,8 @@ export default async function ClientReportViewPage({
     notFound();
   }
 
-  const data = await computeReport({ type: "client", teamId });
+  const range = parseReportRange(await searchParams);
+  const data = await computeReport({ type: "client", teamId }, range);
 
   return <ClientReport data={data} />;
 }

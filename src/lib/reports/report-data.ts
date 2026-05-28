@@ -148,13 +148,36 @@ function captionSnippet(title: string | null, max = 140): string | null {
   return t.length > max ? `${t.slice(0, max)}…` : t;
 }
 
-export async function computeReport(scope: ReportScope): Promise<ReportData> {
-  // Resolve scope → the set of campaigns + display title + date range.
+const WEEK_MS = 7 * 86_400_000;
+
+/** Parse `?from=YYYY-MM-DD&to=YYYY-MM-DD` into an inclusive UTC report window.
+ *  Returns undefined when either bound is missing/invalid (falls back to the
+ *  default trailing-week window in computeReport). */
+export function parseReportRange(sp: {
+  from?: string;
+  to?: string;
+}): { start: Date; end: Date } | undefined {
+  if (!sp.from || !sp.to) return undefined;
+  const start = new Date(`${sp.from}T00:00:00.000Z`);
+  const end = new Date(`${sp.to}T23:59:59.999Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return undefined;
+  }
+  if (end < start) return undefined;
+  return { start, end };
+}
+
+export async function computeReport(
+  scope: ReportScope,
+  // Reporting window. Defaults to the trailing 7 days (weekly report). Pass an
+  // explicit range to widen it (e.g. a full month) later.
+  range?: { start: Date; end: Date }
+): Promise<ReportData> {
+  // Resolve scope → the set of campaigns + display title + campaign bounds.
   let title: string;
   let subtitle: string;
   let campaignIds: string[];
-  let startDate: Date;
-  let endDate: Date;
+  let campaignEnd: Date;
 
   if (scope.type === "campaign") {
     const campaign = await prisma.campaign.findUnique({
@@ -165,8 +188,7 @@ export async function computeReport(scope: ReportScope): Promise<ReportData> {
     title = campaign.name;
     subtitle = campaign.team.name;
     campaignIds = [campaign.id];
-    startDate = campaign.startDate;
-    endDate = campaign.endDate;
+    campaignEnd = campaign.endDate;
   } else {
     const team = await prisma.team.findUnique({
       where: { id: scope.teamId },
@@ -180,15 +202,24 @@ export async function computeReport(scope: ReportScope): Promise<ReportData> {
     title = team.name;
     subtitle = `${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"}`;
     campaignIds = campaigns.map((c) => c.id);
-    startDate = campaigns.length
-      ? new Date(Math.min(...campaigns.map((c) => c.startDate.getTime())))
-      : new Date();
-    endDate = campaigns.length
+    campaignEnd = campaigns.length
       ? new Date(Math.max(...campaigns.map((c) => c.endDate.getTime())))
       : new Date();
   }
 
-  const posts: PostRow[] =
+  // Reporting window: explicit range if given, else the trailing 7 days. The
+  // window end is anchored to min(now, campaignEnd) so a report viewed after a
+  // campaign wraps shows its final week instead of an empty trailing window.
+  const windowEnd =
+    range?.end ?? new Date(Math.min(Date.now(), campaignEnd.getTime()));
+  const windowStart = range?.start ?? new Date(windowEnd.getTime() - WEEK_MS);
+  // Previous comparison period is the same length immediately before the window
+  // (so a month compares to the prior month, a week to the prior week).
+  const windowMs = Math.max(windowEnd.getTime() - windowStart.getTime(), WEEK_MS);
+  const prevWindowStart = new Date(windowStart.getTime() - windowMs);
+  const inWindow = (d: Date) => d >= windowStart && d <= windowEnd;
+
+  const allPosts: PostRow[] =
     campaignIds.length === 0
       ? []
       : await prisma.post.findMany({
@@ -209,6 +240,10 @@ export async function computeReport(scope: ReportScope): Promise<ReportData> {
             creator: { select: { name: true, handle: true } },
           },
         });
+
+  // The report body covers the reporting window; allPosts is kept for the
+  // week-over-week comparison (this window vs. the one before it).
+  const posts = allPosts.filter((p) => inWindow(p.postedAt));
 
   // ── Hero ──────────────────────────────────────────────────────────────
   const totalViews = posts.reduce((s, p) => s + p.views, 0);
@@ -371,17 +406,20 @@ export async function computeReport(scope: ReportScope): Promise<ReportData> {
       m.totalLikes + m.totalComments + m.totalShares + m.totalSaves;
     trendMap.set(key, cur);
   }
-  const trend = Array.from(trendMap.entries())
+  const fullTrend = Array.from(trendMap.entries())
     .map(([date, v]) => ({ date, ...v }))
     .sort((a, b) => a.date.localeCompare(b.date));
+  // Trend line shown in the report covers the reporting window only.
+  const windowStartKey = windowStart.toISOString().slice(0, 10);
+  const windowEndKey = windowEnd.toISOString().slice(0, 10);
+  const trend = fullTrend.filter(
+    (t) => t.date >= windowStartKey && t.date <= windowEndKey
+  );
 
-  // ── Week-over-week (posts/viral from postedAt; views/eng from trend) ──
-  const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
-  const twoWeeksAgo = new Date(now.getTime() - 14 * 86_400_000);
-  const postsThisWeek = posts.filter((p) => p.postedAt >= weekAgo);
-  const postsLastWeek = posts.filter(
-    (p) => p.postedAt >= twoWeeksAgo && p.postedAt < weekAgo
+  // ── Week-over-week: this window vs. the equivalent window before it ────
+  const postsThisWeek = allPosts.filter((p) => inWindow(p.postedAt));
+  const postsLastWeek = allPosts.filter(
+    (p) => p.postedAt >= prevWindowStart && p.postedAt < windowStart
   );
   const viralThisWeek = postsThisWeek.filter(
     (p) => p.views >= viralThreshold
@@ -390,23 +428,21 @@ export async function computeReport(scope: ReportScope): Promise<ReportData> {
     (p) => p.views >= viralThreshold
   ).length;
 
-  // View/engagement growth = cumulative total now minus 7d / 14d ago.
+  // View/engagement growth = cumulative total at each window boundary.
   const trendOnOrBefore = (cutoff: Date) => {
     const key = cutoff.toISOString().slice(0, 10);
     let best: { views: number; engagements: number } | null = null;
-    for (const t of trend) {
+    for (const t of fullTrend) {
       if (t.date <= key) best = { views: t.views, engagements: t.engagements };
       else break;
     }
     return best ?? { views: 0, engagements: 0 };
   };
-  const nowTotals = trend.length
-    ? { views: trend[trend.length - 1].views, engagements: trend[trend.length - 1].engagements }
-    : { views: 0, engagements: 0 };
-  const weekAgoTotals = trendOnOrBefore(weekAgo);
-  const twoWeeksAgoTotals = trendOnOrBefore(twoWeeksAgo);
+  const nowTotals = trendOnOrBefore(windowEnd);
+  const weekAgoTotals = trendOnOrBefore(windowStart);
+  const twoWeeksAgoTotals = trendOnOrBefore(prevWindowStart);
 
-  const wow = trend.length
+  const wow = fullTrend.length
     ? {
         posts: mkDelta(postsThisWeek.length, postsLastWeek.length),
         views: mkDelta(
@@ -425,8 +461,8 @@ export async function computeReport(scope: ReportScope): Promise<ReportData> {
     scope,
     title,
     subtitle,
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString(),
+    startDate: windowStart.toISOString(),
+    endDate: windowEnd.toISOString(),
     generatedAt: new Date().toISOString(),
     hero: {
       postsShipped: posts.length,
