@@ -11,6 +11,7 @@ import {
   LogOut,
   Upload,
   ListTodo,
+  Film,
 } from "lucide-react";
 import { SidebarNavItem } from "./sidebar-nav-item";
 import {
@@ -24,6 +25,7 @@ import { BRAND_WORDMARK } from "@/lib/brand";
 
 const navItems = [
   { href: "/home", label: "Home", icon: Home },
+  { href: "/creator-posts", label: "Posts", icon: Film },
   { href: "/creator-tasks", label: "Tasks", icon: ListTodo },
   // Uploads hidden until R2 is configured — see CLAUDE.md TODO and the audit doc.
   // { href: "/creator-uploads", label: "Uploads", icon: Upload },

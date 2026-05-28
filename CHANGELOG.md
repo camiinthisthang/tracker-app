@@ -27,6 +27,15 @@ tangent.
 
 ---
 
+## 2026-05-28 — creator fixes + client report (branch: creator-fixes-and-client-report)
+Follow-up round with Jacqueline now that all deploys are green again. (Root cause of the deploy outage was **not** code: Vercel was blocking every commit authored by `jacquelinegiale-3718` because that Git identity isn't a member of the Vercel team — a team-member with access pushed it through.)
+
+- **Creator-side Posts tab (`src/app/(creator)/creator-posts/page.tsx`, `src/components/posts/creator-posts-table.tsx`, `src/components/layout/creator-sidebar.tsx`).** Creators now have their own "Posts" tab (`/creator-posts`, between Home and Tasks) showing only their own posts scoped by `session.user.creatorId`. Columns: title, platform, link, posted-at, views, likes, shares, saves, comments — same metrics the admin sees, but creator-scoped. Includes a summary strip (post count + total views/likes/shares/saves/comments), campaign filter (only when assigned to >1 campaign), date-range filter, and CSV export. Named `/creator-posts` (not `/posts`) to avoid colliding with the admin `/posts` route; middleware already allows `/creator-*` for the CREATOR role.
+- **Tested:** `npm run build` clean on Node 20.19. New `/creator-posts` route compiles (2.43 kB).
+- **Not yet pushed.** Holding the remote push until Jacqueline is ready, given recent deploy sensitivity.
+
+---
+
 ## 2026-05-28 16:00 — bug-fixes batch 1 (P0+P1, branch: bug-fixes-batch-1)
 Triage round with Jacqueline covering the bugs Cami's creators / managers have been hitting. Scope locked to fixes that need **no schema changes** so we can ship without a Neon DB branch. Dub.co integration, "view as creator" impersonation, and the resources-visibility bug are explicitly deferred to a follow-up branch.
 
