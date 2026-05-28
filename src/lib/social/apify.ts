@@ -61,7 +61,7 @@ function stripHandle(raw: string | null | undefined): string | null {
  */
 export async function fetchTikTokPostsViaApify(
   handle: string,
-  limit = 30
+  limit = 60
 ): Promise<SocialPost[]> {
   const clean = stripHandle(handle);
   if (!clean) return [];
@@ -127,7 +127,7 @@ export async function fetchTikTokPostsViaApify(
  */
 export async function fetchInstagramPostsViaApify(
   handle: string,
-  limit = 30
+  limit = 60
 ): Promise<SocialPost[]> {
   const clean = stripHandle(handle);
   if (!clean) return [];
