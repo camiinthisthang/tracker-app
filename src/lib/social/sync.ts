@@ -5,6 +5,14 @@ import {
 } from "./apify";
 import type { SocialPost } from "./types";
 
+// Hashtag filtering is intentionally OFF: we track each creator's entire
+// account within the campaign window because creators don't reliably tag every
+// post, and filtering silently dropped legit videos (e.g. Claire's Reels).
+// The `filterByHashtags` logic is retained below so we can flip this to true
+// (or drive it per-campaign / per-tab) if a future campaign wants
+// hashtag-scoped pulls. campaign.hashtags stays stored as an optional label.
+const HASHTAG_FILTERING_ENABLED = false;
+
 type CreatorHandles = {
   handle: string;
   tiktokHandle: string | null;
@@ -99,7 +107,9 @@ export async function syncCampaign(campaignId: string) {
       );
       return {
         task,
-        posts: filterByHashtags(inWindow, campaign.hashtags),
+        posts: HASHTAG_FILTERING_ENABLED
+          ? filterByHashtags(inWindow, campaign.hashtags)
+          : inWindow,
         success: true,
       };
     } catch (error) {
@@ -166,7 +176,10 @@ export async function syncCampaign(campaignId: string) {
 }
 
 /**
- * Fetch posts from a social platform client, optionally filtering by hashtags.
+ * Filter posts to those whose title/caption contains at least one of the
+ * campaign hashtags (case-insensitive substring match). Currently gated off by
+ * HASHTAG_FILTERING_ENABLED — retained for a future opt-in (e.g. a campaign or
+ * tab that should only pull hashtag-tagged posts).
  */
 function filterByHashtags(
   posts: SocialPost[],

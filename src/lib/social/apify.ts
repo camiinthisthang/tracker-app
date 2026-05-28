@@ -61,7 +61,7 @@ function stripHandle(raw: string | null | undefined): string | null {
  */
 export async function fetchTikTokPostsViaApify(
   handle: string,
-  limit = 30
+  limit = 60
 ): Promise<SocialPost[]> {
   const clean = stripHandle(handle);
   if (!clean) return [];
@@ -82,6 +82,12 @@ export async function fetchTikTokPostsViaApify(
 
     const createTime = typeof v.createTime === "number" ? v.createTime : null;
     const videoMeta = (v.videoMeta as Record<string, unknown> | undefined) ?? {};
+
+    console.log(
+      `[tt-sync] @${clean} ${id} playCount=${String(v.playCount)} ` +
+        `diggCount=${String(v.diggCount)} ` +
+        `commentCount=${String(v.commentCount)} -> views=${toInt(v.playCount)}`
+    );
 
     posts.push({
       externalId: id,
@@ -121,7 +127,7 @@ export async function fetchTikTokPostsViaApify(
  */
 export async function fetchInstagramPostsViaApify(
   handle: string,
-  limit = 30
+  limit = 60
 ): Promise<SocialPost[]> {
   const clean = stripHandle(handle);
   if (!clean) return [];
@@ -138,6 +144,22 @@ export async function fetchInstagramPostsViaApify(
     const p = raw as Record<string, unknown>;
     const id = String(p.id ?? p.shortCode ?? "");
     if (!id) continue;
+
+    // Reels expose a play/view count under one of several keys depending on
+    // the actor version (videoViewCount → videoPlayCount → igPlayCount). Feed
+    // posts don't expose views at all, so we fall back to 0. We log the raw
+    // candidates so we can diagnose under-reported counts (e.g. Claire's
+    // #poncho Reels showing single-digit views) against what IG actually shows.
+    const views = toInt(
+      p.videoViewCount ?? p.videoPlayCount ?? p.igPlayCount
+    );
+    console.log(
+      `[ig-sync] @${clean} ${id} type=${p.type ?? p.productType ?? "?"} ` +
+        `videoViewCount=${String(p.videoViewCount)} ` +
+        `videoPlayCount=${String(p.videoPlayCount)} ` +
+        `igPlayCount=${String(p.igPlayCount)} ` +
+        `likesCount=${String(p.likesCount)} -> views=${views}`
+    );
 
     posts.push({
       externalId: id,
@@ -159,9 +181,7 @@ export async function fetchInstagramPostsViaApify(
         : p.takenAtTimestamp
         ? new Date((p.takenAtTimestamp as number) * 1000)
         : new Date(),
-      // Reels expose videoViewCount; feed posts don't expose view counts at
-      // all, so we fall back to 0 and rely on likes/comments.
-      views: toInt(p.videoViewCount ?? p.videoPlayCount),
+      views,
       likes: toInt(p.likesCount),
       shares: 0,
       saves: 0,

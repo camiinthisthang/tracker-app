@@ -6,6 +6,14 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 interface Props {
   creatorId: string;
   /** Show a hint/explanation when the creator has no active campaign yet. */
@@ -37,10 +45,21 @@ export function SyncCreatorButton({
         `Fetched ${data.fetched} posts (TikTok: ${data.tiktokPosts}, Instagram: ${data.instagramPosts})`,
         `Saved ${data.upserted} to the DB.`,
       ];
-      if (typeof data.droppedOutOfRange === "number" && data.droppedOutOfRange > 0) {
-        lines.push(
-          `Skipped ${data.droppedOutOfRange} outside the campaign's date range.`
-        );
+      const skipped =
+        typeof data.droppedOutOfRange === "number" ? data.droppedOutOfRange : 0;
+      if (skipped > 0) {
+        const range =
+          data.window?.start && data.window?.end
+            ? ` (campaign window ${fmtDate(data.window.start)}–${fmtDate(data.window.end)})`
+            : "";
+        lines.push(`Skipped ${skipped} outside the campaign's date range${range}.`);
+        const datesOutside = (data.droppedPosts ?? [])
+          .map(
+            (p: { platform: string; postedAt: string; views: number }) =>
+              `${p.platform === "TIKTOK" ? "TikTok" : "Instagram"} ${fmtDate(p.postedAt)} (${p.views.toLocaleString()} views)`
+          )
+          .join(", ");
+        if (datesOutside) lines.push(`Outside the window: ${datesOutside}.`);
       }
       if (typeof data.prunedOutOfRange === "number" && data.prunedOutOfRange > 0) {
         lines.push(
@@ -48,7 +67,13 @@ export function SyncCreatorButton({
         );
       }
       if (data.warning) lines.push(data.warning);
-      toast.success(lines.join(" "), { duration: 7000 });
+      // When posts were skipped, the date window is the likely cause of
+      // "missing" posts — keep it on screen long enough to read and act on.
+      if (skipped > 0 || data.warning) {
+        toast.warning(lines.join(" "), { duration: 15000 });
+      } else {
+        toast.success(lines.join(" "), { duration: 7000 });
+      }
       router.refresh();
     } catch {
       toast.error("Sync failed — check server logs");

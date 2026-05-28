@@ -160,7 +160,7 @@ export function CampaignForm({
           weeklyPostTarget: parseInt(weeklyPostTarget),
           previewLinks,
           galleryUrls,
-          ...(isEdit ? {} : { creators: creators.map(({ id: _id, ...rest }) => rest) }),
+          ...(isEdit ? {} : { creators: creators.map(({ id, ...rest }) => rest) }),
           ...(showTeamPicker ? { teamId } : {}),
         }),
       });
@@ -286,8 +286,9 @@ export function CampaignForm({
           <span className="font-normal text-slate-400">(optional)</span>
         </h3>
         <p className="mt-1 text-xs text-slate-400">
-          Only track posts containing at least one of these hashtags. Leave empty
-          to track all posts.
+          Optional labels for the campaign. We track every post from each
+          creator&apos;s account within the campaign dates — hashtags don&apos;t
+          filter what gets pulled.
         </p>
         <div className="mt-3 flex gap-2">
           <Input

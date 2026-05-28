@@ -187,6 +187,23 @@ export async function POST(
     tiktokPosts: tiktokPosts.length,
     instagramPosts: instagramPosts.length,
     attachedToCampaign: campaignId ?? null,
+    window:
+      windowStart && windowEnd
+        ? {
+            start: windowStart.toISOString(),
+            // windowEnd is endDate + 1 day (exclusive); report the inclusive
+            // endDate the user actually set.
+            end: new Date(windowEnd.getTime() - 86_400_000).toISOString(),
+          }
+        : null,
+    droppedPosts: allPosts
+      .filter((p) => !inWindowPosts.includes(p))
+      .map((p) => ({
+        platform: p.platform,
+        postedAt: p.postedAt.toISOString(),
+        title: p.title?.slice(0, 80) ?? null,
+        views: p.views,
+      })),
     warning:
       !campaignId && allPosts.length > 0
         ? "Fetched posts but creator has no active campaign — nothing was written. Assign this creator to a campaign first."

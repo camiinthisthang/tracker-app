@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 import { canAccessCreator, campaignVisibilityWhere } from "@/lib/visibility";
@@ -12,9 +12,14 @@ import { CreatorSocialHandles } from "@/components/creators/creator-social-handl
 import { AssignToCampaign } from "@/components/creators/assign-to-campaign";
 import { DeleteCreatorDangerZone } from "@/components/creators/delete-creator-danger-zone";
 import { SyncCreatorButton } from "@/components/creators/sync-creator-button";
+import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
+import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-progress";
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 import { Badge } from "@/components/ui/badge";
 import { PLATFORM_LABELS } from "@/lib/constants";
+
+const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+const VIRAL_THRESHOLD = 50_000;
 
 export default async function CreatorDetailPage({
   params,
@@ -44,33 +49,102 @@ export default async function CreatorDetailPage({
   const allowed = await canAccessCreator(prisma, creator, session);
   if (!allowed) notFound();
 
-  const [totalViews, totalSignups, allCampaigns, recentPosts] =
-    await Promise.all([
-      prisma.post.aggregate({
-        where: { creatorId },
-        _sum: { views: true },
-      }),
-      prisma.creatorAttribution.aggregate({
-        where: { creatorId },
-        _sum: { signupCount: true },
-      }),
-      prisma.campaign.findMany({
-        where: campaignVisibilityWhere(session),
-        select: { id: true, name: true, isActive: true },
-        orderBy: { name: "asc" },
-      }),
-      prisma.post.findMany({
-        where: { creatorId },
-        orderBy: { postedAt: "desc" },
-        take: 10,
-        include: { campaign: { select: { id: true, name: true } } },
-      }),
-    ]);
+  const now = new Date();
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+  const chartStart = startOfDay(subDays(now, 28));
+
+  const [
+    totalViews,
+    totalSignups,
+    allCampaigns,
+    recentPosts,
+    viralCount,
+    platformGroups,
+    postsInRange,
+    weekPosts,
+  ] = await Promise.all([
+    prisma.post.aggregate({
+      where: { creatorId },
+      _sum: { views: true },
+    }),
+    prisma.creatorAttribution.aggregate({
+      where: { creatorId },
+      _sum: { signupCount: true },
+    }),
+    prisma.campaign.findMany({
+      where: campaignVisibilityWhere(session),
+      select: { id: true, name: true, isActive: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.post.findMany({
+      where: { creatorId },
+      orderBy: { postedAt: "desc" },
+      take: 10,
+      include: { campaign: { select: { id: true, name: true } } },
+    }),
+    prisma.post.count({
+      where: { creatorId, views: { gte: VIRAL_THRESHOLD } },
+    }),
+    prisma.post.groupBy({
+      by: ["platform"],
+      where: { creatorId },
+      _sum: { views: true },
+      _count: { _all: true },
+    }),
+    prisma.post.findMany({
+      where: { creatorId, postedAt: { gte: chartStart } },
+      select: { postedAt: true, views: true },
+    }),
+    prisma.post.findMany({
+      where: { creatorId, postedAt: { gte: weekStart, lt: weekEnd } },
+      select: { postedAt: true },
+    }),
+  ]);
   const attributedSignups = totalSignups._sum.signupCount ?? 0;
   const hasActiveCampaign = creator.campaignCreators.some(
     (cc) => cc.campaign.isActive,
   );
   const hasHandles = Boolean(creator.tiktokHandle || creator.instagramHandle);
+
+  // Per-platform split (IG vs TikTok).
+  const platformStats = platformGroups.map((g) => ({
+    platform: g.platform,
+    views: g._sum.views ?? 0,
+    posts: g._count._all,
+  }));
+
+  // Views over time (last 28 days), bucketed by day.
+  const dailyMap = new Map<string, number>();
+  for (let i = 0; i <= 28; i++) {
+    dailyMap.set(startOfDay(addDays(chartStart, i)).toISOString(), 0);
+  }
+  for (const p of postsInRange) {
+    const d = startOfDay(p.postedAt).toISOString();
+    dailyMap.set(d, (dailyMap.get(d) ?? 0) + p.views);
+  }
+  const chartData = Array.from(dailyMap.entries()).map(([date, views]) => ({
+    date,
+    views,
+  }));
+
+  // Weekly posting cadence (Mon–Sun), same shape the creator home uses.
+  const activeCCs = creator.campaignCreators.filter(
+    (cc) => cc.isActive && cc.campaign.isActive,
+  );
+  const weeklyTarget = activeCCs.reduce(
+    (sum, cc) => sum + cc.videosPerDay * 5,
+    0,
+  );
+  const dailyTarget = weeklyTarget / DAY_LABELS.length;
+  const postsPerDay = DAY_LABELS.map((label, i) => {
+    const dayStart = addDays(weekStart, i);
+    const dayEnd = addDays(dayStart, 1);
+    const count = weekPosts.filter(
+      (p) => p.postedAt >= dayStart && p.postedAt < dayEnd,
+    ).length;
+    return { day: label, count };
+  });
 
   return (
     <div>
@@ -144,12 +218,13 @@ export default async function CreatorDetailPage({
       </div>
 
       {/* Stats */}
-      <div className="mt-4 grid gap-4 sm:grid-cols-4">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Total Posts" value={creator._count.posts} />
         <StatCard
           label="Total Views"
           value={(totalViews._sum.views ?? 0).toLocaleString()}
         />
+        <StatCard label="Viral Videos (50K+)" value={viralCount} />
         <StatCard
           label="Attributed Signups"
           value={attributedSignups.toLocaleString()}
@@ -160,6 +235,51 @@ export default async function CreatorDetailPage({
             creator.campaignCreators.filter((cc) => cc.campaign.isActive).length
           }
         />
+      </div>
+
+      {/* Platform split (IG vs TikTok) */}
+      {platformStats.length > 0 && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {platformStats.map((s) => (
+            <div
+              key={s.platform}
+              className="rounded-xl border border-slate-200 bg-white p-5"
+            >
+              <p className="text-sm font-semibold text-slate-800">
+                {PLATFORM_LABELS[s.platform] || s.platform}
+              </p>
+              <div className="mt-3 flex items-baseline gap-6">
+                <div>
+                  <p className="text-2xl font-semibold text-slate-800">
+                    {s.views.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-slate-400">views</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold text-slate-800">
+                    {s.posts.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-slate-400">posts</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Weekly posting cadence */}
+      <div className="mt-4">
+        <CreatorWeeklyProgress
+          postsThisWeek={weekPosts.length}
+          weeklyTarget={weeklyTarget}
+          postsPerDay={postsPerDay}
+          dailyTarget={dailyTarget}
+        />
+      </div>
+
+      {/* Views over time (last 28 days) */}
+      <div className="mt-4">
+        <CreatorViewsChart data={chartData} />
       </div>
 
       {/* Campaigns */}
