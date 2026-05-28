@@ -9,7 +9,6 @@ import {
   Settings,
   ChevronDown,
   LogOut,
-  Upload,
   ListTodo,
   Film,
 } from "lucide-react";
