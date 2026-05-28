@@ -1,6 +1,6 @@
 import { Users } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession, AGENCY_TEAM_SLUG } from "@/lib/auth";
+import { getRequiredSession, AGENCY_TEAM_SLUGS } from "@/lib/auth";
 import { creatorVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -16,7 +16,7 @@ export default async function CreatorsPage() {
   // stops the recurring mistake of adding creators to DropDeck.
   const teams = session.user.isSuperAdmin
     ? await prisma.team.findMany({
-        where: { slug: { not: AGENCY_TEAM_SLUG } },
+        where: { slug: { notIn: AGENCY_TEAM_SLUGS } },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       })

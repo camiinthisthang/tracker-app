@@ -2,7 +2,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Building2, Plus, Users, Megaphone, Film } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requireAgencyAccess, AGENCY_TEAM_SLUG } from "@/lib/auth";
+import { requireAgencyAccess, AGENCY_TEAM_SLUGS } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export default async function ClientsPage() {
   const teams = await prisma.team.findMany({
     // Exclude the agency team from the clients list — it's managed separately
     // on /team. Identified by slug so a display-name rename doesn't break it.
-    where: { slug: { not: AGENCY_TEAM_SLUG } },
+    where: { slug: { notIn: AGENCY_TEAM_SLUGS } },
     orderBy: { createdAt: "asc" },
     include: {
       _count: {

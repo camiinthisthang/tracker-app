@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { format } from "date-fns";
 import { Users, Megaphone, UserPlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requireAgencyAccess, AGENCY_TEAM_SLUG, AGENCY_TEAM_NAME } from "@/lib/auth";
+import { requireAgencyAccess, isAgencyTeamSlug, isAgencyTeamName } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ export default async function ClientDetailPage({
   await requireAgencyAccess();
   const { teamId } = await params;
 
-  const isAgencyTeam = (name: string) => name === AGENCY_TEAM_NAME;
+  const isAgencyTeam = (name: string) => isAgencyTeamName(name);
 
   const team = await prisma.team.findUnique({
     where: { id: teamId },
@@ -41,7 +41,7 @@ export default async function ClientDetailPage({
 
   // The agency team has its own management page at /team — don't render it
   // under /clients. Identified by slug so rename-safe.
-  if (team.slug === AGENCY_TEAM_SLUG) redirect("/team");
+  if (isAgencyTeamSlug(team.slug)) redirect("/team");
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

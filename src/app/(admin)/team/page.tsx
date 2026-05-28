@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { UserPlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requireAgencyAccess, AGENCY_TEAM_SLUG } from "@/lib/auth";
+import { requireAgencyAccess, AGENCY_TEAM_SLUGS } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { InviteManagerButton } from "@/components/clients/invite-manager-button";
@@ -12,7 +12,7 @@ export default async function AgencyTeamPage() {
   await requireAgencyAccess();
 
   const team = await prisma.team.findFirst({
-    where: { slug: AGENCY_TEAM_SLUG },
+    where: { slug: { in: AGENCY_TEAM_SLUGS } },
     include: {
       // The agency team is admins-only by intent. CREATOR-role rows here are
       // bugs (they slipped through when a super admin added a creator without

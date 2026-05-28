@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession, AGENCY_TEAM_SLUG } from "@/lib/auth";
+import { getRequiredSession, isAgencyTeamSlug } from "@/lib/auth";
 import { creatorVisibilityWhere } from "@/lib/visibility";
 import { createCreatorSchema } from "@/lib/validations/creator";
 import { sendCreatorInvite } from "@/lib/email/creator-invite";
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     // Belt-and-suspenders for the UI fix on /creators. The agency team is
     // admins-only by intent — creators here pollute /team and break visibility
     // rules. Refuse it explicitly with an actionable message.
-    if (team.slug === AGENCY_TEAM_SLUG) {
+    if (isAgencyTeamSlug(team.slug)) {
       return NextResponse.json(
         {
           error:

@@ -21,6 +21,37 @@ export const AGENCY_TEAM_NAME = "DropDeck";
 const LEGACY_AGENCY_TEAM_SLUG = "tapmore";
 const LEGACY_AGENCY_TEAM_NAME = "Tapmore";
 
+/**
+ * Every slug / name we recognize as the agency team. Use these for Prisma
+ * `in` / `notIn` queries and the boolean helpers below for `===` checks.
+ * Lets the whole codebase keep working through the rebrand window without
+ * each callsite knowing about the legacy values.
+ *
+ * Once the prod Team row is renamed to slug="dropdeck" / name="DropDeck"
+ * (via the next `scripts/reset-data.ts --confirm` run or a one-off SQL
+ * UPDATE), drop the LEGACY_* entries and these arrays collapse to one
+ * element each.
+ */
+export const AGENCY_TEAM_SLUGS: string[] = [
+  AGENCY_TEAM_SLUG,
+  LEGACY_AGENCY_TEAM_SLUG,
+];
+export const AGENCY_TEAM_NAMES: string[] = [
+  AGENCY_TEAM_NAME,
+  LEGACY_AGENCY_TEAM_NAME,
+];
+
+export function isAgencyTeamSlug(slug: string | null | undefined): boolean {
+  return (
+    slug === AGENCY_TEAM_SLUG || slug === LEGACY_AGENCY_TEAM_SLUG
+  );
+}
+export function isAgencyTeamName(name: string | null | undefined): boolean {
+  return (
+    name === AGENCY_TEAM_NAME || name === LEGACY_AGENCY_TEAM_NAME
+  );
+}
+
 export type AccessLevel =
   | "super_admin"
   | "agency_manager"
@@ -52,19 +83,11 @@ export function getUserAccessLevel(session: SessionUserLike): AccessLevel {
   if (user.isSuperAdmin) return "super_admin";
   if (user.role === "CREATOR") return "creator";
   // Prefer slug (stable). Fall back to name for sessions issued before the
-  // slug was added to the JWT — users just need to re-login to drop the fallback.
-  // Legacy "tapmore" slug/name is accepted until the prod DB row is renamed.
-  if (
-    user.teamSlug === AGENCY_TEAM_SLUG ||
-    user.teamSlug === LEGACY_AGENCY_TEAM_SLUG
-  ) {
-    return "agency_manager";
-  }
-  if (
-    !user.teamSlug &&
-    (user.teamName === AGENCY_TEAM_NAME ||
-      user.teamName === LEGACY_AGENCY_TEAM_NAME)
-  ) {
+  // slug was added to the JWT — users just need to re-login to drop the
+  // fallback. The helpers accept both the new "dropdeck" and legacy "tapmore"
+  // values until the prod DB row is renamed.
+  if (isAgencyTeamSlug(user.teamSlug)) return "agency_manager";
+  if (!user.teamSlug && isAgencyTeamName(user.teamName)) {
     return "agency_manager";
   }
   return "client_manager";
