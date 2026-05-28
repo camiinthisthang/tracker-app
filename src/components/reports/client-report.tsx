@@ -17,6 +17,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Download,
+  ExternalLink,
   Eye,
   Flame,
   Heart,
@@ -322,7 +323,7 @@ export function ClientReport({ data }: { data: ReportData }) {
                   href={post.link}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2 hover:bg-slate-100"
+                  className="group flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2 hover:bg-blue-50"
                 >
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-medium text-slate-500">
                     {idx + 1}
@@ -332,7 +333,8 @@ export function ClientReport({ data }: { data: ReportData }) {
                       {post.caption || "Untitled"}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {platformLabel(post.platform)} · @{post.creatorHandle} ·{" "}
+                      {post.creatorName} · @{post.creatorHandle} ·{" "}
+                      {platformLabel(post.platform)} ·{" "}
                       {format(new Date(post.postedAt), "MMM d")}
                     </p>
                   </div>
@@ -340,6 +342,7 @@ export function ClientReport({ data }: { data: ReportData }) {
                     <p className="text-sm font-semibold text-slate-800">{compact(post.views)}</p>
                     <p className="text-[10px] text-slate-400">{pct(post.engagementRate)} eng</p>
                   </div>
+                  <ExternalLink className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-blue-500" />
                 </a>
               ))}
               {data.topViralPosts.length === 0 && (
@@ -355,13 +358,23 @@ export function ClientReport({ data }: { data: ReportData }) {
             <SectionCard title="Top captions" hint="highest engagement">
               <div className="space-y-3">
                 {data.topCaptions.map((post) => (
-                  <div key={post.id} className="rounded-lg border border-slate-200 p-3">
-                    <p className="text-sm text-slate-700">{post.caption}</p>
+                  <a
+                    key={post.id}
+                    href={post.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group block rounded-lg border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm text-slate-700">{post.caption}</p>
+                      <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-slate-300 group-hover:text-blue-500" />
+                    </div>
                     <p className="mt-1 text-xs text-slate-400">
+                      {post.creatorName} · @{post.creatorHandle} ·{" "}
                       {platformLabel(post.platform)} · {pct(post.engagementRate)} engagement ·{" "}
                       {compact(post.views)} views
                     </p>
-                  </div>
+                  </a>
                 ))}
               </div>
             </SectionCard>
