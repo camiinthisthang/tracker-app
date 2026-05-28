@@ -40,9 +40,9 @@ Production db is polluted with test data: stale creators (e.g. `creator@viewtrac
 - **Keep exactly these rows, nothing else:**
   - `User` for `camirgarzon@gmail.com` — `isSuperAdmin=true`
   - `User` for `jacquelinegiale@gmail.com` — `isSuperAdmin=true`. If a `User` row with that email doesn't exist yet, create it (leave `password` null so she goes through the /register or invite flow to set it). If a stale `Creator` / `CreatorApplication` / `TeamMember` row exists for that email, delete those first to unblock her signup.
-  - One `Team` row called `Tapmore` (the agency home team — create or rename as needed)
-  - Two `TeamMember` rows linking Cami and Jacqueline to the Tapmore team, both `role=ADMIN`
-  - One `TeamSettings` row for Tapmore (preserve any `schedulingUrl`, `creatorWelcomeTemplate`, PostHog config if already set)
+  - One `Team` row called `DropDeck` (the agency home team — create or rename as needed)
+  - Two `TeamMember` rows linking Cami and Jacqueline to the DropDeck team, both `role=ADMIN`
+  - One `TeamSettings` row for DropDeck (preserve any `schedulingUrl`, `creatorWelcomeTemplate`, PostHog config if already set)
 - **Delete all rows from every other table:** `Creator`, `CreatorApplication`, `Post`, `PostMetricsSnapshot`, `CampaignDailyMetric`, `Task`, `CreatorMessage`, `Upload`, `Campaign`, `CampaignCreator`, `Hook`, `BonusRule`, `ViralNotification`, `CreatorAttribution`, `WeeklyReportConfig`, `NotificationRule`, `TeamInvite`, all other `TeamMember`s, all other `Team`s, all other `User`s.
 - **Implementation:** write `scripts/reset-data.ts` that takes a required `--confirm` flag. Inside a single Prisma `$transaction` so partial failure doesn't leave a half-wiped DB.
 - **Run it twice:** once locally against the dev DB, once against production (via `DATABASE_URL=<prod> npx tsx scripts/reset-data.ts --confirm` — Cami will run prod herself, just leave the command in CHANGELOG for her).
@@ -69,12 +69,12 @@ The `BonusTrigger` enum in `prisma/schema.prisma` already has `USER_DOWNLOAD` an
 - Update the creator-facing Bonus tracker card on `/home` to reflect the new rule types (progress toward signup/paid-plan milestones).
 
 ### 4. Differentiate agency manager vs. client manager
-Current setup only has `User.isSuperAdmin`. No way to distinguish "manager on Cami's Tapmore team" from "manager on a client team" — they're both just `isSuperAdmin=false, role=ADMIN`.
+Current setup only has `User.isSuperAdmin`. No way to distinguish "manager on Cami's DropDeck team" from "manager on a client team" — they're both just `isSuperAdmin=false, role=ADMIN`.
 
 - Define semantic rules (no new schema needed — derive from existing data):
-  - **Agency manager** = member of the `Tapmore` team (regardless of `isSuperAdmin`). Sees all clients, all creators, all campaigns.
-  - **Client manager** = member of a non-Tapmore team. Sees only their own team's stuff.
-  - Cami specifically = super admin on Tapmore (isSuperAdmin=true).
+  - **Agency manager** = member of the `DropDeck` team (regardless of `isSuperAdmin`). Sees all clients, all creators, all campaigns.
+  - **Client manager** = member of a non-DropDeck team. Sees only their own team's stuff.
+  - Cami specifically = super admin on DropDeck (isSuperAdmin=true).
 - Helper function `getUserAccessLevel(session)` returning `"super_admin" | "agency_manager" | "client_manager" | "creator"`. Put in `src/lib/auth.ts`.
 - Update `/clients/[teamId]` members list to show the role explicitly (badge: "Agency manager" vs "Client manager").
 - `/clients` page should probably only be visible to agency managers + super admins.

@@ -13,7 +13,7 @@ export default async function CreatorsPage() {
 
   // Super admins can pick any team when adding a creator — except the agency
   // team itself, which is admins-only by intent. Hiding it from the picker
-  // stops the recurring mistake of adding creators to Tapmore.
+  // stops the recurring mistake of adding creators to DropDeck.
   const teams = session.user.isSuperAdmin
     ? await prisma.team.findMany({
         where: { slug: { not: AGENCY_TEAM_SLUG } },

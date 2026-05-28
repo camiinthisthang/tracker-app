@@ -8,7 +8,7 @@ interface SendManagerInviteArgs {
   inviterName?: string | null;
   /**
    * "client" = recipient gets scoped visibility into a single client
-   * workspace. "agency" = recipient gets cross-client visibility (Tapmore
+   * workspace. "agency" = recipient gets cross-client visibility (DropDeck
    * team membership). Affects copy only; the invite row is identical.
    */
   variant?: "client" | "agency";
@@ -29,7 +29,7 @@ export async function sendManagerInvite({
     return { ok: false as const, reason: "email_not_configured" };
   }
 
-  const fromLabel = inviterName ? `${inviterName} (Tapmore)` : "Tapmore";
+  const fromLabel = inviterName ? `${inviterName} (DropDeck)` : "DropDeck";
   const isAgency = variant === "agency";
 
   const subject = isAgency

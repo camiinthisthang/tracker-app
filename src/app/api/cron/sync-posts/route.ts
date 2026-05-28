@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { syncAllCampaigns } from "@/lib/social/sync";
 
+// syncAllCampaigns sequences through every active campaign, each of which
+// scrapes Apify for N creators × 2 platforms. Default 60 s is not enough.
+export const maxDuration = 300;
+
 export async function GET(req: Request) {
   // Verify cron secret for production
   const authHeader = req.headers.get("authorization");

@@ -3,7 +3,10 @@ import { format } from "date-fns";
 import { ExternalLink, ArrowRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
-import { creatorVisibilityWhere } from "@/lib/visibility";
+import {
+  campaignVisibilityWhere,
+  creatorVisibilityWhere,
+} from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
@@ -11,11 +14,14 @@ import { PLATFORM_LABELS } from "@/lib/constants";
 
 export default async function DashboardPage() {
   const session = await getRequiredSession();
-  const teamId = session.user.teamId;
 
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+  // Agency users (super admin / agency manager) see across every client team;
+  // client managers stay scoped to their own team. Helpers return {} for
+  // agency-wide access or { teamId } for client-scoped access.
+  const campaignWhere = campaignVisibilityWhere(session);
   const creatorWhere = {
     AND: [creatorVisibilityWhere(session), { isActive: true }],
   };
@@ -28,17 +34,17 @@ export default async function DashboardPage() {
     topPosts,
     topCreators,
   ] = await Promise.all([
-    prisma.campaign.count({ where: { teamId, isActive: true } }),
+    prisma.campaign.count({ where: { ...campaignWhere, isActive: true } }),
     prisma.creator.count({ where: creatorWhere }),
     prisma.post.count({
-      where: { campaign: { teamId }, postedAt: { gte: sevenDaysAgo } },
+      where: { campaign: campaignWhere, postedAt: { gte: sevenDaysAgo } },
     }),
     prisma.post.aggregate({
-      where: { campaign: { teamId }, postedAt: { gte: sevenDaysAgo } },
+      where: { campaign: campaignWhere, postedAt: { gte: sevenDaysAgo } },
       _sum: { views: true },
     }),
     prisma.post.findMany({
-      where: { campaign: { teamId } },
+      where: { campaign: campaignWhere },
       include: {
         creator: { select: { handle: true } },
         campaign: { select: { name: true } },
@@ -60,7 +66,7 @@ export default async function DashboardPage() {
 
   const attributedThisWeek = await prisma.creatorAttribution.aggregate({
     where: {
-      creator: { teamId },
+      creator: creatorVisibilityWhere(session),
       date: { gte: sevenDaysAgo },
     },
     _sum: { signupCount: true },
@@ -195,16 +201,20 @@ export default async function DashboardPage() {
               View all <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
-          <CampaignsList teamId={teamId} />
+          <CampaignsList campaignWhere={campaignWhere} />
         </div>
       )}
     </div>
   );
 }
 
-async function CampaignsList({ teamId }: { teamId: string }) {
+async function CampaignsList({
+  campaignWhere,
+}: {
+  campaignWhere: ReturnType<typeof campaignVisibilityWhere>;
+}) {
   const campaigns = await prisma.campaign.findMany({
-    where: { teamId, isActive: true },
+    where: { ...campaignWhere, isActive: true },
     include: {
       _count: { select: { posts: true, campaignCreators: true } },
     },
