@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next.prodbuild/
 /out/
 
 # production
@@ -35,6 +36,9 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# claude code (personal/local config)
+.claude/settings.local.json
 
 # typescript
 *.tsbuildinfo
