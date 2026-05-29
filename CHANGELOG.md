@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-05-29 — fix prod build P1002 (migrate-deploy advisory-lock timeout) (branch: reports-charts-cleanup)
+The production build for the merged reports PR failed at `prisma migrate deploy` with **P1002 — "Timed out trying to acquire a postgres advisory lock"** against the Neon **pooler** (build errored in 19s, before `next build`; prod kept serving the prior deploy, so `/reports` looked unchanged). Root cause is the documented pooler/advisory-lock issue: migrate-deploy needs an UNPOOLED connection, but `DIRECT_URL` isn't set in the Vercel envs, so it fell back to the pooled `DATABASE_URL`. (Intermittent — a preview build minutes earlier got the lock and passed.)
+
+- **`prisma.config.ts`:** migrate/studio/generate datasource URL now falls back through the unpooled connections Neon already provides — `DIRECT_URL ?? DATABASE_URL_UNPOOLED ?? POSTGRES_URL_NON_POOLING ?? DATABASE_URL`. Code-only fix (no env-write/Admin access needed). Runtime `PrismaClient` still uses pooled `DATABASE_URL`.
+- **No schema change.** `prisma generate` loads the config and regenerates the client cleanly.
+- **Note:** manual CLI/dashboard redeploy is gated to Admins (Member hit `403`); shipping this via git push re-triggers the prod build under the allowed git flow. A permanent alternative is to set `DIRECT_URL` in Vercel env (Admin).
+
 ## 2026-05-28 — point /reports tab at the rich client report (branch: reports-charts-cleanup)
 Follow-up with Jacqueline: the `/reports` tab still rendered the legacy bare weekly digest (total views / top hooks / top creators) while the polished `ClientReport` (the Poncho/KANA-style layout) only existed at `/reports/preview` (mock), `/clients/[teamId]/report`, `/campaigns/[id]/reports/view`, and public `/reports/[slug]`. This wires the real report onto the tab itself. **No schema change, no data change — read-only query/UI work.**
 
