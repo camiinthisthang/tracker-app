@@ -15,6 +15,10 @@
 
 # next.js
 /.next/
+# .next.prodbuild/ is a local-only copy of a production build (~hundreds of MB)
+# that some local build/preview scripts emit. It is NOT needed in the repo and
+# must never be committed — leave it ignored. Safe to delete anytime:
+#   rm -rf .next.prodbuild
 /.next.prodbuild/
 /out/
 
