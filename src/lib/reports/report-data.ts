@@ -106,6 +106,10 @@ export interface ReportData {
   platforms: PlatformStat[];
   leaderPlatform: Platform | null;
   underperformingPlatform: Platform | null;
+  // Cumulative views/engagements over the window. Built from the Post table
+  // (bucketed by publish date, then accumulated) so the line ends at the hero
+  // totals — not from CampaignDailyMetric, whose rows are cumulative
+  // campaign-to-date snapshots keyed by sync date.
   trend: { date: string; views: number; engagements: number }[];
   topViralPosts: ReportPost[];
   topCaptions: ReportPost[];
@@ -388,72 +392,52 @@ export async function computeReport(
     };
   });
 
-  // ── Trend (cumulative totals per day, from daily metrics) ─────────────
-  const dailyMetrics =
-    campaignIds.length === 0
-      ? []
-      : await prisma.campaignDailyMetric.findMany({
-          where: { campaignId: { in: campaignIds } },
-          orderBy: { date: "asc" },
-        });
-  // Sum across campaigns by date (client scope spans several campaigns).
-  const trendMap = new Map<string, { views: number; engagements: number }>();
-  for (const m of dailyMetrics) {
-    const key = m.date.toISOString().slice(0, 10);
-    const cur = trendMap.get(key) ?? { views: 0, engagements: 0 };
-    cur.views += m.totalViews;
-    cur.engagements +=
-      m.totalLikes + m.totalComments + m.totalShares + m.totalSaves;
-    trendMap.set(key, cur);
+  // ── Trend (cumulative views/engagements over the window, from posts) ──
+  // Bucket the window's posts by publish day, then accumulate so the line
+  // ends exactly at the hero totals (it reconciles with "Total views").
+  // Derived from the Post table — not CampaignDailyMetric, whose rows are
+  // cumulative campaign-to-date snapshots keyed by sync date and so can't be
+  // read as a per-day series.
+  const dayMap = new Map<string, { views: number; engagements: number }>();
+  for (const p of posts) {
+    const key = p.postedAt.toISOString().slice(0, 10);
+    const cur = dayMap.get(key) ?? { views: 0, engagements: 0 };
+    cur.views += p.views;
+    cur.engagements += engagements(p);
+    dayMap.set(key, cur);
   }
-  const fullTrend = Array.from(trendMap.entries())
-    .map(([date, v]) => ({ date, ...v }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-  // Trend line shown in the report covers the reporting window only.
-  const windowStartKey = windowStart.toISOString().slice(0, 10);
-  const windowEndKey = windowEnd.toISOString().slice(0, 10);
-  const trend = fullTrend.filter(
-    (t) => t.date >= windowStartKey && t.date <= windowEndKey
-  );
+  let runningViews = 0;
+  let runningEngagements = 0;
+  const trend = Array.from(dayMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, v]) => {
+      runningViews += v.views;
+      runningEngagements += v.engagements;
+      return { date, views: runningViews, engagements: runningEngagements };
+    });
 
   // ── Week-over-week: this window vs. the equivalent window before it ────
-  const postsThisWeek = allPosts.filter((p) => inWindow(p.postedAt));
+  // All four deltas come from the Post table so they reconcile with the rest
+  // of the report (this period's posts vs. the previous period's posts).
+  const postsThisWeek = posts;
   const postsLastWeek = allPosts.filter(
     (p) => p.postedAt >= prevWindowStart && p.postedAt < windowStart
   );
-  const viralThisWeek = postsThisWeek.filter(
-    (p) => p.views >= viralThreshold
-  ).length;
-  const viralLastWeek = postsLastWeek.filter(
-    (p) => p.views >= viralThreshold
-  ).length;
+  const sumViews = (rows: PostRow[]) => rows.reduce((s, p) => s + p.views, 0);
+  const sumEngagements = (rows: PostRow[]) =>
+    rows.reduce((s, p) => s + engagements(p), 0);
+  const countViral = (rows: PostRow[]) =>
+    rows.filter((p) => p.views >= viralThreshold).length;
 
-  // View/engagement growth = cumulative total at each window boundary.
-  const trendOnOrBefore = (cutoff: Date) => {
-    const key = cutoff.toISOString().slice(0, 10);
-    let best: { views: number; engagements: number } | null = null;
-    for (const t of fullTrend) {
-      if (t.date <= key) best = { views: t.views, engagements: t.engagements };
-      else break;
-    }
-    return best ?? { views: 0, engagements: 0 };
-  };
-  const nowTotals = trendOnOrBefore(windowEnd);
-  const weekAgoTotals = trendOnOrBefore(windowStart);
-  const twoWeeksAgoTotals = trendOnOrBefore(prevWindowStart);
-
-  const wow = fullTrend.length
+  const wow = allPosts.length
     ? {
         posts: mkDelta(postsThisWeek.length, postsLastWeek.length),
-        views: mkDelta(
-          nowTotals.views - weekAgoTotals.views,
-          weekAgoTotals.views - twoWeeksAgoTotals.views
-        ),
+        views: mkDelta(sumViews(postsThisWeek), sumViews(postsLastWeek)),
         engagements: mkDelta(
-          nowTotals.engagements - weekAgoTotals.engagements,
-          weekAgoTotals.engagements - twoWeeksAgoTotals.engagements
+          sumEngagements(postsThisWeek),
+          sumEngagements(postsLastWeek)
         ),
-        viralPosts: mkDelta(viralThisWeek, viralLastWeek),
+        viralPosts: mkDelta(countViral(postsThisWeek), countViral(postsLastWeek)),
       }
     : null;
 

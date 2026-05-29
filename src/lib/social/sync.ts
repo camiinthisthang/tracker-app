@@ -268,11 +268,17 @@ async function upsertPost(
 }
 
 /**
- * Compute and upsert today's campaign-level aggregate metrics.
+ * Compute and upsert the campaign-level aggregate for a single calendar day.
+ * Scoped to posts *published* that day (postedAt within [date, date+1)), so a
+ * row is true daily activity — not a cumulative campaign-to-date snapshot.
+ * `date` is local midnight of the day being recorded.
  */
 async function updateCampaignDailyMetrics(campaignId: string, date: Date) {
+  const dayEnd = new Date(date);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
   const metrics = await prisma.post.aggregate({
-    where: { campaignId },
+    where: { campaignId, postedAt: { gte: date, lt: dayEnd } },
     _sum: {
       views: true,
       likes: true,

@@ -88,7 +88,54 @@ export default async function ChartsPage() {
     );
   }
 
-  // Fetch metrics for all campaigns
+  // Per-campaign daily series, bucketed by each post's publish date over the
+  // last 90 days. Computed straight from the Post table (current view counts)
+  // rather than CampaignDailyMetric, whose rows are cumulative campaign-to-date
+  // snapshots keyed by sync date — reading those as "per day" is what produced
+  // the inflated posts-per-day counts.
+  const seriesStart = startOfDay(subDays(new Date(), 90));
+  const campaignPosts = await prisma.post.findMany({
+    where: { campaignId: { in: campaigns.map((c) => c.id) }, postedAt: { gte: seriesStart } },
+    select: {
+      campaignId: true,
+      postedAt: true,
+      views: true,
+      likes: true,
+      comments: true,
+      shares: true,
+      saves: true,
+    },
+  });
+
+  type DayAgg = {
+    views: number;
+    likes: number;
+    comments: number;
+    shares: number;
+    saves: number;
+    posts: number;
+  };
+  const byCampaignDay = new Map<string, Map<string, DayAgg>>();
+  for (const p of campaignPosts) {
+    if (!p.campaignId) continue;
+    const dayKey = startOfDay(p.postedAt).toISOString();
+    let days = byCampaignDay.get(p.campaignId);
+    if (!days) {
+      days = new Map();
+      byCampaignDay.set(p.campaignId, days);
+    }
+    const cur =
+      days.get(dayKey) ??
+      { views: 0, likes: 0, comments: 0, shares: 0, saves: 0, posts: 0 };
+    cur.views += p.views;
+    cur.likes += p.likes;
+    cur.comments += p.comments;
+    cur.shares += p.shares;
+    cur.saves += p.saves;
+    cur.posts += 1;
+    days.set(dayKey, cur);
+  }
+
   const metricsMap: Record<
     string,
     {
@@ -99,27 +146,21 @@ export default async function ChartsPage() {
       totalShares: number;
       totalSaves: number;
       totalPosts: number;
-      activeCreators: number;
     }[]
   > = {};
-
   for (const campaign of campaigns) {
-    const metrics = await prisma.campaignDailyMetric.findMany({
-      where: { campaignId: campaign.id },
-      orderBy: { date: "asc" },
-      take: 90,
-    });
-
-    metricsMap[campaign.id] = metrics.map((m) => ({
-      date: m.date.toISOString(),
-      totalViews: m.totalViews,
-      totalLikes: m.totalLikes,
-      totalComments: m.totalComments,
-      totalShares: m.totalShares,
-      totalSaves: m.totalSaves,
-      totalPosts: m.totalPosts,
-      activeCreators: m.activeCreators,
-    }));
+    const days = byCampaignDay.get(campaign.id) ?? new Map<string, DayAgg>();
+    metricsMap[campaign.id] = Array.from(days.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, v]) => ({
+        date,
+        totalViews: v.views,
+        totalLikes: v.likes,
+        totalComments: v.comments,
+        totalShares: v.shares,
+        totalSaves: v.saves,
+        totalPosts: v.posts,
+      }));
   }
 
   return (

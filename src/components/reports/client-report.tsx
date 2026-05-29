@@ -182,9 +182,10 @@ export function ClientReport({ data }: { data: ReportData }) {
     "MMM d, yyyy"
   )}`;
 
-  const trendData = data.trend.map((t) => ({
-    date: format(new Date(t.date), "MMM d"),
-    views: t.views,
+  const trendData = data.trend.map((d) => ({
+    date: format(new Date(d.date), "MMM d"),
+    views: d.views,
+    engagements: d.engagements,
   }));
 
   return (
