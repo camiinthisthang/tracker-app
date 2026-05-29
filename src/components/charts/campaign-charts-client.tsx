@@ -30,7 +30,6 @@ interface DailyMetric {
   totalShares: number;
   totalSaves: number;
   totalPosts: number;
-  activeCreators: number;
 }
 
 interface Campaign {
