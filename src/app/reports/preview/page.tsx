@@ -5,6 +5,10 @@
 import type { ReportData } from "@/lib/reports/report-data";
 import { ClientReport } from "@/components/reports/client-report";
 
+// ClientReport reads useSearchParams (date-range control), which can't be
+// statically prerendered without a Suspense boundary — render at request time.
+export const dynamic = "force-dynamic";
+
 const day = (n: number) =>
   new Date(2026, 5, 16 + n).toISOString().slice(0, 10); // Jun 16 → Jun 22
 

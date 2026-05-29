@@ -27,6 +27,17 @@ tangent.
 
 ---
 
+## 2026-05-28 — point /reports tab at the rich client report (branch: reports-charts-cleanup)
+Follow-up with Jacqueline: the `/reports` tab still rendered the legacy bare weekly digest (total views / top hooks / top creators) while the polished `ClientReport` (the Poncho/KANA-style layout) only existed at `/reports/preview` (mock), `/clients/[teamId]/report`, `/campaigns/[id]/reports/view`, and public `/reports/[slug]`. This wires the real report onto the tab itself. **No schema change, no data change — read-only query/UI work.**
+
+- **`/reports` now renders `ClientReport` with real data (`src/app/(admin)/reports/page.tsx`).** Client managers see their own team's report; agency users (super admin / agency manager) get a **Client** dropdown listing every non-agency team (`slug notIn AGENCY_TEAM_SLUGS`), defaulting to the most recent, and the selected team's full report renders below. The "Scheduled campaign reports" list is preserved below the report (visibility-scoped, `print-hidden`). Empty state when no client teams exist.
+- **New `ReportTeamPicker` (`src/components/reports/report-team-picker.tsx`).** Agency-only dropdown; navigates `?team=<id>` while preserving `from`/`to`.
+- **`ClientReport` date-range control preserves other query params (`src/components/reports/client-report.tsx`).** Previously `router.push` rebuilt the query with only `from`/`to`, which would drop the agency `team` selection on a range change. Now merges existing params.
+- **Hardened the agency-wide weekly-digest filter (`src/lib/reports/weekly.ts`).** Replaced the `teamId ? {teamId} : {}` empty-object relation filter with `undefined` (filter omitted) so the `teamId=null` cron path is unambiguous. Still used by the weekly-report email cron; the tab no longer calls it.
+- **Temp preview build fix (`src/app/reports/preview/page.tsx`).** Adding `useSearchParams` to the range control made the fully-static preview page fail prerender (CSR bailout). Marked it `force-dynamic`. The preview is still slated for deletion now that the real tab is wired — left in place this pass.
+- **PDF export:** unchanged and working — `ClientReport`'s "Download PDF" button (`window.print()` + print CSS isolating `#client-report`) lets agency users export any client's report to PDF. The new picker bar + scheduled-reports list are excluded from print.
+- **Tested:** `next build` passes clean (exit 0, 62/62 pages). **Live number-accuracy against prod data not yet verified** — pending deploy + Vercel/DB access.
+
 ## 2026-05-28 — reports + charts cleanup (branch: reports-charts-cleanup)
 Follow-up with Jacqueline after PR #11 merged. Goal: make the report's "views over time" correct, fix the Charts-tab "posts per day" that showed cumulative campaign totals (131 for May 26, 128 for May 25) as if they were daily counts, and tidy the recently-touched reports/charts code so it's easy to build on. **No schema change.**
 
