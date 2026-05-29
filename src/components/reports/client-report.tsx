@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import {
   Area,
@@ -129,12 +129,17 @@ function RangeControl({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const from = startDate.slice(0, 10);
   const to = endDate.slice(0, 10);
 
   const apply = (nextFrom: string, nextTo: string) => {
     if (!nextFrom || !nextTo) return;
-    const params = new URLSearchParams({ from: nextFrom, to: nextTo });
+    // Preserve other params (e.g. the agency `team` selection) when the range
+    // changes — only the date bounds are overwritten.
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("from", nextFrom);
+    params.set("to", nextTo);
     router.push(`${pathname}?${params.toString()}`);
   };
 

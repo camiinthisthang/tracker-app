@@ -36,12 +36,14 @@ export async function computeWeeklyDigest(
   weekEnd: Date = new Date()
 ): Promise<WeeklyDigest> {
   const weekStart = startOfDay(subDays(weekEnd, 7));
-  const teamFilter = teamId ? { teamId } : {};
+  // `undefined` (not `{}`) when aggregating agency-wide so the relation/team
+  // filter is omitted entirely rather than relying on empty-object semantics.
+  const creatorFilter = teamId ? { teamId } : undefined;
 
   const [posts, creators] = await Promise.all([
     prisma.post.findMany({
       where: {
-        creator: teamFilter,
+        ...(creatorFilter && { creator: creatorFilter }),
         postedAt: { gte: weekStart, lte: weekEnd },
       },
       select: {
@@ -53,7 +55,7 @@ export async function computeWeeklyDigest(
       },
     }),
     prisma.creator.findMany({
-      where: teamFilter,
+      where: creatorFilter,
       select: { id: true, name: true, handle: true },
     }),
   ]);
