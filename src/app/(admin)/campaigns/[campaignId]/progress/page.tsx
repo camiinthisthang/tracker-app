@@ -11,6 +11,7 @@ import {
   WeekSelector,
   type WeekOption,
 } from "@/components/campaigns/week-selector";
+import { goalPlatformFor } from "@/lib/social/goal-counting";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const WEEK_OPTS = { weekStartsOn: 1 as const };
@@ -78,12 +79,14 @@ export default async function CampaignProgressPage({
   const selectedWeekEnd = addDays(selectedWeekStart, 7);
   const selectedISO = toISODate(selectedWeekStart);
 
+  // Pull platform too — we filter per-creator by their goal platform so
+  // cross-posts on the other platform don't double-count.
   const weekPosts = await prisma.post.findMany({
     where: {
       campaignId,
       postedAt: { gte: selectedWeekStart, lt: selectedWeekEnd },
     },
-    select: { creatorId: true, postedAt: true },
+    select: { creatorId: true, postedAt: true, platform: true },
   });
 
   const progresses: CreatorProgress[] = campaign.campaignCreators.map((cc) => {
@@ -96,8 +99,9 @@ export default async function CampaignProgressPage({
         : campaign.weeklyPostTarget;
     const dailyTarget = weeklyTarget / DAY_LABELS.length;
 
+    const goalPlatform = goalPlatformFor(cc.creator);
     const creatorPosts = weekPosts.filter(
-      (p) => p.creatorId === cc.creatorId
+      (p) => p.creatorId === cc.creatorId && p.platform === goalPlatform
     );
 
     const postsPerDay = DAY_LABELS.map((label, i) => {

@@ -1,6 +1,7 @@
 import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
+import { goalPlatformFor } from "@/lib/social/goal-counting";
 import { StatCard } from "@/components/shared/stat-card";
 import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-progress";
 import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
@@ -62,9 +63,15 @@ export default async function CreatorHomePage() {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 7);
 
+  // Pull posts on the creator's goal-platform only (IG when they have an IG
+  // handle; TikTok as fallback). Cross-posts on the other platform are
+  // surfaced separately via the cross-post audit and shouldn't double-count
+  // toward the ring.
+  const goalPlatform = goalPlatformFor(creator);
   const weekPosts = await prisma.post.findMany({
     where: {
       creatorId,
+      platform: goalPlatform,
       postedAt: { gte: weekStart, lt: weekEnd },
     },
     select: { postedAt: true },

@@ -20,6 +20,11 @@ import {
   CampaignCreatorsTable,
   type CampaignCreatorRow,
 } from "@/components/campaigns/campaign-creators-table";
+import {
+  CrosspostAudit,
+  type CrosspostAuditRow,
+} from "@/components/campaigns/crosspost-audit";
+import { goalPlatformFor } from "@/lib/social/goal-counting";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const VIRAL_THRESHOLD = 50_000;
@@ -112,8 +117,11 @@ export default async function CampaignOverviewPage({
           : campaign.weeklyPostTarget;
       const dailyTarget = weeklyTarget / DAY_LABELS.length;
 
+      // Ring counts: this creator's posts on the goal platform only, so
+      // cross-posts on the other platform don't double-count.
+      const goalPlatform = goalPlatformFor(cc.creator);
       const creatorPosts = weekPosts.filter(
-        (p) => p.creatorId === cc.creatorId
+        (p) => p.creatorId === cc.creatorId && p.platform === goalPlatform
       );
 
       const postsPerDay = DAY_LABELS.map((label, i) => {
@@ -133,6 +141,50 @@ export default async function CampaignOverviewPage({
         weeklyTarget,
         postsThisWeek: creatorPosts.length,
         postsPerDay,
+      };
+    }
+  );
+
+  // Crosspost audit for the current week. For each creator, find each
+  // goal-platform post and look for a same-creator post on the OTHER platform
+  // within ±24h. The window matches the ring's week so the two cards reconcile.
+  const CROSSPOST_MATCH_MS = 24 * 60 * 60 * 1000;
+  const crosspostRows: CrosspostAuditRow[] = campaign.campaignCreators.map(
+    (cc) => {
+      const goalPlatform = goalPlatformFor(cc.creator);
+      const otherPlatform = goalPlatform === "INSTAGRAM" ? "TIKTOK" : "INSTAGRAM";
+      const creatorWeekPosts = weekPosts.filter(
+        (p) => p.creatorId === cc.creatorId
+      );
+      const goalPosts = creatorWeekPosts.filter(
+        (p) => p.platform === goalPlatform
+      );
+      const otherPosts = creatorWeekPosts.filter(
+        (p) => p.platform === otherPlatform
+      );
+      const gaps: CrosspostAuditRow["gaps"] = [];
+      let matched = 0;
+      for (const g of goalPosts) {
+        const hasMatch = otherPosts.some(
+          (o) => Math.abs(o.postedAt.getTime() - g.postedAt.getTime()) <= CROSSPOST_MATCH_MS
+        );
+        if (hasMatch) {
+          matched++;
+        } else {
+          gaps.push({
+            postedAt: g.postedAt.toISOString(),
+            sourcePlatform: goalPlatform,
+            link: g.link,
+          });
+        }
+      }
+      return {
+        creatorId: cc.creatorId,
+        creatorHandle: cc.creator.handle,
+        creatorName: cc.creator.name,
+        goalPlatformPosts: goalPosts.length,
+        matched,
+        gaps,
       };
     }
   );
@@ -278,6 +330,11 @@ export default async function CampaignOverviewPage({
           progresses={creatorProgresses}
           campaignId={campaign.id}
         />
+      </div>
+
+      {/* Crosspost audit — only renders if at least one creator posted this week */}
+      <div className="mt-6">
+        <CrosspostAudit rows={crosspostRows} rangeLabel="this week" />
       </div>
 
       {/* Top Posts Gallery */}

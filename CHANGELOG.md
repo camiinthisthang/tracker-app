@@ -27,6 +27,21 @@ tangent.
 
 ---
 
+## 2026-06-02 13:20 — goal rings count only the canonical platform + crosspost audit
+Creators cross-post the same video to IG and TikTok, so counting both platforms double-counts each video.
+
+**Ring math — IG-only with TikTok fallback**
+- New helper `src/lib/social/goal-counting.ts`: `goalPlatformFor(creator)` returns `"INSTAGRAM"` when the creator has an IG handle, falls back to `"TIKTOK"` when they don't (otherwise IG-less creators would have permanently 0 rings).
+- Applied to all 5 ring sites: creator `/home`, creator `/creator-progress`, admin `/campaigns/[id]/overview`, admin `/campaigns/[id]/progress`, admin `/creators/[id]`.
+- **Views, top posts, campaign totals, viral counts all stay platform-agnostic.** Only goal-progress counting changed.
+
+**Crosspost audit**
+- New component `src/components/campaigns/crosspost-audit.tsx` — for each creator, displays "N / N crossposted ✓" (green) or "X / N crossposted" (amber warning) with up to 3 specific missing-crosspost dates listed. Hidden when the creator hasn't posted on their goal platform this week.
+- Heuristic: for each goal-platform post, look for a same-creator post on the OTHER platform within **±24h**. Computed inline on the campaign overview page; no new DB schema, no new sync logic.
+- Renders on the campaign overview page between Creator Progress and Top Posts.
+
+Tested: `npm run build` clean.
+
 ## 2026-06-02 12:50 — "Unpublish all" button on the hooks workshop
 - One-click bulk unpublish for the admin hooks page. Hook content is preserved — rows just move back to the Workshop tab (`publishedAt → null`), same as clicking "Move back to workshop" on each row individually.
 - New endpoint `POST /api/hooks/unpublish-all` — respects existing team visibility (agency users hit everything, client managers only their team), creators forbidden.

@@ -15,6 +15,7 @@ import { SyncCreatorButton } from "@/components/creators/sync-creator-button";
 import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
 import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-progress";
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
+import { goalPlatformFor } from "@/lib/social/goal-counting";
 import { Badge } from "@/components/ui/badge";
 import { PLATFORM_LABELS } from "@/lib/constants";
 
@@ -98,7 +99,7 @@ export default async function CreatorDetailPage({
     }),
     prisma.post.findMany({
       where: { creatorId, postedAt: { gte: weekStart, lt: weekEnd } },
-      select: { postedAt: true },
+      select: { postedAt: true, platform: true },
     }),
   ]);
   const attributedSignups = totalSignups._sum.signupCount ?? 0;
@@ -129,6 +130,8 @@ export default async function CreatorDetailPage({
   }));
 
   // Weekly posting cadence (Mon–Sun), same shape the creator home uses.
+  // Ring counts use the creator's goal platform only so cross-posts on the
+  // other platform don't double-count.
   const activeCCs = creator.campaignCreators.filter(
     (cc) => cc.isActive && cc.campaign.isActive,
   );
@@ -137,10 +140,12 @@ export default async function CreatorDetailPage({
     0,
   );
   const dailyTarget = weeklyTarget / DAY_LABELS.length;
+  const goalPlatform = goalPlatformFor(creator);
+  const goalWeekPosts = weekPosts.filter((p) => p.platform === goalPlatform);
   const postsPerDay = DAY_LABELS.map((label, i) => {
     const dayStart = addDays(weekStart, i);
     const dayEnd = addDays(dayStart, 1);
-    const count = weekPosts.filter(
+    const count = goalWeekPosts.filter(
       (p) => p.postedAt >= dayStart && p.postedAt < dayEnd,
     ).length;
     return { day: label, count };
