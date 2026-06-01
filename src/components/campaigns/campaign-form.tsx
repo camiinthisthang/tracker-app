@@ -94,6 +94,7 @@ export function CampaignForm({
         creatorId: "",
         platform: "TIKTOK",
         videosPerDay: 1,
+        monthlyPostGoal: null,
         isActive: true,
       },
     ]);
@@ -160,7 +161,7 @@ export function CampaignForm({
           weeklyPostTarget: parseInt(weeklyPostTarget),
           previewLinks,
           galleryUrls,
-          ...(isEdit ? {} : { creators: creators.map(({ id, ...rest }) => rest) }),
+          creators: creators.map(({ id, ...rest }) => rest),
           ...(showTeamPicker ? { teamId } : {}),
         }),
       });
@@ -460,10 +461,13 @@ export function CampaignForm({
 
         {creators.length > 0 && (
           <div className="mt-4 space-y-3">
-            <div className="hidden grid-cols-[1fr_100px_60px_40px] gap-3 sm:grid">
+            <div className="hidden grid-cols-[1fr_100px_120px_60px_40px] gap-3 sm:grid">
               <span className="text-xs font-medium text-gray-500">Creator</span>
               <span className="text-xs font-medium text-gray-500">
                 Videos per day
+              </span>
+              <span className="text-xs font-medium text-gray-500">
+                Monthly goal
               </span>
               <span className="text-xs font-medium text-gray-500">Active</span>
               <span />
@@ -484,7 +488,7 @@ export function CampaignForm({
               return (
                 <div
                   key={creator.id}
-                  className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_100px_60px_40px] sm:items-center"
+                  className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_100px_120px_60px_40px] sm:items-center"
                 >
                   <Select
                     value={creator.creatorId}
@@ -525,6 +529,20 @@ export function CampaignForm({
                         parseInt(e.target.value) || 1,
                       )
                     }
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 40"
+                    value={creator.monthlyPostGoal ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      updateCreator(
+                        creator.id,
+                        "monthlyPostGoal",
+                        raw === "" ? null : parseInt(raw) || null,
+                      );
+                    }}
                   />
                   <Switch
                     checked={creator.isActive}

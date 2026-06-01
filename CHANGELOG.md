@@ -27,6 +27,23 @@ tangent.
 
 ---
 
+## 2026-06-02 12:30 — per-creator monthly post goal + creator-side week history
+Two related changes to the goal-tracking flow.
+
+**1. Per-CampaignCreator monthly goal**
+- **Schema change:** added nullable `monthlyPostGoal Int?` to `CampaignCreator` (`prisma/schema.prisma`, migration `20260602120000_add_monthly_post_goal`). NULL means "no creator-specific goal — fall back to campaign-level `weeklyPostTarget`."
+- The weekly ring target for a creator on a campaign is now `monthlyPostGoal / 4` when set, otherwise `campaign.weeklyPostTarget` (or the creator-aggregate `videosPerDay × 5` on the creator-side home).
+- Campaign form (`campaign-form.tsx`) gained a "Monthly goal" column next to "Videos per day". Empty = use campaign fallback.
+- `POST /api/campaigns` writes `monthlyPostGoal` on each CC at creation. `PATCH /api/campaigns/[campaignId]` now also accepts a `creators` array and upserts CC rows so edits to per-creator goals actually persist (previously the form's creators array was silently dropped on edit). Removals still go through the dedicated DELETE endpoint.
+- Display wired through: `(creator)/home/page.tsx`, `(admin)/campaigns/[campaignId]/overview/page.tsx`, `(admin)/campaigns/[campaignId]/progress/page.tsx` all read the per-CC goal with campaign-level fallback.
+
+**2. Creator-side week history**
+- New page `/creator-progress` (`src/app/(creator)/creator-progress/page.tsx`) — same Creator Weekly Progress card the home page shows, but for any past week. Uses the existing `WeekSelector` client component from the admin progress page. Week list spans `min(active campaign startDates) → today`, capped at the latest campaign endDate. Newest week first; tag "this week" on the current.
+- `CreatorWeeklyProgress` gained an optional `historyHref` prop. When set, the "This week's goal" header becomes a `<Link>` with a chevron and a subtitle "View past weeks". On `/creator-progress` itself we omit the prop so we don't link to ourselves.
+- Home page (`(creator)/home/page.tsx`) passes `historyHref="/creator-progress"`. Click the header → land on the historical view.
+
+Tested: `npm run build` clean. Migration SQL is a single ADD COLUMN NULL — safe; no backfill needed since NULL is the documented fallback.
+
 ## 2026-06-02 11:25 — historical week view on /campaigns/[id]/progress
 - The "See all posts" link from the campaign overview goes to `/campaigns/[id]/progress`. Previously hardcoded to the current week. Now accepts `?week=YYYY-MM-DD` (Monday of the desired week) and renders the same Creator Progress cards for that historical week.
 - New `src/components/campaigns/week-selector.tsx` — small client component (shadcn Select) listing every week in the campaign window up to today's week. Newest week first. Tags the current week with "this week" in the dropdown. Navigates via `router.push` on selection.

@@ -77,6 +77,35 @@ export async function PATCH(
       },
     });
 
+    // Upsert any per-creator changes from the form (videosPerDay,
+    // monthlyPostGoal, platform, isActive). Removals still go through the
+    // dedicated DELETE /api/campaigns/[id]/creators endpoint so an empty
+    // creators array here is treated as "no changes", not "remove all".
+    if (data.creators !== undefined) {
+      for (const c of data.creators) {
+        if (!c.creatorId) continue;
+        await prisma.campaignCreator.upsert({
+          where: {
+            campaignId_creatorId: { campaignId, creatorId: c.creatorId },
+          },
+          create: {
+            campaignId,
+            creatorId: c.creatorId,
+            platform: c.platform,
+            videosPerDay: c.videosPerDay,
+            monthlyPostGoal: c.monthlyPostGoal ?? null,
+            isActive: c.isActive,
+          },
+          update: {
+            platform: c.platform,
+            videosPerDay: c.videosPerDay,
+            monthlyPostGoal: c.monthlyPostGoal ?? null,
+            isActive: c.isActive,
+          },
+        });
+      }
+    }
+
     return NextResponse.json(campaign);
   } catch {
     return NextResponse.json(

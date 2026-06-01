@@ -84,6 +84,7 @@ export async function POST(req: Request) {
             creatorId: c.creatorId,
             platform: c.platform,
             videosPerDay: c.videosPerDay,
+            monthlyPostGoal: c.monthlyPostGoal ?? null,
             isActive: c.isActive,
           })),
         },

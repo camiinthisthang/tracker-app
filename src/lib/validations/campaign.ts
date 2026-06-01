@@ -6,6 +6,15 @@ export const campaignCreatorSchema = z.object({
   creatorId: z.string().min(1, "creatorId is required"),
   platform: z.enum(["TIKTOK", "INSTAGRAM", "YOUTUBE", "FACEBOOK"]),
   videosPerDay: z.coerce.number().int().min(1).default(1),
+  monthlyPostGoal: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .nullable()
+    // Treat "" / 0 from the form input as "no goal set" so the fallback to
+    // campaign.weeklyPostTarget kicks in.
+    .transform((v) => (v ? v : null)),
   isActive: z.boolean().default(true),
 });
 

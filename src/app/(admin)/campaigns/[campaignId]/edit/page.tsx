@@ -47,6 +47,7 @@ export default async function EditCampaignPage({
       creatorId: cc.creatorId,
       platform: cc.platform as "TIKTOK" | "INSTAGRAM" | "YOUTUBE" | "FACEBOOK",
       videosPerDay: cc.videosPerDay,
+      monthlyPostGoal: cc.monthlyPostGoal,
       isActive: cc.isActive,
     })),
   };

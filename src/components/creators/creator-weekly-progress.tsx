@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CreatorWeeklyProgressProps {
@@ -5,6 +7,12 @@ interface CreatorWeeklyProgressProps {
   weeklyTarget: number;
   postsPerDay: { day: string; count: number }[];
   dailyTarget: number;
+  /**
+   * When provided, the header becomes a link to a historical-weeks view at
+   * this href. Omitted on the historical page itself so we don't link to
+   * ourselves.
+   */
+  historyHref?: string;
 }
 
 function ProgressRing({ count, target }: { count: number; target: number }) {
@@ -64,21 +72,40 @@ export function CreatorWeeklyProgress({
   weeklyTarget,
   postsPerDay,
   dailyTarget,
+  historyHref,
 }: CreatorWeeklyProgressProps) {
   const pct =
     weeklyTarget > 0 ? Math.min((postsThisWeek / weeklyTarget) * 100, 100) : 0;
   const onTrack = postsThisWeek >= weeklyTarget;
 
+  const titleBlock = (
+    <div className="flex items-center gap-1.5">
+      <h3 className="text-sm font-semibold text-slate-800">
+        This week&apos;s goal
+      </h3>
+      {historyHref && (
+        <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-600" />
+      )}
+    </div>
+  );
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">
-            This week&apos;s goal
-          </h3>
-          <p className="text-xs text-slate-400">
-            Posts you&apos;ve submitted this week
-          </p>
+          {historyHref ? (
+            <Link href={historyHref} className="group block">
+              {titleBlock}
+              <p className="text-xs text-slate-400">View past weeks</p>
+            </Link>
+          ) : (
+            <>
+              {titleBlock}
+              <p className="text-xs text-slate-400">
+                Posts you&apos;ve submitted this week
+              </p>
+            </>
+          )}
         </div>
         <div className="text-right">
           <p

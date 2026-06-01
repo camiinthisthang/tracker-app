@@ -86,10 +86,16 @@ export default async function CampaignProgressPage({
     select: { creatorId: true, postedAt: true },
   });
 
-  const weeklyTarget = campaign.weeklyPostTarget;
-  const dailyTarget = weeklyTarget / DAY_LABELS.length;
-
   const progresses: CreatorProgress[] = campaign.campaignCreators.map((cc) => {
+    // Per-creator monthly goal wins when set; otherwise fall back to the
+    // campaign-level weekly target so creators without an explicit goal still
+    // get a sensible ring.
+    const weeklyTarget =
+      cc.monthlyPostGoal != null
+        ? cc.monthlyPostGoal / 4
+        : campaign.weeklyPostTarget;
+    const dailyTarget = weeklyTarget / DAY_LABELS.length;
+
     const creatorPosts = weekPosts.filter(
       (p) => p.creatorId === cc.creatorId
     );

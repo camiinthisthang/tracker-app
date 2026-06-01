@@ -43,16 +43,18 @@ export default async function CreatorHomePage() {
     return <p>Creator not found</p>;
   }
 
-  // Weekly goal: sum of videosPerDay × 5 across all active campaigns. We
-  // keep the X*5 baseline so the displayed weekly target doesn't change when
-  // weekends were added — the goal is the same, just spread across 7 days.
+  // Weekly goal: sum across all active campaigns. Each CC contributes either
+  // `monthlyPostGoal / 4` when an explicit per-creator goal is set, or the
+  // legacy `videosPerDay × 5` baseline as a fallback for older rows. Either
+  // way the number is the same regardless of weekend support — the goal is
+  // weekly, just spread across 7 day rings.
   const activeCCs = creator.campaignCreators.filter(
     (cc) => cc.isActive && cc.campaign.isActive
   );
-  const weeklyTarget = activeCCs.reduce(
-    (sum, cc) => sum + cc.videosPerDay * 5,
-    0
-  );
+  const weeklyTarget = activeCCs.reduce((sum, cc) => {
+    const fromGoal = cc.monthlyPostGoal != null ? cc.monthlyPostGoal / 4 : null;
+    return sum + (fromGoal ?? cc.videosPerDay * 5);
+  }, 0);
   const dailyTarget = weeklyTarget / DAY_LABELS.length;
 
   // Posts this week (Mon–Sun)
@@ -217,6 +219,7 @@ export default async function CreatorHomePage() {
           weeklyTarget={weeklyTarget}
           postsPerDay={postsPerDay}
           dailyTarget={dailyTarget}
+          historyHref="/creator-progress"
         />
         <CreatorMessagesFeed
           messages={serializedMessages}

@@ -102,13 +102,16 @@ export default async function CampaignOverviewPage({
     (p) => p.postedAt >= weekStart && p.postedAt < weekEnd
   );
 
-  // Campaign-wide weeklyPostTarget is the source of truth for the per-creator
-  // headline + ring target. Per-day target on the rings = weekly / 7.
-  const weeklyTarget = campaign.weeklyPostTarget;
-  const dailyTarget = weeklyTarget / DAY_LABELS.length;
-
+  // Per-creator monthlyPostGoal overrides the campaign-level weeklyPostTarget
+  // when set. Per-day ring target = weekly / DAY_LABELS.length.
   const creatorProgresses: CreatorProgress[] = campaign.campaignCreators.map(
     (cc) => {
+      const weeklyTarget =
+        cc.monthlyPostGoal != null
+          ? cc.monthlyPostGoal / 4
+          : campaign.weeklyPostTarget;
+      const dailyTarget = weeklyTarget / DAY_LABELS.length;
+
       const creatorPosts = weekPosts.filter(
         (p) => p.creatorId === cc.creatorId
       );
