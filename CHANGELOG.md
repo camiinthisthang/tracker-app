@@ -27,6 +27,19 @@ tangent.
 
 ---
 
+## 2026-06-02 11:25 — historical week view on /campaigns/[id]/progress
+- The "See all posts" link from the campaign overview goes to `/campaigns/[id]/progress`. Previously hardcoded to the current week. Now accepts `?week=YYYY-MM-DD` (Monday of the desired week) and renders the same Creator Progress cards for that historical week.
+- New `src/components/campaigns/week-selector.tsx` — small client component (shadcn Select) listing every week in the campaign window up to today's week. Newest week first. Tags the current week with "this week" in the dropdown. Navigates via `router.push` on selection.
+- `src/app/(admin)/campaigns/[campaignId]/progress/page.tsx` rewritten:
+  - Reads `?week=` from `searchParams`. Falls back to current week (or the campaign's most recent week, if today is past the campaign endDate).
+  - Generates the week list from `startOfWeek(campaign.startDate)` through `startOfWeek(min(campaign.endDate, now))`, stepping by 7 days. Includes the partial week containing campaign.startDate so a Tuesday-starting campaign still shows week 1.
+  - Queries posts only for the selected week's `[Monday, next Monday)` window.
+  - Renders the selector in the section header's right slot via the new `headerRight` prop on `CreatorProgressSection`. Subtitle now shows the selected week range, e.g. "May 25 – May 31, 2026 · this week".
+- `CreatorProgressSection` gained optional `subtitle` + `headerRight` props. Backwards-compatible — the overview page keeps its default subtitle and "See all posts" link.
+- Adopts the 7-day `DAY_LABELS = ["M","T","W","T","F","S","S"]` convention from the bug-fixes-batch-1 branch — `weeklyTarget / 7` per ring.
+- ISO date helper uses local-time formatting (not `.toISOString()`) so a Monday picked in a west-of-UTC zone doesn't shift to Sunday in the URL.
+- Tested: `npm run build` clean.
+
 ## 2026-05-29 — fix prod build P1002 (migrate-deploy advisory-lock timeout) (branch: reports-charts-cleanup)
 The production build for the merged reports PR failed at `prisma migrate deploy` with **P1002 — "Timed out trying to acquire a postgres advisory lock"** against the Neon **pooler** (build errored in 19s, before `next build`; prod kept serving the prior deploy, so `/reports` looked unchanged). Root cause is the documented pooler/advisory-lock issue: migrate-deploy needs an UNPOOLED connection, but `DIRECT_URL` isn't set in the Vercel envs, so it fell back to the pooled `DATABASE_URL`. (Intermittent — a preview build minutes earlier got the lock and passed.)
 
@@ -89,7 +102,6 @@ Triage round with Jacqueline covering the bugs Cami's creators / managers have b
 
 ### Blocked — needs Cami
 - **Rebrand finishing touches:** the prod `Team` row still has slug="tapmore" / name="Tapmore". The legacy fallback keeps everything working, but the row should be renamed to slug="dropdeck" / name="DropDeck" via either a one-off SQL UPDATE or the next `scripts/reset-data.ts` run. Once that's done, the `LEGACY_AGENCY_TEAM_SLUG`/`LEGACY_AGENCY_TEAM_NAME` constants in `src/lib/auth.ts` and `src/components/layout/admin-sidebar.tsx` can be removed.
-
 ## 2026-05-28 00:50 — creator-progress cards now honor campaign.weeklyPostTarget
 - Bug: campaign overview's Creator Progress cards showed "X/5 posts" with the headline "5 posts/week target" regardless of what the campaign's Weekly target field was set to. Setting the campaign field to 10 had zero effect on the cards.
 - Root cause: both `overview/page.tsx` and `progress/page.tsx` computed `weeklyTarget = cc.videosPerDay * 5` from `CampaignCreator.videosPerDay` (default 1). Campaign's own `weeklyPostTarget` field was only displayed in the Campaign Details strip and never actually flowed into any progress math.

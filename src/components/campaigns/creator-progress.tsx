@@ -120,12 +120,21 @@ interface CreatorProgressSectionProps {
   progresses: CreatorProgress[];
   campaignId: string;
   previewOnly?: boolean;
+  /** Overrides the default "Posts submitted this week vs. weekly target". */
+  subtitle?: string;
+  /**
+   * Overrides the "See all posts" link in the header's right slot. Useful for
+   * the full-screen progress page where we render a week-picker instead.
+   */
+  headerRight?: React.ReactNode;
 }
 
 export function CreatorProgressSection({
   progresses,
   campaignId,
   previewOnly = true,
+  subtitle,
+  headerRight,
 }: CreatorProgressSectionProps) {
   if (progresses.length === 0) return null;
 
@@ -133,23 +142,24 @@ export function CreatorProgressSection({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h3 className="text-sm font-semibold text-slate-800">
             Creator Progress
           </h3>
           <p className="text-xs text-slate-400">
-            Posts submitted this week vs. weekly target
+            {subtitle ?? "Posts submitted this week vs. weekly target"}
           </p>
         </div>
-        {previewOnly && progresses.length > 3 && (
-          <Link
-            href={`/campaigns/${campaignId}/progress`}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-          >
-            See all posts
-          </Link>
-        )}
+        {headerRight ??
+          (previewOnly && progresses.length > 3 ? (
+            <Link
+              href={`/campaigns/${campaignId}/progress`}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              See all posts
+            </Link>
+          ) : null)}
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {displayed.map((p) => (
