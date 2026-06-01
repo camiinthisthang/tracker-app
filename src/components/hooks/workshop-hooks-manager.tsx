@@ -60,6 +60,32 @@ export function WorkshopHooksManager({ workshop, published, campaigns }: Props) 
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("workshop");
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [unpublishAllOpen, setUnpublishAllOpen] = useState(false);
+  const [unpublishingAll, setUnpublishingAll] = useState(false);
+
+  async function unpublishAll() {
+    setUnpublishingAll(true);
+    try {
+      const res = await fetch("/api/hooks/unpublish-all", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error || "Failed to unpublish all");
+        return;
+      }
+      const n = typeof data.updatedCount === "number" ? data.updatedCount : 0;
+      toast.success(
+        n === 0
+          ? "Nothing to unpublish — all hooks were already in Workshop."
+          : `Moved ${n} hook${n === 1 ? "" : "s"} back to Workshop.`
+      );
+      setUnpublishAllOpen(false);
+      router.refresh();
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setUnpublishingAll(false);
+    }
+  }
 
   return (
     <div className="mb-8 rounded-xl border border-slate-200 bg-white">
@@ -71,14 +97,26 @@ export function WorkshopHooksManager({ workshop, published, campaigns }: Props) 
             creators on it see them on their dashboard.
           </p>
         </div>
-        <Button
-          type="button"
-          onClick={() => setQuickAddOpen(true)}
-          className="bg-slate-900 text-white hover:bg-slate-800"
-        >
-          <Plus className="mr-1 h-4 w-4" />
-          Quick add
-        </Button>
+        <div className="flex items-center gap-2">
+          {published.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setUnpublishAllOpen(true)}
+            >
+              <Undo2 className="mr-1 h-4 w-4" />
+              Unpublish all
+            </Button>
+          )}
+          <Button
+            type="button"
+            onClick={() => setQuickAddOpen(true)}
+            className="bg-slate-900 text-white hover:bg-slate-800"
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            Quick add
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-1 border-b border-slate-100 px-5 pt-3">
@@ -122,6 +160,36 @@ export function WorkshopHooksManager({ workshop, published, campaigns }: Props) 
           router.refresh();
         }}
       />
+
+      <Dialog open={unpublishAllOpen} onOpenChange={setUnpublishAllOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unpublish all hooks?</DialogTitle>
+            <DialogDescription>
+              All {published.length} published hook{published.length === 1 ? "" : "s"}{" "}
+              will move back to the Workshop tab. Hook content is preserved —
+              you can publish them again later or delete them individually.
+              Creators will stop seeing them on their dashboards immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setUnpublishAllOpen(false)}
+              disabled={unpublishingAll}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-slate-900 text-white hover:bg-slate-800"
+              onClick={unpublishAll}
+              disabled={unpublishingAll}
+            >
+              {unpublishingAll ? "Unpublishing…" : "Unpublish all"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

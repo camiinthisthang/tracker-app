@@ -27,6 +27,12 @@ tangent.
 
 ---
 
+## 2026-06-02 12:50 — "Unpublish all" button on the hooks workshop
+- One-click bulk unpublish for the admin hooks page. Hook content is preserved — rows just move back to the Workshop tab (`publishedAt → null`), same as clicking "Move back to workshop" on each row individually.
+- New endpoint `POST /api/hooks/unpublish-all` — respects existing team visibility (agency users hit everything, client managers only their team), creators forbidden.
+- Button surfaces only when there's at least one published hook. Sits next to "Quick add" in the workshop card header. Confirmation dialog states the count and clarifies that creators stop seeing the hooks immediately.
+- Tested: `npm run build` clean.
+
 ## 2026-06-02 12:30 — per-creator monthly post goal + creator-side week history
 Two related changes to the goal-tracking flow.
 
