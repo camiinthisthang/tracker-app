@@ -40,7 +40,7 @@ export default async function PendingApprovalPage() {
 
         <div className="mt-6 flex items-center justify-between gap-3">
           <a
-            href="mailto:cami@viewtrackr.com"
+            href="mailto:hey@dropdeck.xyz"
             className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
           >
             <Mail className="h-3.5 w-3.5" />
