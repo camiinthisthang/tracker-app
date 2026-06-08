@@ -275,7 +275,7 @@ export default async function CreatorDetailPage({
       {/* Weekly posting cadence */}
       <div className="mt-4">
         <CreatorWeeklyProgress
-          postsThisWeek={weekPosts.length}
+          postsThisWeek={goalWeekPosts.length}
           weeklyTarget={weeklyTarget}
           postsPerDay={postsPerDay}
           dailyTarget={dailyTarget}
