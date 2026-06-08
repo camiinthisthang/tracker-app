@@ -19,12 +19,9 @@ import {
   ArrowUpRight,
   Download,
   ExternalLink,
-  Eye,
-  Flame,
-  Heart,
   Minus,
-  Send,
 } from "lucide-react";
+import { BrandMark } from "@/components/brand/brand-mark";
 import type { ReportData } from "@/lib/reports/report-data";
 
 function fmt(n: number): string {
@@ -52,32 +49,27 @@ const PRINT_CSS = `
 }
 `;
 
-function HeroCard({
-  label,
-  value,
-  sub,
-  icon,
-  color,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  icon: React.ReactNode;
-  color: string;
-}) {
-  return (
-    <div className={`report-card rounded-xl p-5 text-white ${color}`}>
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wide opacity-80">
-          {label}
-        </p>
-        <span className="opacity-80">{icon}</span>
-      </div>
-      <p className="mt-2 text-3xl font-bold">{value}</p>
-      {sub && <p className="mt-1 text-xs opacity-80">{sub}</p>}
-    </div>
-  );
-}
+// Subtle grain overlay for the royal-blue header/footer strips. Inline SVG
+// noise avoids shipping a separate /grain.png asset.
+const GRAIN_URL =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E";
+
+const ROYAL_SURFACE: React.CSSProperties = {
+  background: "#054FF0",
+  backgroundImage: `url("${GRAIN_URL}")`,
+  backgroundSize: "240px",
+  backgroundBlendMode: "overlay",
+};
+
+const TOOLTIP_STYLE: React.CSSProperties = {
+  background: "#0B0B0E",
+  border: "none",
+  borderRadius: 8,
+  fontFamily: "'JetBrains Mono', monospace",
+  fontSize: 11,
+  color: "white",
+  padding: "8px 12px",
+};
 
 function DeltaPill({ delta, pctChange }: { delta: number; pctChange: number | null }) {
   const up = delta > 0;
@@ -90,7 +82,7 @@ function DeltaPill({ delta, pctChange }: { delta: number; pctChange: number | nu
     : "bg-red-50 text-red-700";
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-[11px] ${tone}`}
     >
       <Icon className="h-3 w-3" />
       {delta >= 0 ? "+" : ""}
@@ -110,12 +102,18 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="report-card rounded-xl border border-slate-200 bg-white p-5">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
-        {hint && <span className="text-xs text-slate-400">{hint}</span>}
+    <div className="report-card rounded-2xl bg-bone-100 p-8">
+      <div className="mb-4 flex items-baseline justify-between">
+        <span className="font-mono text-[11px] tracking-[0.02em] text-ink-900/45">
+          {title}
+        </span>
+        {hint && (
+          <span className="font-mono text-[10px] uppercase tracking-[0.05em] text-ink-300">
+            {hint}
+          </span>
+        )}
       </div>
-      <div className="mt-4">{children}</div>
+      <div>{children}</div>
     </div>
   );
 }
@@ -194,271 +192,318 @@ export function ClientReport({ data }: { data: ReportData }) {
   }));
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#E5E5E5]">
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
-      <div id="client-report" className="mx-auto max-w-5xl px-4 py-8">
+      <div
+        id="client-report"
+        className="mx-auto flex max-w-[960px] flex-col gap-4 px-6 py-6"
+      >
         {/* Header */}
-        <div className="report-card mb-6 flex items-start justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-blue-600">
+        <div
+          className="mb-0 flex flex-col gap-5 rounded-2xl px-12 py-8"
+          style={ROYAL_SURFACE}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <p className="font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-lime-500">
               {data.scope.type === "campaign" ? "Campaign report" : "Client report"}
             </p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-800">{data.title}</h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <div className="flex flex-col items-end gap-2">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="print-hidden inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3 py-1.5 font-mono text-[11px] text-white hover:bg-white/25"
+              >
+                <Download className="h-4 w-4" />
+                Download PDF
+              </button>
+              <RangeControl startDate={data.startDate} endDate={data.endDate} />
+            </div>
+          </div>
+          <div>
+            <h1 className="mt-1 font-display text-[34px] font-extrabold lowercase leading-none tracking-tight text-white">
+              {data.title}
+            </h1>
+            <p className="mt-2 font-mono text-[12px] text-white/55">
               {data.subtitle} · {dateRange}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="print-hidden inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              <Download className="h-4 w-4" />
-              Download PDF
-            </button>
-            <RangeControl startDate={data.startDate} endDate={data.endDate} />
+          <div className="mt-1 flex flex-wrap gap-2">
+            <span className="rounded-full bg-white/15 px-3 py-1 font-mono text-[11px] lowercase text-white">
+              {fmt(data.hero.postsShipped)} posts
+            </span>
+            <span className="rounded-full bg-white/15 px-3 py-1 font-mono text-[11px] lowercase text-white">
+              {compact(data.hero.totalViews)} views
+            </span>
           </div>
         </div>
 
         {/* Tier 1 — Hero KPIs */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <HeroCard
-            label="Posts shipped"
-            value={fmt(data.hero.postsShipped)}
-            icon={<Send className="h-4 w-4" />}
-            color="bg-slate-800"
-          />
-          <HeroCard
-            label="Total views"
-            value={compact(data.hero.totalViews)}
-            sub={`${fmt(data.hero.totalViews)} total`}
-            icon={<Eye className="h-4 w-4" />}
-            color="bg-blue-600"
-          />
-          <HeroCard
-            label="Engagement rate"
-            value={pct(data.hero.engagementRate)}
-            sub={`${compact(data.hero.totalEngagements)} engagements`}
-            icon={<Heart className="h-4 w-4" />}
-            color="bg-emerald-600"
-          />
-          <HeroCard
-            label="Viral posts"
-            value={fmt(data.hero.viralPosts)}
-            sub={`≥ ${compact(data.hero.viralThreshold)} views (3× median)`}
-            icon={<Flame className="h-4 w-4" />}
-            color="bg-amber-500"
-          />
-        </div>
-
-        {/* WoW deltas */}
-        {data.wow && (
-          <div className="report-card mt-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
-            <div>
-              <p className="text-xs text-slate-400">Posts vs prev period</p>
-              <div className="mt-1">
-                <DeltaPill delta={data.wow.posts.delta} pctChange={data.wow.posts.pctChange} />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Views vs prev period</p>
-              <div className="mt-1">
-                <DeltaPill delta={data.wow.views.delta} pctChange={data.wow.views.pctChange} />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Engagement vs prev period</p>
-              <div className="mt-1">
-                <DeltaPill
-                  delta={data.wow.engagements.delta}
-                  pctChange={data.wow.engagements.pctChange}
-                />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Viral vs prev period</p>
-              <div className="mt-1">
-                <DeltaPill
-                  delta={data.wow.viralPosts.delta}
-                  pctChange={data.wow.viralPosts.pctChange}
-                />
-              </div>
-            </div>
+        <div className="rounded-2xl bg-bone-100 px-12 py-10">
+          <div className="mb-0 flex justify-between font-mono text-[11px] tracking-[0.02em] text-ink-900/45">
+            <span>performance overview</span>
+            <span>vs. previous period</span>
           </div>
-        )}
-
-        {/* Trend */}
-        <div className="mt-6">
-          <SectionCard title="Views over time" hint="cumulative">
-            {trendData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={trendData}>
-                  <defs>
-                    <linearGradient id="rv" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                  <YAxis tickFormatter={compact} tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                  <Tooltip formatter={(value) => [`${fmt(Number(value))} views`, ""]} />
-                  <Area
-                    type="monotone"
-                    dataKey="views"
-                    stroke="#3b82f6"
-                    fill="url(#rv)"
-                    strokeWidth={2}
+          <div className="mt-7 grid grid-cols-4 border-t border-bone-200">
+            <div className="border-r border-bone-200 py-6 pr-8">
+              <p className="font-display text-[40px] font-extrabold leading-none tracking-tight text-royal-500">
+                {fmt(data.hero.postsShipped)}
+              </p>
+              <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.07em] text-ink-500">
+                posts shipped
+              </p>
+              {data.wow && (
+                <div className="mt-2.5">
+                  <DeltaPill
+                    delta={data.wow.posts.delta}
+                    pctChange={data.wow.posts.pctChange}
                   />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-slate-400">No trend data yet.</p>
-            )}
-          </SectionCard>
-        </div>
-
-        {/* Platform leaderboard */}
-        <div className="mt-6">
-          <SectionCard title="Platform leaderboard">
-            <div className="space-y-3">
-              {data.platforms.map((p) => {
-                const isLeader = p.platform === data.leaderPlatform;
-                return (
-                  <div
-                    key={p.platform}
-                    className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
-                      isLeader ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-slate-800">
-                        {platformLabel(p.platform)}
-                      </span>
-                      {isLeader && (
-                        <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white">
-                          Leader
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-6 text-right">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800">{compact(p.views)}</p>
-                        <p className="text-[10px] uppercase text-slate-400">views</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800">{pct(p.engagementRate)}</p>
-                        <p className="text-[10px] uppercase text-slate-400">eng rate</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800">{fmt(p.posts)}</p>
-                        <p className="text-[10px] uppercase text-slate-400">posts</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800">{compact(p.viewsPerPost)}</p>
-                        <p className="text-[10px] uppercase text-slate-400">views/post</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              {data.platforms.length === 0 && (
-                <p className="text-sm text-slate-400">No posts yet.</p>
+                </div>
               )}
             </div>
-            {data.underperformingPlatform && (
-              <p className="mt-3 text-xs text-slate-500">
-                Lagging:{" "}
-                <span className="font-medium text-slate-700">
-                  {platformLabel(data.underperformingPlatform)}
-                </span>{" "}
-                — lowest reach this period.
+            <div className="border-r border-bone-200 px-8 py-6">
+              <p className="font-display text-[40px] font-extrabold leading-none tracking-tight text-royal-500">
+                {compact(data.hero.totalViews)}
               </p>
-            )}
-          </SectionCard>
+              <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.07em] text-ink-500">
+                total views
+              </p>
+              {data.wow && (
+                <div className="mt-2.5">
+                  <DeltaPill
+                    delta={data.wow.views.delta}
+                    pctChange={data.wow.views.pctChange}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="border-r border-bone-200 px-8 py-6">
+              <p className="font-display text-[40px] font-extrabold leading-none tracking-tight text-royal-500">
+                {pct(data.hero.engagementRate)}
+              </p>
+              <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.07em] text-ink-500">
+                engagement rate
+              </p>
+              {data.wow && (
+                <div className="mt-2.5">
+                  <DeltaPill
+                    delta={data.wow.engagements.delta}
+                    pctChange={data.wow.engagements.pctChange}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="py-6 pl-8">
+              <p className="font-display text-[40px] font-extrabold leading-none tracking-tight text-royal-500">
+                {fmt(data.hero.viralPosts)}
+              </p>
+              <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.07em] text-ink-500">
+                viral posts
+              </p>
+              {data.wow && (
+                <div className="mt-2.5">
+                  <DeltaPill
+                    delta={data.wow.viralPosts.delta}
+                    pctChange={data.wow.viralPosts.pctChange}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
+        {/* Trend */}
+        <SectionCard title="Views over time" hint="cumulative">
+          {trendData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={trendData}>
+                <defs>
+                  <linearGradient id="rv" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#054FF0" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#054FF0" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#EFEDE4" />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#9A9AA3" }} />
+                <YAxis tickFormatter={compact} tick={{ fontSize: 11, fill: "#9A9AA3" }} />
+                <Tooltip
+                  contentStyle={TOOLTIP_STYLE}
+                  formatter={(value) => [`${fmt(Number(value))} views`, ""]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="views"
+                  stroke="#054FF0"
+                  fill="url(#rv)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-sm text-slate-400">No trend data yet.</p>
+          )}
+        </SectionCard>
+
+        {/* Platform leaderboard */}
+        <SectionCard title="Platform leaderboard">
+          <div className="space-y-3">
+            {data.platforms.map((p) => {
+              const isLeader = p.platform === data.leaderPlatform;
+              return (
+                <div
+                  key={p.platform}
+                  className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
+                    isLeader
+                      ? "border-royal-200 bg-royal-100"
+                      : "border-bone-200 bg-white"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-display text-[15px] font-bold lowercase text-ink-900">
+                      {platformLabel(p.platform)}
+                    </span>
+                    {isLeader && (
+                      <span className="rounded-full bg-royal-500 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em] text-white">
+                        Leader
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-6 text-right">
+                    <div>
+                      <p className="font-display text-[15px] font-bold text-ink-900">
+                        {compact(p.views)}
+                      </p>
+                      <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.07em] text-ink-300">
+                        views
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-display text-[15px] font-bold text-ink-900">
+                        {pct(p.engagementRate)}
+                      </p>
+                      <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.07em] text-ink-300">
+                        eng rate
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-display text-[15px] font-bold text-ink-900">
+                        {fmt(p.posts)}
+                      </p>
+                      <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.07em] text-ink-300">
+                        posts
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-display text-[15px] font-bold text-ink-900">
+                        {compact(p.viewsPerPost)}
+                      </p>
+                      <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.07em] text-ink-300">
+                        views/post
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {data.platforms.length === 0 && (
+              <p className="text-sm text-slate-400">No posts yet.</p>
+            )}
+          </div>
+          {data.underperformingPlatform && (
+            <p className="mt-3 font-mono text-[11px] text-ink-500">
+              Lagging:{" "}
+              <span className="font-medium text-ink-700">
+                {platformLabel(data.underperformingPlatform)}
+              </span>{" "}
+              — lowest reach this period.
+            </p>
+          )}
+        </SectionCard>
+
         {/* Top viral posts */}
-        <div className="mt-6">
-          <SectionCard title="Top performing posts" hint="by views">
-            <div className="space-y-2">
-              {data.topViralPosts.map((post, idx) => (
+        <SectionCard title="Top performing posts" hint="by views">
+          <div className="space-y-2">
+            {data.topViralPosts.map((post, idx) => (
+              <a
+                key={post.id}
+                href={post.link}
+                target="_blank"
+                rel="noreferrer"
+                className="group flex items-center gap-3 rounded-lg border border-bone-200 bg-white px-3 py-2.5 transition-colors hover:border-royal-200 hover:bg-royal-100"
+              >
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-bone-200 font-mono text-[11px] text-ink-500">
+                  {idx + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-display text-[14px] font-semibold text-ink-900">
+                    {post.caption || "Untitled"}
+                  </p>
+                  <p className="mt-0.5 font-mono text-[11px] text-ink-300">
+                    {post.creatorName} · @{post.creatorHandle} ·{" "}
+                    {platformLabel(post.platform)} ·{" "}
+                    {format(new Date(post.postedAt), "MMM d")}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-display text-[15px] font-bold text-ink-900">
+                    {compact(post.views)}
+                  </p>
+                  <p className="mt-0.5 font-mono text-[11px] text-ink-300">
+                    {pct(post.engagementRate)} eng
+                  </p>
+                </div>
+                <ExternalLink className="h-4 w-4 shrink-0 text-ink-300 group-hover:text-royal-500" />
+              </a>
+            ))}
+            {data.topViralPosts.length === 0 && (
+              <p className="text-sm text-slate-400">No posts yet.</p>
+            )}
+          </div>
+        </SectionCard>
+
+        {/* Top captions */}
+        {data.topCaptions.length > 0 && (
+          <SectionCard title="Top captions" hint="highest engagement">
+            <div className="space-y-3">
+              {data.topCaptions.map((post) => (
                 <a
                   key={post.id}
                   href={post.link}
                   target="_blank"
                   rel="noreferrer"
-                  className="group flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2 hover:bg-blue-50"
+                  className="group block rounded-lg border border-bone-200 bg-white p-3 transition-colors hover:border-royal-200 hover:bg-royal-100"
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-medium text-slate-500">
-                    {idx + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-700">
-                      {post.caption || "Untitled"}
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-display text-[14px] text-ink-900">
+                      {post.caption}
                     </p>
-                    <p className="text-xs text-slate-400">
-                      {post.creatorName} · @{post.creatorHandle} ·{" "}
-                      {platformLabel(post.platform)} ·{" "}
-                      {format(new Date(post.postedAt), "MMM d")}
-                    </p>
+                    <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-ink-300 group-hover:text-royal-500" />
                   </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold text-slate-800">{compact(post.views)}</p>
-                    <p className="text-[10px] text-slate-400">{pct(post.engagementRate)} eng</p>
-                  </div>
-                  <ExternalLink className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-blue-500" />
+                  <p className="mt-1 font-mono text-[11px] text-ink-300">
+                    {post.creatorName} · @{post.creatorHandle} ·{" "}
+                    {platformLabel(post.platform)} · {pct(post.engagementRate)} engagement ·{" "}
+                    {compact(post.views)} views
+                  </p>
                 </a>
               ))}
-              {data.topViralPosts.length === 0 && (
-                <p className="text-sm text-slate-400">No posts yet.</p>
-              )}
             </div>
           </SectionCard>
-        </div>
-
-        {/* Top captions */}
-        {data.topCaptions.length > 0 && (
-          <div className="mt-6">
-            <SectionCard title="Top captions" hint="highest engagement">
-              <div className="space-y-3">
-                {data.topCaptions.map((post) => (
-                  <a
-                    key={post.id}
-                    href={post.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="group block rounded-lg border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm text-slate-700">{post.caption}</p>
-                      <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-slate-300 group-hover:text-blue-500" />
-                    </div>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {post.creatorName} · @{post.creatorHandle} ·{" "}
-                      {platformLabel(post.platform)} · {pct(post.engagementRate)} engagement ·{" "}
-                      {compact(post.views)} views
-                    </p>
-                  </a>
-                ))}
-              </div>
-            </SectionCard>
-          </div>
         )}
 
         {/* Posting time + caption length */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <SectionCard title="Best day to post" hint="avg views by weekday">
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={data.postingByDay}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                <YAxis tickFormatter={compact} tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                <Tooltip formatter={(value) => [fmt(Number(value)), "avg views"]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#EFEDE4" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9A9AA3" }} />
+                <YAxis tickFormatter={compact} tick={{ fontSize: 11, fill: "#9A9AA3" }} />
+                <Tooltip
+                  contentStyle={TOOLTIP_STYLE}
+                  formatter={(value) => [fmt(Number(value)), "avg views"]}
+                />
                 <Bar dataKey="avgViews" radius={[4, 4, 0, 0]}>
                   {data.postingByDay.map((d, i) => (
-                    <Cell key={i} fill={d.posts > 0 ? "#3b82f6" : "#e2e8f0"} />
+                    <Cell key={i} fill={d.posts > 0 ? "#054FF0" : "#C7D7FB"} />
                   ))}
                 </Bar>
               </BarChart>
@@ -468,64 +513,92 @@ export function ClientReport({ data }: { data: ReportData }) {
           <SectionCard title="Caption length sweet spot" hint="avg views by length">
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={data.captionLength}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="bucket" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                <YAxis tickFormatter={compact} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#EFEDE4" vertical={false} />
+                <XAxis dataKey="bucket" tick={{ fontSize: 11, fill: "#9A9AA3" }} />
+                <YAxis tickFormatter={compact} tick={{ fontSize: 11, fill: "#9A9AA3" }} />
                 <Tooltip
+                  contentStyle={TOOLTIP_STYLE}
                   formatter={(value, _n, item) => [
                     fmt(Number(value)),
                     `${item?.payload?.posts ?? 0} posts`,
                   ]}
                 />
-                <Bar dataKey="avgViews" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="avgViews" fill="#054FF0" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </SectionCard>
         </div>
 
         {/* Per-creator breakdown */}
-        <div className="mt-6">
-          <SectionCard title="Creator breakdown">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
-                    <th className="pb-2 font-medium">Creator</th>
-                    <th className="pb-2 text-right font-medium">Posts</th>
-                    <th className="pb-2 text-right font-medium">Views</th>
-                    <th className="pb-2 text-right font-medium">Eng rate</th>
-                    <th className="pb-2 text-right font-medium">Best post</th>
+        <SectionCard title="Creator breakdown">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-bone-200 text-left">
+                  <th className="pb-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.07em] text-ink-300">
+                    Creator
+                  </th>
+                  <th className="pb-2.5 text-right font-mono text-[10px] font-medium uppercase tracking-[0.07em] text-ink-300">
+                    Posts
+                  </th>
+                  <th className="pb-2.5 text-right font-mono text-[10px] font-medium uppercase tracking-[0.07em] text-ink-300">
+                    Views
+                  </th>
+                  <th className="pb-2.5 text-right font-mono text-[10px] font-medium uppercase tracking-[0.07em] text-ink-300">
+                    Eng rate
+                  </th>
+                  <th className="pb-2.5 text-right font-mono text-[10px] font-medium uppercase tracking-[0.07em] text-ink-300">
+                    Best post
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.creators.map((c) => (
+                  <tr key={c.creatorId} className="border-b border-bone-200">
+                    <td className="py-3">
+                      <p className="font-display text-[14px] font-semibold text-ink-900">
+                        {c.name}
+                      </p>
+                      <p className="mt-0.5 font-mono text-[11px] text-ink-300">
+                        @{c.handle}
+                      </p>
+                    </td>
+                    <td className="py-3 text-right font-display text-[14px] font-bold text-ink-900">
+                      {fmt(c.posts)}
+                    </td>
+                    <td className="py-3 text-right font-display text-[14px] font-bold text-ink-900">
+                      {compact(c.views)}
+                    </td>
+                    <td className="py-3 text-right font-display text-[14px] font-bold text-ink-900">
+                      {pct(c.engagementRate)}
+                    </td>
+                    <td className="py-3 text-right font-display text-[14px] font-bold text-ink-900">
+                      {compact(c.bestPostViews)}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {data.creators.map((c) => (
-                    <tr key={c.creatorId} className="border-b border-slate-100">
-                      <td className="py-2">
-                        <p className="font-medium text-slate-700">{c.name}</p>
-                        <p className="text-xs text-slate-400">@{c.handle}</p>
-                      </td>
-                      <td className="py-2 text-right text-slate-700">{fmt(c.posts)}</td>
-                      <td className="py-2 text-right text-slate-700">{compact(c.views)}</td>
-                      <td className="py-2 text-right text-slate-700">{pct(c.engagementRate)}</td>
-                      <td className="py-2 text-right text-slate-700">{compact(c.bestPostViews)}</td>
-                    </tr>
-                  ))}
-                  {data.creators.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="py-3 text-center text-slate-400">
-                        No creators yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </SectionCard>
-        </div>
+                ))}
+                {data.creators.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-3 text-center text-slate-400">
+                      No creators yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
 
-        <p className="mt-8 text-center text-xs text-slate-400">
-          Generated {format(new Date(data.generatedAt), "MMM d, yyyy 'at' h:mm a")} · DropDeck
-        </p>
+        {/* Footer strip */}
+        <div
+          className="flex items-center justify-between rounded-2xl px-12 py-6"
+          style={ROYAL_SURFACE}
+        >
+          <BrandMark tone="light" size="sm" />
+          <span className="font-mono text-[11px] tracking-[0.03em] text-white/40">
+            {format(new Date(data.generatedAt), "MMM d, yyyy 'at' h:mm a")}
+          </span>
+        </div>
       </div>
     </div>
   );

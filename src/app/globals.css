@@ -55,6 +55,25 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* Inter display face for the dropdeck client-report refresh. */
+  --font-display: var(--font-inter);
+}
+
+/* dropdeck design-system color scale — used by the client report refresh.
+ * royal/bone/lime overlap the existing --brand-* values; ink is the report's
+ * neutral text ramp. Generates bg-/text-/border- utilities + opacity mods. */
+@theme {
+  --color-royal-100: #e6eefe;
+  --color-royal-200: #c7d7fb;
+  --color-royal-500: #054ff0;
+  --color-royal-600: #043fc0;
+  --color-bone-100: #f9f8f3;
+  --color-bone-200: #efede4;
+  --color-ink-300: #9a9aa3;
+  --color-ink-500: #4d4d55;
+  --color-ink-700: #232328;
+  --color-ink-900: #0b0b0e;
+  --color-lime-500: #dcfc73;
 }
 
 :root {
@@ -165,4 +184,12 @@
   color: #0a0a0a;
   padding: 0 0.15em;
   border-radius: 0.1em;
+}
+
+/* Scope JetBrains Mono to the client report only. The `font-mono` utility
+ * resolves to var(--font-geist-mono); repointing it inside #client-report
+ * swaps the report's mono voice to JetBrains while the rest of the app keeps
+ * Geist Mono. */
+#client-report {
+  --font-geist-mono: var(--font-jetbrains-mono);
 }

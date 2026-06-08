@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
@@ -18,6 +18,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Inter (display) + JetBrains Mono (labels) — scoped to the dropdeck client
+// report surface via #client-report in globals.css. The rest of the app keeps
+// Geist / Geist Mono.
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: `${BRAND_NAME} — ugc campaign management`,
   description:
@@ -32,7 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geist.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geist.variable} ${geistMono.variable} ${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-background font-sans text-foreground">
         <AuthSessionProvider>
