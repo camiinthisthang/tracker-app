@@ -147,10 +147,12 @@ function RangeControl({
     apply(start.toISOString().slice(0, 10), end.toISOString().slice(0, 10));
   };
 
+  // Rendered on the royal-blue header, so the controls read on a dark surface.
+  // color-scheme:dark makes the native date text + calendar glyph light.
   const inputCls =
-    "rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-700 focus:border-blue-500 focus:outline-none";
+    "rounded-full border border-white/30 bg-white/15 px-3 py-1.5 font-mono text-[12px] text-white [color-scheme:dark] focus:border-white/60 focus:outline-none";
   const presetCls =
-    "rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600";
+    "rounded-full border border-white/30 bg-white/15 px-3 py-1.5 font-mono text-[11px] text-white hover:bg-white/25";
 
   return (
     <div className="print-hidden flex flex-wrap items-center gap-2">
@@ -161,7 +163,7 @@ function RangeControl({
         onChange={(e) => apply(e.target.value, to)}
         className={inputCls}
       />
-      <span className="text-slate-400">→</span>
+      <span className="text-white/60">→</span>
       <input
         type="date"
         value={to}

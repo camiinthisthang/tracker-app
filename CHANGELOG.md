@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-06-08 12:05 — client report polish: legible header controls + live-campaign count
+Follow-up to the visual refresh based on Cami's review of the live report.
+
+- `src/components/reports/client-report.tsx`: the `RangeControl` date inputs + Week/Month presets and the `→` separator were still styled for a white surface (slate borders/text), so they were near-illegible on the royal-blue header. Restyled as translucent-white pills (`border-white/30 bg-white/15 text-white`, mono) matching the Download PDF button; added `[color-scheme:dark]` so the native date text + calendar glyph render light. Logic untouched.
+- `src/lib/reports/report-data.ts`: client-scope subtitle counted every campaign ever created for the team (e.g. "3 campaigns" for Merit when only 1 is live). Now counts only `isActive` campaigns. Data aggregation across the window is unchanged.
+- Tested: `npm run build` passes.
+
 ## 2026-06-08 01:55 — client report visual refresh (dropdeck design system)
 Pure styling pass on the client/campaign report — no data, props, or logic changes.
 

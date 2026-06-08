@@ -200,11 +200,15 @@ export async function computeReport(
     });
     const campaigns = await prisma.campaign.findMany({
       where: { teamId: scope.teamId },
-      select: { id: true, startDate: true, endDate: true },
+      select: { id: true, startDate: true, endDate: true, isActive: true },
     });
     if (!team) throw new Error(`Team ${scope.teamId} not found`);
     title = team.name;
-    subtitle = `${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"}`;
+    // Subtitle counts only currently-live campaigns so a client's lifetime of
+    // wrapped campaigns doesn't inflate the number. Data below still aggregates
+    // across the full window.
+    const activeCount = campaigns.filter((c) => c.isActive).length;
+    subtitle = `${activeCount} campaign${activeCount === 1 ? "" : "s"}`;
     campaignIds = campaigns.map((c) => c.id);
     campaignEnd = campaigns.length
       ? new Date(Math.max(...campaigns.map((c) => c.endDate.getTime())))
