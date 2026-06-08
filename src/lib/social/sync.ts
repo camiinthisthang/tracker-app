@@ -110,6 +110,9 @@ export async function syncCampaign(campaignId: string) {
         posts: HASHTAG_FILTERING_ENABLED
           ? filterByHashtags(inWindow, campaign.hashtags)
           : inWindow,
+        // Raw in-window externalIds (pre-hashtag-filter) — the source of truth
+        // for reconciling deletions below.
+        liveExternalIds: inWindow.map((p) => p.externalId),
         success: true,
       };
     } catch (error) {
@@ -121,7 +124,12 @@ export async function syncCampaign(campaignId: string) {
         creator: task.cc.creator.handle,
         reason: `${task.platform} fetch failed`,
       });
-      return { task, posts: [] as SocialPost[], success: false };
+      return {
+        task,
+        posts: [] as SocialPost[],
+        liveExternalIds: [] as string[],
+        success: false,
+      };
     }
   });
 
@@ -142,7 +150,7 @@ export async function syncCampaign(campaignId: string) {
   // doesn't match the handle we just successfully synced. PostMetricsSnapshot
   // cascades on Post delete.
   let totalPrunedStale = 0;
-  for (const { task, success } of fetchResults) {
+  for (const { task, success, liveExternalIds } of fetchResults) {
     if (!success) continue;
     const cleanHandle = task.handle.trim().replace(/^@+/, "");
     if (!cleanHandle) continue;
@@ -154,6 +162,23 @@ export async function syncCampaign(campaignId: string) {
       },
     });
     totalPrunedStale += pruned.count;
+
+    // Reconcile deletions: drop in-window posts on this (creator, platform)
+    // whose externalId no longer appears in the latest scrape (deleted from the
+    // platform). Guarded by a non-empty live set so a soft-empty scrape can't
+    // wipe real posts; window-scoped so the 60-post scrape cap can't delete
+    // older out-of-window posts.
+    if (liveExternalIds.length > 0) {
+      const deleted = await prisma.post.deleteMany({
+        where: {
+          creatorId: task.cc.creatorId,
+          platform: task.platform,
+          postedAt: { gte: windowStart, lt: windowEnd },
+          externalId: { notIn: liveExternalIds },
+        },
+      });
+      totalPrunedStale += deleted.count;
+    }
   }
 
   // Update campaign daily metrics

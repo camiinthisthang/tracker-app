@@ -27,6 +27,17 @@ tangent.
 
 ---
 
+## 2026-06-08 12:40 — fix: sync never removed deleted posts (ghost post counts)
+Creator post counts drifted above reality (e.g. Sophia showed 12 IG posts vs 4 live) and re-syncing didn't fix it.
+
+**Root cause** — both sync paths were additive. They upsert scraped posts by `platform_externalId` and only pruned posts (a) outside the campaign window or (b) under a changed handle. A video deleted on-platform but with the same handle and in-window stayed in the DB forever; re-sync just re-upserted the live ones and left the ghosts. Confirmed by scraping Sophia.aitips live: Apify returns exactly 4 video items, matching IG; the other 8 were deleted reels.
+
+**Fix — reconcile deletions after a successful scrape**
+- `src/app/api/creators/[creatorId]/sync/route.ts` (manual "Sync videos" button) and `src/lib/social/sync.ts` (daily cron): after upserting, for each platform that returned results, delete in-window posts whose `externalId` is not in the freshly-scraped live set.
+- Safety guards: only runs when the live set is non-empty (a failed/blocked scrape returns `[]` → no prune, can't wipe real posts) and is window-scoped (the 60-post scrape cap can't delete older out-of-window posts). PostMetricsSnapshot cascades on Post delete. Manual route returns a `prunedDeleted` count.
+- Effect: the next daily cron auto-cleans ghosts for every creator; clicking "Sync videos" on a creator fixes them immediately. Sophia → 12 drops to 4 IG.
+- Tested: `npm run build` passes; verified live scrape returns 4 for Sophia.
+
 ## 2026-06-08 12:05 — client report polish: legible header controls + live-campaign count
 Follow-up to the visual refresh based on Cami's review of the live report.
 

@@ -178,10 +178,40 @@ export async function POST(
     upserted++;
   }
 
+  // Reconcile deletions: for each platform that returned results, drop in-window
+  // posts whose externalId no longer appears on the platform (deleted videos —
+  // e.g. a creator who took down 8 of 12 reels). Guarded by a non-empty live
+  // set so a failed or soft-empty scrape can't wipe real posts. Scoped to the
+  // campaign window, matching what the upsert above writes.
+  let prunedDeleted = 0;
+  if (campaignId && windowStart && windowEnd) {
+    const byPlatform: [SocialPost["platform"], SocialPost[]][] = [
+      ["TIKTOK", tiktokPosts],
+      ["INSTAGRAM", instagramPosts],
+    ];
+    for (const [platform, posts] of byPlatform) {
+      const liveIds = posts
+        .filter((p) => p.postedAt >= windowStart && p.postedAt < windowEnd)
+        .map((p) => p.externalId);
+      if (liveIds.length === 0) continue;
+      const del = await prisma.post.deleteMany({
+        where: {
+          campaignId,
+          creatorId,
+          platform,
+          postedAt: { gte: windowStart, lt: windowEnd },
+          externalId: { notIn: liveIds },
+        },
+      });
+      prunedDeleted += del.count;
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     fetched: allPosts.length,
     upserted,
+    prunedDeleted,
     droppedOutOfRange,
     prunedOutOfRange,
     tiktokPosts: tiktokPosts.length,
