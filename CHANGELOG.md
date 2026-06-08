@@ -27,7 +27,33 @@ tangent.
 
 ---
 
-## 2026-06-02 13:20 — goal rings count only the canonical platform + crosspost audit
+## 2026-06-08 01:55 — client report visual refresh (dropdeck design system)
+Pure styling pass on the client/campaign report — no data, props, or logic changes.
+
+- `src/components/reports/client-report.tsx`: royal-blue grain header + footer strips, single bone KPI block with inline WoW deltas (replaces the 4 colored hero cards + separate WoW row), mono chrome labels on section cards, royal/ink/bone tokens across leaderboard/top-posts/captions/creator table, `#054FF0` chart fills, dark mono chart tooltips. All `data.*` bindings, formatters, `RangeControl`, `DeltaPill` semantics, and `window.print()` untouched. Grain is an inline SVG noise data-URI (no `/grain.png` asset needed); footer uses the existing `BrandMark`.
+- `src/app/layout.tsx`: load Inter (`--font-inter`) + JetBrains Mono (`--font-jetbrains-mono`) via next/font.
+- `src/app/globals.css`: dropdeck royal/bone/ink/lime color scales, `--font-display`, and `#client-report`-scoped JetBrains mono (rest of app keeps Geist).
+- Tested: `npm run build` passes; rendered `/reports/preview` live (HTTP 200, no error overlay, tokens + fonts resolve).
+
+## 2026-06-08 01:50 — fix: creator page weekly-goal header double-counted cross-posts
+- `src/app/(admin)/creators/[creatorId]/page.tsx`: header `postsThisWeek` used `weekPosts.length` (both platforms) while the day rings used `goalWeekPosts` (goal platform only), so cross-posters saw e.g. 10 in the header vs rings summing to 5. Pointed the header at `goalWeekPosts.length` so header, rings, and the `/weeklyTarget` denominator all use the canonical-platform count.
+- Tested: `npm run build` passes.
+
+## 2026-06-08 01:40 — fix: weekly goal rings blank for all creators (timezone)
+Every creator's weekly progress rings went blank on prod simultaneously around Sun 7pm Central, despite working earlier the same evening.
+
+**Root cause — week window computed in server timezone (UTC on Vercel)**
+- All 5 ring sites compute "this week" via `startOfWeek(now, { weekStartsOn: 1 })`, which uses the server's local timezone. Vercel runs in UTC, so the week boundary falls at **Mon 00:00 UTC = Sun 7pm Central**. The instant that passed, prod rolled into a brand-new (empty) week → all rings zero. In Central it was still Sunday, so the posts were "this week" to the user but outside prod's window.
+- Not caused by `goalPlatformFor` / the canonical-platform filter (red herring — the new week was empty for *all* platforms). No data loss; posts are intact, just in the prior week relative to UTC.
+- Recurring: would have reset rings early every Sunday 7pm Central and mis-bucketed Sunday-evening posts.
+
+**Fix — pin the app to the agency timezone in code**
+- `TZ` turned out to be a **reserved env-var name on Vercel** (the dashboard/CLI reject it), so the env-var route is out.
+- Added `src/instrumentation.ts` — Next.js runs `register()` once at server startup; it force-sets `process.env.TZ = "America/Chicago"` in the Node runtime. Verified Node honors a runtime TZ change: the week window then resolves to Mon Jun 1 00:00 → Mon Jun 8 00:00 Central (correct) instead of the empty UTC Jun 8 → Jun 15.
+- Also added `TZ="America/Chicago"` to local `.env` (gitignored) so non-Next tooling (tsx scripts, prisma) matches.
+- Fixes all 5 ring sites + the views chart + every server-side date calc at once. Deploys via normal git push (no env change needed).
+
+
 Creators cross-post the same video to IG and TikTok, so counting both platforms double-counts each video.
 
 **Ring math — IG-only with TikTok fallback**
