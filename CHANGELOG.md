@@ -27,6 +27,38 @@ tangent.
 
 ---
 
+## 2026-06-09 17:10 — fix: Week 1 timezone, soft-cut creators, week tooltip
+
+Follow-ups on the Contract Tracker after review. No schema/DB changes —
+soft-cut reuses the existing `CampaignCreator.isActive` column.
+
+- **Week 1 timezone bug:** campaign start/end are stored midnight-UTC, so in a
+  west-of-UTC server tz they read back a day early — pushing Week 1 a week
+  before any posts (e.g. a May 25 Monday start became May 18, empty). Added
+  `calendarDate()` (reads UTC y/m/d as local midnight) for week generation in
+  `progress/page.tsx`. Week 1 now aligns with the data.
+- **Soft-cut creators:** removing a creator from a campaign (trash icon) now
+  soft-cuts an existing creator (`isActive=false`) instead of silently doing
+  nothing — keeps their posts/history, stops syncing, stops pace expectations.
+  Brand-new unsaved rows are still just dropped. Reverted the earlier
+  hard-DELETE attempt.
+  - Cut creators render muted + "Cut" badge, sorted to the bottom, in the edit
+    form, the weekly rings (`creator-progress.tsx`), and the Contract Tracker
+    (`contract-tracker.tsx`). Pace shows neutral "Cut" instead of "Behind".
+    Reactivate via the per-creator Active switch.
+  - Threaded `isActive` through `CreatorProgress` / `ContractCreatorRow` and
+    both campaign overview + progress pages.
+- **Week headers:** swapped the unreliable native `title` for a styled hover
+  bubble (matches the Pace ⓘ popover) showing the week's date range.
+- **Tested:** `npm run build` passes; `tsc --noEmit` clean. Verified against
+  prod data: poncho month 1 buckets 89 / 144 / 28 across Weeks 1–3.
+- **Cost:** none.
+
+### Drive-by observations
+- The campaign **edit form's date fields** likely render the day *before* the
+  real start/end (same midnight-UTC shift) — risk of nudging dates earlier on
+  save. Not fixed here; flagged for a follow-up.
+
 ## 2026-06-09 15:39 — feat: campaign Contract Tracker + creator-progress tab
 
 New section on `/campaigns/[id]/progress` for tracking contracted-vs-delivered

@@ -137,6 +137,7 @@ export default async function CampaignOverviewPage({
         creatorId: cc.creatorId,
         creatorName: cc.creator.name,
         creatorHandle: cc.creator.handle,
+        isActive: cc.isActive,
         videosPerDay: dailyTarget,
         weeklyTarget,
         postsThisWeek: creatorPosts.length,

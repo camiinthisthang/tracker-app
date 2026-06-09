@@ -48,6 +48,16 @@ function toISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * Reads a stored date's calendar day (its UTC components) as a local-midnight
+ * Date. Campaign start/end are saved as midnight UTC, so in a west-of-UTC
+ * server timezone they read back as the *previous* day — which pushed Week 1 a
+ * week early (e.g. a May 25 Monday start became May 18) and left it empty.
+ */
+function calendarDate(d: Date): Date {
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
 export default async function CampaignProgressPage({
   params,
   searchParams,
@@ -68,7 +78,10 @@ export default async function CampaignProgressPage({
 
   if (!campaign) notFound();
 
-  const weekStarts = listCampaignWeeks(campaign.startDate, campaign.endDate);
+  const weekStarts = listCampaignWeeks(
+    calendarDate(campaign.startDate),
+    calendarDate(campaign.endDate)
+  );
   const currentWeekStart = startOfWeek(new Date(), WEEK_OPTS);
   const currentISO = toISODate(currentWeekStart);
 
@@ -122,6 +135,7 @@ export default async function CampaignProgressPage({
       creatorId: cc.creatorId,
       creatorName: cc.creator.name,
       creatorHandle: cc.creator.handle,
+      isActive: cc.isActive,
       videosPerDay: dailyTarget,
       weeklyTarget,
       postsThisWeek: creatorPosts.length,
@@ -174,6 +188,7 @@ export default async function CampaignProgressPage({
       creatorId: cc.creatorId,
       creatorName: cc.creator.name,
       creatorHandle: cc.creator.handle,
+      isActive: cc.isActive,
       contractedTiktok: cc.contractedTiktok,
       contractedInstagram: cc.contractedInstagram,
       postedTiktok,
