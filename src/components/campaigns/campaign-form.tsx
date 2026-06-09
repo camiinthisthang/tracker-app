@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, X } from "lucide-react";
@@ -85,6 +85,16 @@ export function CampaignForm({
 
   // Creator rows
   const [creators, setCreators] = useState<CreatorRow[]>(initialData?.creators ?? []);
+  // Creators present when the form loaded. On save we DELETE any of these that
+  // were removed from the list — the PATCH endpoint only upserts what's sent,
+  // it never deletes, so without this removals don't actually stick.
+  const initialCreatorIds = useRef(
+    new Set(
+      (initialData?.creators ?? [])
+        .map((c) => c.creatorId)
+        .filter((id): id is string => !!id)
+    )
+  );
 
   function addCreatorRow() {
     setCreators([
@@ -106,8 +116,18 @@ export function CampaignForm({
     );
   }
 
+  // Trash button. For a creator that's already on the campaign, this is a soft
+  // "cut": flip isActive=false so we keep their posts/history but stop syncing
+  // and stop expecting future posts. For a brand-new unsaved row, just drop it.
   function removeCreator(id: string) {
-    setCreators(creators.filter((c) => c.id !== id));
+    const row = creators.find((c) => c.id === id);
+    if (row && row.creatorId && initialCreatorIds.current.has(row.creatorId)) {
+      setCreators(
+        creators.map((c) => (c.id === id ? { ...c, isActive: false } : c))
+      );
+    } else {
+      setCreators(creators.filter((c) => c.id !== id));
+    }
   }
 
   function addHashtag() {
@@ -488,7 +508,9 @@ export function CampaignForm({
               return (
                 <div
                   key={creator.id}
-                  className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_100px_120px_60px_40px] sm:items-center"
+                  className={`grid grid-cols-1 gap-3 sm:grid-cols-[1fr_100px_120px_60px_40px] sm:items-center ${
+                    creator.isActive ? "" : "opacity-60"
+                  }`}
                 >
                   <Select
                     value={creator.creatorId}
@@ -498,9 +520,16 @@ export function CampaignForm({
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pick a creator">
-                        {selected
-                          ? `${selected.name} · @${selected.handle}`
-                          : undefined}
+                        {selected ? (
+                          <span className="flex items-center gap-2">
+                            {!creator.isActive && (
+                              <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                Cut
+                              </span>
+                            )}
+                            {selected.name} · @{selected.handle}
+                          </span>
+                        ) : undefined}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>

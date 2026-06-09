@@ -18,6 +18,8 @@ export interface ContractCreatorRow {
   creatorId: string;
   creatorName: string;
   creatorHandle: string;
+  /** False = cut from the campaign: kept for history, not expected to post. */
+  isActive: boolean;
   contractedTiktok: number | null;
   contractedInstagram: number | null;
   postedTiktok: number;
@@ -325,17 +327,22 @@ export function ContractTracker({
                   )}
                 >
                   <span
-                    title={w.range}
-                    className="cursor-help underline decoration-dotted decoration-slate-300 underline-offset-2"
+                    tabIndex={0}
+                    className="group relative inline-block cursor-help underline decoration-dotted decoration-slate-300 underline-offset-2 focus:outline-none"
                   >
                     {w.label}
+                    <span className="pointer-events-none absolute left-1/2 top-6 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-normal text-slate-600 shadow-lg group-hover:block group-focus:block">
+                      {w.range}
+                    </span>
                   </span>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {[...rows]
+              .sort((a, b) => Number(b.isActive) - Number(a.isActive))
+              .map((row) => {
               const v = valuesFor(row, view);
               const pace = paceStatus(v.contracted, v.posted, elapsedFraction, atRisk);
               const pct =
@@ -349,15 +356,23 @@ export function ContractTracker({
               return (
                 <tr
                   key={row.creatorId}
-                  className="border-b border-slate-100 last:border-0"
+                  className={cn(
+                    "border-b border-slate-100 last:border-0",
+                    !row.isActive && "opacity-55"
+                  )}
                 >
                   <td className="sticky left-0 z-10 bg-white py-2.5 pr-3">
                     <Link
                       href={`/creators/${row.creatorId}`}
                       className="block min-w-[9rem] hover:underline"
                     >
-                      <span className="block truncate text-sm font-medium text-slate-800">
+                      <span className="flex items-center gap-1.5 truncate text-sm font-medium text-slate-800">
                         @{row.creatorHandle}
+                        {!row.isActive && (
+                          <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                            Cut
+                          </span>
+                        )}
                       </span>
                       <span className="block truncate text-xs text-slate-400">
                         {row.creatorName}
@@ -392,7 +407,13 @@ export function ContractTracker({
                     {pct == null ? "—" : `${pct}%`}
                   </td>
                   <td className="px-3 py-2.5 text-center">
-                    <PaceBadge pace={pace} />
+                    {row.isActive ? (
+                      <PaceBadge pace={pace} />
+                    ) : (
+                      <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 ring-1 ring-inset ring-slate-200">
+                        Cut
+                      </span>
+                    )}
                   </td>
                   {weeks.map((w) => {
                     const c = v.week(w.key);

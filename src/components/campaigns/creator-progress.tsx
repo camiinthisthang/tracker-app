@@ -5,6 +5,8 @@ export interface CreatorProgress {
   creatorId: string;
   creatorName: string;
   creatorHandle: string;
+  /** False = cut from the campaign: kept for history, not expected to post. */
+  isActive: boolean;
   videosPerDay: number;
   weeklyTarget: number;
   postsThisWeek: number;
@@ -73,7 +75,10 @@ export function CreatorProgressCard({
   return (
     <Link
       href={`/creators/${progress.creatorId}`}
-      className="block rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300"
+      className={cn(
+        "block rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300",
+        !progress.isActive && "opacity-60"
+      )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -81,6 +86,11 @@ export function CreatorProgressCard({
             <span className="truncate text-sm font-semibold text-slate-800">
               @{progress.creatorHandle}
             </span>
+            {!progress.isActive && (
+              <span className="shrink-0 rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Cut
+              </span>
+            )}
           </div>
           <p className="truncate text-xs text-slate-400">
             {progress.creatorName}
@@ -138,7 +148,12 @@ export function CreatorProgressSection({
 }: CreatorProgressSectionProps) {
   if (progresses.length === 0) return null;
 
-  const displayed = previewOnly ? progresses.slice(0, 3) : progresses;
+  // Cut creators sort to the bottom (and, in preview mode, yield their slots to
+  // active creators) — they're kept for history, not current expectation.
+  const ordered = [...progresses].sort(
+    (a, b) => Number(b.isActive) - Number(a.isActive)
+  );
+  const displayed = previewOnly ? ordered.slice(0, 3) : ordered;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
