@@ -278,6 +278,11 @@ model CampaignCreator {
   // `monthlyPostGoal / 4`. Null falls back to campaign.weeklyPostTarget so
   // creators without an explicit goal still get a sensible weekly number.
   monthlyPostGoal Int?
+  // Total videos the creator is contracted to deliver on each platform over the
+  // whole campaign. Tracked per-platform (contracts are split TikTok/Instagram);
+  // total contracted = the sum. Drives the contract-tracker pace flag.
+  contractedTiktok    Int?
+  contractedInstagram Int?
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
