@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { format } from "date-fns";
-import { Check, AlertTriangle } from "lucide-react";
+import { Check, AlertTriangle, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface CrosspostAuditGap {
@@ -35,16 +35,30 @@ interface Props {
 }
 
 export function CrosspostAudit({ rows, rangeLabel }: Props) {
-  const withGoalPosts = rows.filter((r) => r.goalPlatformPosts > 0);
-
-  if (withGoalPosts.length === 0) {
+  if (rows.length === 0) {
     return null;
   }
 
-  const fullyCrossposted = withGoalPosts.filter(
-    (r) => r.gaps.length === 0
+  // Classify each creator: needs-work (has gaps) and no-posts surface above the
+  // fully-crossposted ones so the problems are visible first.
+  const rank = (r: CrosspostAuditRow) =>
+    r.goalPlatformPosts === 0 ? 1 : r.gaps.length > 0 ? 0 : 2;
+  const sorted = [...rows].sort((a, b) => rank(a) - rank(b));
+
+  const needsWork = rows.filter(
+    (r) => r.goalPlatformPosts > 0 && r.gaps.length > 0
   ).length;
-  const needsWork = withGoalPosts.length - fullyCrossposted;
+  const noPosts = rows.filter((r) => r.goalPlatformPosts === 0).length;
+
+  const summaryParts: string[] = [];
+  if (needsWork > 0)
+    summaryParts.push(`${needsWork} with gaps`);
+  if (noPosts > 0)
+    summaryParts.push(`${noPosts} didn't post`);
+  const summary =
+    summaryParts.length > 0
+      ? summaryParts.join(" · ")
+      : "All goal-platform posts are crossposted ✓";
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -55,17 +69,15 @@ export function CrosspostAudit({ rows, rangeLabel }: Props) {
           </h3>
           <p className="text-xs text-slate-400">
             For each goal-platform post in {rangeLabel}, we look for a matching
-            post by the same creator on the other platform within ±24h.{" "}
-            {needsWork > 0
-              ? `${needsWork} creator${needsWork === 1 ? "" : "s"} have gaps.`
-              : "All goal-platform posts are crossposted ✓"}
+            post by the same creator on the other platform within ±24h. {summary}
           </p>
         </div>
       </div>
 
       <div className="mt-4 divide-y divide-slate-100">
-        {withGoalPosts.map((row) => {
-          const allMatched = row.gaps.length === 0;
+        {sorted.map((row) => {
+          const noPosts = row.goalPlatformPosts === 0;
+          const allMatched = !noPosts && row.gaps.length === 0;
           return (
             <div
               key={row.creatorId}
@@ -81,7 +93,7 @@ export function CrosspostAudit({ rows, rangeLabel }: Props) {
                     {row.creatorName}
                   </span>
                 </Link>
-                {!allMatched && (
+                {row.gaps.length > 0 && (
                   <ul className="mt-1.5 space-y-0.5 text-xs text-slate-500">
                     {row.gaps.slice(0, 3).map((g, i) => (
                       <li key={i}>
@@ -110,17 +122,28 @@ export function CrosspostAudit({ rows, rangeLabel }: Props) {
               <div
                 className={cn(
                   "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                  allMatched
+                  noPosts
+                    ? "bg-slate-100 text-slate-500"
+                    : allMatched
                     ? "bg-emerald-50 text-emerald-700"
                     : "bg-amber-50 text-amber-700"
                 )}
               >
-                {allMatched ? (
-                  <Check className="h-3.5 w-3.5" />
+                {noPosts ? (
+                  <>
+                    <Minus className="h-3.5 w-3.5" />
+                    No posts
+                  </>
                 ) : (
-                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <>
+                    {allMatched ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : (
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                    )}
+                    {row.matched} / {row.goalPlatformPosts} crossposted
+                  </>
                 )}
-                {row.matched} / {row.goalPlatformPosts} crossposted
               </div>
             </div>
           );

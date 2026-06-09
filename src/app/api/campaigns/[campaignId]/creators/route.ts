@@ -51,6 +51,62 @@ export async function POST(
   return NextResponse.json(cc, { status: 201 });
 }
 
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ campaignId: string }> }
+) {
+  const session = await getSession();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { campaignId } = await params;
+  const body = await req.json().catch(() => null);
+  const creatorId = typeof body?.creatorId === "string" ? body.creatorId : "";
+
+  if (!creatorId) {
+    return NextResponse.json({ error: "creatorId is required" }, { status: 400 });
+  }
+
+  // Only the two contract fields are editable here. Each accepts a non-negative
+  // integer or null (cleared). Absent keys are left untouched.
+  const data: { contractedTiktok?: number | null; contractedInstagram?: number | null } = {};
+  for (const key of ["contractedTiktok", "contractedInstagram"] as const) {
+    if (!(key in body)) continue;
+    const raw = body[key];
+    if (raw === null || raw === "") {
+      data[key] = null;
+    } else {
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n < 0) {
+        return NextResponse.json(
+          { error: `${key} must be a non-negative integer` },
+          { status: 400 }
+        );
+      }
+      data[key] = n;
+    }
+  }
+
+  const cc = await prisma.campaignCreator.findUnique({
+    where: { campaignId_creatorId: { campaignId, creatorId } },
+    include: { campaign: { select: { teamId: true } } },
+  });
+  if (!cc) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!hasAgencyWideAccess(session) && cc.campaign.teamId !== session.user.teamId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const updated = await prisma.campaignCreator.update({
+    where: { id: cc.id },
+    data,
+  });
+
+  return NextResponse.json(updated);
+}
+
 export async function DELETE(req: Request) {
   const session = await getSession();
   if (!session?.user) {

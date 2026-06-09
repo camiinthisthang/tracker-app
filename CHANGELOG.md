@@ -27,6 +27,37 @@ tangent.
 
 ---
 
+## 2026-06-09 15:39 — feat: campaign Contract Tracker + creator-progress tab
+
+New section on `/campaigns/[id]/progress` for tracking contracted-vs-delivered
+videos per creator, so admins can see who's behind pace and decide who to cut.
+
+- **Schema:** added `CampaignCreator.contractedTiktok` / `contractedInstagram`
+  (both `Int?`). Migration `20260609140000_add_contracted_videos` (additive,
+  nullable) — applied to the DB via `prisma migrate deploy`.
+- **API:** `PATCH /api/campaigns/[campaignId]/creators` updates the two
+  contracted fields (agency-wide access, validates non-negative int / null).
+- **Contract Tracker** (`src/components/campaigns/contract-tracker.tsx`):
+  - Per-creator table below the rings: separate inline-editable TikTok + IG
+    contracted inputs that sum, Posted, % of contract, Pace badge, and
+    per-week post columns (counts raw per-platform posts, intentionally
+    distinct from the deduped rings).
+  - Platform toggle (All / TikTok / Instagram) drives every number.
+  - Pace flag = delivered vs. `contracted × % of campaign time elapsed`
+    (Complete / On track / At risk / Behind), with a hover ⓘ legend and a
+    live-only adjustable at-risk floor (default 75%).
+  - "All creators" totals row.
+  - Week headers show "Week N" with the date range on hover; weeks auto-extend
+    from the campaign start/end dates (no manual upkeep).
+- **Nav:** added a "Creator Progress" tab to the campaign layout (2nd, after
+  Overview).
+- **Crosspost audit** (`src/components/campaigns/crosspost-audit.tsx`): now
+  lists ALL creators (was hiding anyone with no goal-platform posts this week).
+  Gaps surface first, then a gray "No posts" state, then fully-crossposted.
+- **Tested:** `npm run build` passes; `tsc --noEmit` clean; manual click-through
+  on the dev server (toggle, inline edit + save, pace badges, totals, new tab).
+- **Cost:** none (no Apify/Resend calls).
+
 ## 2026-06-08 12:40 — fix: sync never removed deleted posts (ghost post counts)
 Creator post counts drifted above reality (e.g. Sophia showed 12 IG posts vs 4 live) and re-syncing didn't fix it.
 

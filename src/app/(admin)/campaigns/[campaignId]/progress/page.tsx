@@ -11,6 +11,11 @@ import {
   WeekSelector,
   type WeekOption,
 } from "@/components/campaigns/week-selector";
+import {
+  ContractTracker,
+  type ContractCreatorRow,
+  type ContractWeek,
+} from "@/components/campaigns/contract-tracker";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -124,6 +129,65 @@ export default async function CampaignProgressPage({
     };
   });
 
+  // ── Contract Tracker: whole-campaign per-platform delivery + weekly split ──
+  // Unlike the rings (which dedupe cross-posts to one canonical platform), the
+  // tracker counts raw TikTok and Instagram posts separately — contracts are
+  // split per platform, so each platform's deliverables count on their own.
+  const trackerStart = weekStarts[0] ?? currentWeekStart;
+  const trackerEnd = addDays(weekStarts[weekStarts.length - 1] ?? currentWeekStart, 7);
+
+  const allPosts = await prisma.post.findMany({
+    where: {
+      campaignId,
+      postedAt: { gte: trackerStart, lt: trackerEnd },
+    },
+    select: { creatorId: true, postedAt: true, platform: true },
+  });
+
+  const weekColumns: ContractWeek[] = weekStarts.map((w, i) => ({
+    key: toISODate(w),
+    label: `Week ${i + 1}`,
+    range: `${format(w, "MMM d")} – ${format(addDays(w, 6), "MMM d, yyyy")}`,
+    isCurrent: toISODate(w) === currentISO,
+  }));
+
+  const contractRows: ContractCreatorRow[] = campaign.campaignCreators.map((cc) => {
+    const mine = allPosts.filter((p) => p.creatorId === cc.creatorId);
+    const weekly: Record<string, { tiktok: number; instagram: number }> = {};
+    for (const w of weekStarts) {
+      weekly[toISODate(w)] = { tiktok: 0, instagram: 0 };
+    }
+    let postedTiktok = 0;
+    let postedInstagram = 0;
+    for (const p of mine) {
+      const weekKey = toISODate(startOfWeek(p.postedAt, WEEK_OPTS));
+      const bucket = weekly[weekKey];
+      if (p.platform === "INSTAGRAM") {
+        postedInstagram++;
+        if (bucket) bucket.instagram++;
+      } else if (p.platform === "TIKTOK") {
+        postedTiktok++;
+        if (bucket) bucket.tiktok++;
+      }
+    }
+    return {
+      creatorId: cc.creatorId,
+      creatorName: cc.creator.name,
+      creatorHandle: cc.creator.handle,
+      contractedTiktok: cc.contractedTiktok,
+      contractedInstagram: cc.contractedInstagram,
+      postedTiktok,
+      postedInstagram,
+      weekly,
+    };
+  });
+
+  // Fraction of the campaign window elapsed, clamped 0–1, for the pace flag.
+  const totalMs = campaign.endDate.getTime() - campaign.startDate.getTime();
+  const elapsedMs = new Date().getTime() - campaign.startDate.getTime();
+  const elapsedFraction =
+    totalMs > 0 ? Math.min(Math.max(elapsedMs / totalMs, 0), 1) : 1;
+
   // Newest-first in the dropdown so the most recent / current week is on top.
   const options: WeekOption[] = [...weekStarts]
     .reverse()
@@ -149,6 +213,12 @@ export default async function CampaignProgressPage({
         previewOnly={false}
         subtitle={subtitle}
         headerRight={<WeekSelector weeks={options} current={selectedISO} />}
+      />
+      <ContractTracker
+        campaignId={campaign.id}
+        rows={contractRows}
+        weeks={weekColumns}
+        elapsedFraction={elapsedFraction}
       />
     </div>
   );
