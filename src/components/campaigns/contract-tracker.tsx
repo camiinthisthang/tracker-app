@@ -36,7 +36,8 @@ const PLATFORM_TABS: { value: PlatformView; label: string }[] = [
   { value: "instagram", label: "Instagram" },
 ];
 
-const DEFAULT_AT_RISK = 75;
+const DEFAULT_ON_TRACK = 75;
+const DEFAULT_AT_RISK = 40;
 
 /** Posted/contracted/weekly numbers for the selected platform view. */
 function valuesFor(row: ContractCreatorRow, view: PlatformView) {
@@ -69,20 +70,25 @@ function valuesFor(row: ContractCreatorRow, view: PlatformView) {
 /**
  * Pace status: did the creator deliver enough of their contract for how far
  * the campaign has progressed? expected = contracted * fraction-of-time-elapsed.
- * `atRiskPct` is the floor (% of expected) below which they flip from At risk
- * to Behind.
+ * Two tolerance bands, both % of expected and both live-adjustable:
+ *   - On track  = at or above `onTrackPct`% of expected (keeping pace, give or take)
+ *   - At risk   = between `atRiskPct`% and `onTrackPct`% (slipping)
+ *   - Behind    = under `atRiskPct`%
+ * Posting is lumpy, so On track is a band around the pace line, not a knife-edge
+ * at 100% — otherwise anyone a hair below the line reads as At risk.
  */
 function paceStatus(
   contracted: number | null,
   posted: number,
   elapsedFraction: number,
+  onTrackPct: number,
   atRiskPct: number
 ): { label: string; cls: string } | null {
   if (!contracted || contracted <= 0) return null;
   if (posted >= contracted)
     return { label: "Complete", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" };
   const expected = contracted * elapsedFraction;
-  if (posted >= expected)
+  if (posted >= expected * (onTrackPct / 100))
     return { label: "On track", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" };
   if (posted >= expected * (atRiskPct / 100))
     return { label: "At risk", cls: "bg-amber-50 text-amber-700 ring-amber-200" };
@@ -168,7 +174,13 @@ function ContractInput({
 }
 
 /** Info icon that reveals the pace-legend popover on hover/focus. */
-function PaceLegend({ atRiskPct }: { atRiskPct: number }) {
+function PaceLegend({
+  onTrackPct,
+  atRiskPct,
+}: {
+  onTrackPct: number;
+  atRiskPct: number;
+}) {
   return (
     <span className="group relative inline-flex">
       <button
@@ -183,7 +195,8 @@ function PaceLegend({ atRiskPct }: { atRiskPct: number }) {
           How pace is scored
         </span>
         <span className="block leading-relaxed">
-          Expected = contracted × % of the campaign window elapsed.
+          Expected = contracted × % of the campaign window elapsed. The bands are
+          a tolerance around that pace — drag the sliders to adjust.
         </span>
         <span className="mt-2 flex items-center gap-1.5">
           <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-emerald-700 ring-1 ring-inset ring-emerald-200">
@@ -195,13 +208,15 @@ function PaceLegend({ atRiskPct }: { atRiskPct: number }) {
           <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-emerald-700 ring-1 ring-inset ring-emerald-200">
             On track
           </span>
-          <span>at or above expected</span>
+          <span>at or above {onTrackPct}% of expected</span>
         </span>
         <span className="mt-1 flex items-center gap-1.5">
           <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-amber-700 ring-1 ring-inset ring-amber-200">
             At risk
           </span>
-          <span>{atRiskPct}–100% of expected</span>
+          <span>
+            {atRiskPct}–{onTrackPct}% of expected
+          </span>
         </span>
         <span className="mt-1 flex items-center gap-1.5">
           <span className="rounded-full bg-red-50 px-1.5 py-0.5 text-red-700 ring-1 ring-inset ring-red-200">
@@ -227,6 +242,7 @@ export function ContractTracker({
   elapsedFraction: number;
 }) {
   const [view, setView] = useState<PlatformView>("all");
+  const [onTrack, setOnTrack] = useState(DEFAULT_ON_TRACK);
   const [atRisk, setAtRisk] = useState(DEFAULT_AT_RISK);
 
   if (rows.length === 0) return null;
@@ -250,6 +266,7 @@ export function ContractTracker({
     totals.contracted || null,
     totals.posted,
     elapsedFraction,
+    onTrack,
     atRisk
   );
 
@@ -266,21 +283,45 @@ export function ContractTracker({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-1.5 text-xs text-slate-500">
-            At-risk floor
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={atRisk}
-              onChange={(e) => {
-                const n = Number(e.target.value);
-                setAtRisk(Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0);
-              }}
-              className="w-14 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-center text-sm tabular-nums text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200"
-            />
-            %
-          </label>
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-center gap-2 text-xs text-slate-500">
+              <span className="w-14 shrink-0">On track ≥</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={onTrack}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setOnTrack(n);
+                  // At risk can't sit above the On-track line.
+                  if (atRisk > n) setAtRisk(n);
+                }}
+                className="h-1.5 w-28 cursor-pointer accent-blue-500"
+                aria-label="On-track threshold, % of expected"
+              />
+              <span className="w-9 tabular-nums font-medium text-slate-700">
+                {onTrack}%
+              </span>
+            </label>
+            <label className="flex items-center gap-2 text-xs text-slate-500">
+              <span className="w-14 shrink-0">At risk ≥</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={atRisk}
+                onChange={(e) => setAtRisk(Math.min(Number(e.target.value), onTrack))}
+                className="h-1.5 w-28 cursor-pointer accent-amber-500"
+                aria-label="At-risk threshold, % of expected"
+              />
+              <span className="w-9 tabular-nums font-medium text-slate-700">
+                {atRisk}%
+              </span>
+            </label>
+          </div>
           <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
             {PLATFORM_TABS.map((t) => (
               <button
@@ -315,7 +356,7 @@ export function ContractTracker({
               <th className="px-3 py-2 text-center font-medium">
                 <span className="inline-flex items-center gap-1">
                   Pace
-                  <PaceLegend atRiskPct={atRisk} />
+                  <PaceLegend onTrackPct={onTrack} atRiskPct={atRisk} />
                 </span>
               </th>
               {weeks.map((w) => (
@@ -344,7 +385,7 @@ export function ContractTracker({
               .sort((a, b) => Number(b.isActive) - Number(a.isActive))
               .map((row) => {
               const v = valuesFor(row, view);
-              const pace = paceStatus(v.contracted, v.posted, elapsedFraction, atRisk);
+              const pace = paceStatus(v.contracted, v.posted, elapsedFraction, onTrack, atRisk);
               const pct =
                 v.contracted && v.contracted > 0
                   ? Math.round((v.posted / v.contracted) * 100)
