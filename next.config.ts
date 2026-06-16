@@ -29,6 +29,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: "/", destination: "/site/index.html" },
+        { source: "/brands", destination: "/site/brands.html" },
+        { source: "/creators", destination: "/site/creators.html" },
+      ],
+    };
+  },
 };
 
 export default nextConfig;
