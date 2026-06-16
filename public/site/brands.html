@@ -348,7 +348,7 @@
       if(!form) return;
       // same-origin when the site is served by the app; otherwise hit the app host.
       const API_BASE = /(^|\.)dropdeck\.xyz$/.test(location.hostname) ? '' : 'https://dropdeck.xyz';
-      const TO = 'hello@dropdeck.xyz';
+      const TO = 'hey@dropdeck.xyz';
       const err = document.getElementById('bf-err');
       const doneCard = document.getElementById('bf-done');
       const doneMsg = document.getElementById('bf-done-msg');
@@ -366,24 +366,9 @@
         const f = new FormData(form);
         const btn = document.getElementById('bf-submit');
         btn.disabled = true; btn.textContent = 'sending…';
-        let landed = false;
-        try{
-          const res = await fetch(API_BASE + '/api/inquiries', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({
-              name: f.get('name'), email: f.get('email'), company: f.get('company'),
-              link: f.get('link') || null, startWindow: f.get('when'), about: f.get('about')
-            })
-          });
-          landed = res.ok;
-        }catch(ex){ landed = false; }
         form.hidden = true; doneCard.hidden = false;
-        if (landed){
-          doneMsg.textContent = `Thanks, ${f.get('name')}. Your note on ${f.get('company')} is in our queue — if there's a fit, you'll hear from us within two business days.`;
-        } else {
-          mailtoFallback(f);
-          doneMsg.textContent = `Thanks, ${f.get('name')} — we've opened a pre-filled email to ${TO}. Hit send and you're in the queue.`;
-        }
+        mailtoFallback(f);
+        doneMsg.textContent = `Thanks, ${f.get('name')} — we’ve opened a pre-filled email to ${TO}. Hit send and your note on ${f.get('company')} is in our queue.`;
         btn.disabled = false; btn.textContent = 'tell us what you\u2019re building →';
       });
     })();
