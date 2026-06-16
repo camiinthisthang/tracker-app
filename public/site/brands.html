@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dropdeck for brands — built to be seen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#EE2324; --pink:#FFE4E4; --black:#120D0B; --teal:#8EDBDC; --white:#FBFBFB;
+    --mono:'JetBrains Mono', monospace;
+    --disp:'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--black);color:var(--white);font-family:var(--disp);-webkit-font-smoothing:antialiased;}
+  ::selection{background:var(--red);color:var(--pink);}
+
+  .mono{font-family:var(--mono);}
+  .eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--red);margin:0 0 22px;font-weight:500;white-space:nowrap;}
+  .eyebrow::before{content:"★ ";letter-spacing:.05em;}
+  h1,h2{font-family:var(--disp);font-weight:700;letter-spacing:-.025em;line-height:.97;margin:0;text-transform:uppercase;}
+  .hl-xl{font-size:clamp(44px,7vw,112px);}
+  .hl-lg{font-size:clamp(34px,4.8vw,72px);}
+  p.lede{font-family:var(--disp);font-size:clamp(15px,1.2vw,18px);line-height:1.55;max-width:56ch;color:rgba(251,251,251,.85);}
+
+  section{position:relative;padding:clamp(70px,9vw,130px) clamp(22px,6vw,90px);}
+  .on-red{background:var(--red);color:var(--black);}
+  .on-red .eyebrow{color:var(--pink);}
+  .on-red p.lede{color:rgba(18,13,11,.85);}
+  .on-pink{background:var(--pink);color:var(--black);}
+  .on-pink .eyebrow{color:var(--red);}
+  .on-pink h2{color:var(--red);}
+  .on-pink p.lede{color:rgba(18,13,11,.85);}
+  .on-teal{background:var(--teal);color:var(--black);}
+  .on-teal .eyebrow{color:var(--black);}
+  .on-teal h2{color:var(--red);}
+  .on-teal p.lede{color:rgba(18,13,11,.85);}
+  body.no-teal .on-teal{background:var(--pink);}
+  .sec-index{position:absolute;top:26px;right:clamp(22px,6vw,90px);font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;opacity:.85;text-transform:uppercase;white-space:nowrap;}
+
+  .dotcorner{position:absolute;pointer-events:none;
+    background-image:radial-gradient(circle, var(--dotc,rgba(255,255,255,.8)) 1.6px, transparent 1.9px);
+    background-size:13px 13px;
+    -webkit-mask-image:radial-gradient(ellipse at var(--dotat,100% 100%), #000 0%, transparent 68%);
+            mask-image:radial-gradient(ellipse at var(--dotat,100% 100%), #000 0%, transparent 68%);}
+  body.no-texture .dotcorner{display:none;}
+  .seam{position:relative;height:clamp(70px,9vw,120px);background:var(--seamA);pointer-events:none;}
+  .seam::before,.seam::after{content:"";position:absolute;inset:0;}
+  .seam::before{background-image:radial-gradient(circle, var(--seamB) 2.5px, transparent 2.8px);background-size:14px 14px;background-position:0 100%;
+    -webkit-mask-image:linear-gradient(to bottom,transparent 8%,#000 82%);mask-image:linear-gradient(to bottom,transparent 8%,#000 82%);}
+  .seam::after{background-image:radial-gradient(circle, var(--seamB) 1.2px, transparent 1.5px);background-size:14px 14px;background-position:7px calc(100% - 7px);
+    -webkit-mask-image:linear-gradient(to bottom,transparent 30%,#000 95%);mask-image:linear-gradient(to bottom,transparent 30%,#000 95%);}
+  .seam.to-teal{--seamB:var(--teal);}
+  body.no-teal .seam.to-teal{--seamB:var(--pink);}
+  .seam.from-teal{--seamA:var(--teal);}
+  body.no-teal .seam.from-teal{--seamA:var(--pink);}
+  body.no-texture .seam::before,body.no-texture .seam::after{display:none;}
+  body.no-texture .seam{height:0;}
+
+  nav{position:absolute;top:0;left:0;right:0;z-index:80;display:flex;align-items:center;gap:26px;
+    padding:20px clamp(22px,6vw,90px);}
+  nav .logo img{height:34px;width:auto;display:block;}
+  nav .links{margin-left:auto;display:flex;gap:24px;align-items:center;}
+  nav a{font-family:var(--mono);font-size:12.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--pink);text-decoration:none;opacity:.92;white-space:nowrap;}
+  nav a:hover{opacity:1;color:var(--teal);}
+  nav a.apply{border:1.5px solid var(--pink);padding:9px 18px;border-radius:30px;opacity:1;}
+  nav a.apply:hover{background:var(--pink);color:var(--red);}
+
+  .btn{display:inline-block;font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
+    text-decoration:none;color:var(--pink);background:var(--black);padding:17px 30px;border-radius:40px;border:1.5px solid var(--black);
+    --sh:var(--red);box-shadow:4px 4px 0 var(--sh);transition:transform .13s ease, box-shadow .13s ease;}
+  .btn:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--sh);}
+  .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--sh);}
+  .on-red .btn{background:var(--pink);border-color:var(--pink);color:var(--red);--sh:var(--black);}
+  .on-pink .btn{background:var(--red);border-color:var(--red);color:var(--pink);--sh:var(--black);}
+  .on-teal .btn{background:var(--red);border-color:var(--red);color:var(--pink);--sh:rgba(18,13,11,.85);}
+
+  .ticker{overflow:hidden;background:var(--black);color:var(--pink);padding:15px 0;border-top:1px solid rgba(255,228,228,.14);border-bottom:1px solid rgba(255,228,228,.14);}
+  .ticker .track{display:flex;width:max-content;animation:tickscroll 26s linear infinite;}
+  .ticker span{font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;white-space:nowrap;}
+  .ticker b{color:var(--teal);font-weight:400;padding:0 14px;}
+  @keyframes tickscroll{to{transform:translateX(-50%);}}
+  @media(prefers-reduced-motion: reduce){.ticker .track{animation:none;}}
+
+  /* ---------- hero : the audience, in ascii ---------- */
+  .hero{position:relative;height:100svh;min-height:640px;padding:0;background:var(--black);overflow:hidden;}
+  .hero canvas[data-ascii]{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;}
+  .hero::after{content:"";position:absolute;inset:0;background:radial-gradient(110% 80% at 14% 100%, rgba(18,13,11,.94) 20%, rgba(18,13,11,0) 62%);pointer-events:none;z-index:1;}
+  .hero-content{position:absolute;left:clamp(22px,6vw,90px);right:clamp(22px,6vw,90px);bottom:clamp(34px,5vw,60px);z-index:2;pointer-events:none;}
+  .hero-content a{pointer-events:auto;}
+  .hero-content .wordmark{width:min(70vw,720px);display:block;margin-bottom:30px;}
+  .hero-content .eyebrow{color:var(--teal);}
+  .hero-content h1{max-width:16ch;color:var(--white);}
+  .hero-content .meta{display:flex;gap:30px;align-items:flex-end;flex-wrap:wrap;margin-top:32px;}
+  .hero-content .fine{font-family:var(--mono);font-size:13px;line-height:1.75;letter-spacing:.04em;color:var(--pink);max-width:36ch;}
+  .hero-content .fine a{color:var(--teal);}
+  .hero .btn{background:var(--red);border-color:var(--red);color:var(--pink);--sh:var(--teal);}
+  .hero-cap{position:absolute;top:74px;right:clamp(22px,6vw,90px);z-index:2;text-align:right;font-family:var(--mono);font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--teal);pointer-events:none;}
+  @media(max-width:900px){.hero-cap{display:none;}}
+
+  /* ---------- the offer ---------- */
+  .offer .hl-lg{max-width:18ch;}
+  .ledger{margin-top:clamp(40px,5vw,70px);border-top:1px solid rgba(18,13,11,.3);}
+  .ledger-row{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:18px;
+    padding:22px 0;border-bottom:1px solid rgba(18,13,11,.3);}
+  .ledger-row .k{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:rgba(18,13,11,.8);white-space:nowrap;}
+  .ledger-row .v{font-family:var(--disp);font-weight:700;font-size:clamp(28px,3.6vw,54px);letter-spacing:-.02em;text-transform:uppercase;white-space:nowrap;text-align:right;color:var(--black);}
+  .ledger-row .v small{display:block;font-family:var(--mono);font-size:12px;font-weight:400;letter-spacing:.08em;color:rgba(18,13,11,.7);margin:6px 0 0;}
+  @media(max-width:680px){.ledger-row{grid-template-columns:1fr;}.ledger-row .k{white-space:normal;}.ledger-row .v{white-space:normal;text-align:left;}}
+
+  /* ---------- halftone showpiece ---------- */
+  .dots-sec{padding:0;background:var(--black);}
+  .dots-wrap{position:relative;height:100svh;min-height:560px;}
+  canvas[data-halftone]{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;}
+  .dots-cap{position:absolute;top:24px;right:clamp(22px,6vw,90px);text-align:right;font-family:var(--mono);font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--teal);pointer-events:none;}
+  .dots-head{position:absolute;left:clamp(22px,6vw,90px);right:clamp(22px,6vw,90px);bottom:clamp(30px,5vw,60px);pointer-events:none;}
+  .dots-head h2{color:var(--white);text-shadow:0 2px 30px rgba(18,13,11,.8);}
+  .dots-head .mono-line{font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-top:18px;}
+
+  /* ---------- engagement terms ---------- */
+  .terms .term{display:grid;grid-template-columns:90px 1fr 1.4fr;gap:26px;align-items:baseline;
+    padding:30px clamp(22px,6vw,90px);margin:0 calc(-1*clamp(22px,6vw,90px));border-bottom:1px solid rgba(18,13,11,.25);
+    transition:background .22s ease;}
+  .terms .term:hover{background:var(--red);}
+  .terms .term:hover h3{color:var(--pink);}
+  .terms .term:hover p{color:var(--pink);}
+  .terms .term:hover .ix{color:var(--pink);}
+  .terms .term:first-of-type{border-top:1px solid rgba(18,13,11,.25);margin-top:clamp(36px,4vw,60px);}
+  .terms .term .ix{font-family:var(--mono);font-size:13px;letter-spacing:.2em;color:var(--red);}
+  .terms .term h3{font-family:var(--disp);font-weight:700;font-size:clamp(19px,2.2vw,30px);margin:0;text-transform:uppercase;letter-spacing:-.01em;transition:color .22s ease;}
+  .terms .term p{font-family:var(--disp);font-size:16px;line-height:1.6;margin:0;color:rgba(18,13,11,.88);transition:color .22s ease;}
+  @media(max-width:700px){.terms .term{grid-template-columns:50px 1fr;}.terms .term p{grid-column:2;}}
+
+  /* ---------- work ---------- */
+  .reels{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:clamp(36px,4vw,60px);}
+  .reel{position:relative;aspect-ratio:9/16;overflow:hidden;border:1px solid rgba(255,228,228,.2);background:#1c1311;}
+  .reel iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;}
+  .workfacts{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;font-family:var(--mono);font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(251,251,251,.78);}
+  .workfacts b{color:var(--red);font-weight:500;}
+  .workfacts span{white-space:nowrap;}
+
+  /* ---------- talk form + close ---------- */
+  .close{min-height:88svh;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;}
+  .close h2{max-width:15ch;position:relative;z-index:2;}
+  .close .lede{position:relative;z-index:2;margin-top:26px;}
+  .appform{position:relative;z-index:2;margin:clamp(36px,4vw,60px) 0 clamp(44px,6vw,80px);max-width:880px;display:grid;gap:24px;}
+  .appform .row2{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+  @media(max-width:680px){.appform .row2{grid-template-columns:1fr;}}
+  .field{display:flex;flex-direction:column;gap:9px;}
+  .field label{font-family:var(--mono);font-size:12.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--black);}
+  .field label b{color:var(--pink);font-weight:700;}
+  .field .hint{font-family:var(--mono);font-size:12.5px;line-height:1.6;color:rgba(18,13,11,.75);margin:0;}
+  .field input,.field textarea,.field select{font-family:var(--mono);font-size:14px;color:var(--black);background:var(--white);
+    border:2px solid var(--black);border-radius:0;padding:14px 16px;width:100%;transition:box-shadow .13s ease;appearance:none;}
+  .field textarea{resize:vertical;min-height:120px;}
+  .field input::placeholder,.field textarea::placeholder{color:rgba(18,13,11,.38);}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;box-shadow:4px 4px 0 var(--black);}
+  .field select{background-image:linear-gradient(45deg, transparent 50%, var(--black) 50%),linear-gradient(135deg, var(--black) 50%, transparent 50%);
+    background-position:calc(100% - 21px) 50%, calc(100% - 16px) 50%;background-size:5px 5px;background-repeat:no-repeat;}
+  .appform .actions-row{display:flex;gap:22px;align-items:center;flex-wrap:wrap;}
+  .appform button.btn{cursor:pointer;}
+  .form-note{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:rgba(18,13,11,.8);}
+  .form-err{font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--pink);background:var(--black);padding:14px 18px;}
+  .form-err a{color:var(--teal);}
+  .form-done{position:relative;z-index:2;margin:clamp(36px,4vw,60px) 0 clamp(44px,6vw,80px);max-width:880px;border:2px solid var(--black);background:var(--white);padding:clamp(30px,4vw,50px);box-shadow:8px 8px 0 var(--black);}
+  .form-done h3{font-family:var(--disp);font-weight:700;text-transform:uppercase;letter-spacing:-.01em;font-size:clamp(22px,2.6vw,34px);margin:0 0 12px;color:var(--black);}
+  .form-done p{font-family:var(--mono);font-size:13.5px;line-height:1.7;margin:0;color:rgba(18,13,11,.85);}
+  .close-word{width:100%;position:relative;z-index:2;}
+  .close-word img{width:100%;display:block;}
+  footer{display:flex;gap:26px;flex-wrap:wrap;justify-content:space-between;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(18,13,11,.85);padding:26px 0 8px;position:relative;z-index:2;}
+  footer span,footer a{white-space:nowrap;}
+  footer a{color:inherit;text-decoration:none;}
+  footer a:hover{color:var(--pink);}
+
+  #tweaks-root{position:relative;z-index:100;}
+</style>
+</head>
+<body>
+  <nav>
+    <a class="logo" href="#top"><img src="/site/assets/v2-monogram-white.png" alt="dropdeck"></a>
+    <div class="links">
+      <a href="#offer">the offer</a>
+      <a href="#how">how it works</a>
+      <a href="#work">the work</a>
+      <a href="/creators">for creators</a>
+      <a class="apply" href="#talk">talk to dropdeck</a>
+    </div>
+  </nav>
+
+  <!-- HERO : the audience, in ascii -->
+  <section class="hero" id="top" data-screen-label="brands hero">
+    <canvas data-ascii data-src="/site/assets/ph-laugh-dark.png" data-cell="11" data-lens-radius="150" data-bg="#120D0B" data-color="#EE2324" data-dim="#8A1B1D" data-faint="#3A1011" aria-label="a laughing face rendered in ascii characters; move your cursor to reveal the photograph"></canvas>
+    <div class="hero-cap">fig. 01 — the audience, in ascii<br>cursor reveals the photograph</div>
+    <div class="hero-content">
+      <img class="wordmark rv" src="/site/assets/v2-wordmark-pink.png" alt="dropdeck">
+      <p class="eyebrow rv">for brands · a curated deck of ugc creators</p>
+      <h1 class="hl-xl rv" id="hero-hook">Built to be seen.</h1>
+      <div class="meta rv">
+        <a class="btn" href="#talk">talk to dropdeck</a>
+        <p class="fine">ugc. clipping. branded content.<br>trained, briefed, paid monthly.<br>distributed everywhere.<br><a href="/creators">a creator? apply →</a></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="ticker" aria-hidden="true">
+    <div class="track">
+      <span>real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b></span>
+      <span>real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b></span>
+    </div>
+  </div>
+
+  <div class="seam" style="--seamA:var(--black);--seamB:var(--pink)"></div>
+
+  <!-- THE OFFER -->
+  <section class="offer on-pink" id="offer" data-screen-label="the offer">
+    <span class="sec-index">01 / the offer</span>
+    <p class="eyebrow rv">the offer</p>
+    <h2 class="hl-lg rv">Volume, with taste.</h2>
+    <p class="lede rv" style="margin-top:30px">dropdeck keeps a small deck of creators on call and points them at your product. We write the briefs and hooks, review every film before it posts, and run the accounts natively where your customers actually scroll. You get one point of contact and a feed that never goes quiet.</p>
+    <div class="ledger rv">
+      <div class="ledger-row"><span class="k">unique films per campaign, per creator</span><span class="v">40–60<small>cross-posted to all socials</small></span></div>
+      <div class="ledger-row"><span class="k">where the winners go</span><span class="v">Everywhere<small>traction moves content across socials</small></span></div>
+      <div class="ledger-row"><span class="k">films reviewed before going live</span><span class="v">All of them<small>nothing posts unseen</small></span></div>
+    </div>
+  </section>
+
+  <!-- HALFTONE SHOWPIECE -->
+  <section class="dots-sec" data-screen-label="brands halftone">
+    <div class="dots-wrap">
+      <canvas data-halftone data-src="/site/assets/ph-eye-macro.jpg" data-cell="12" data-lens-radius="140" data-bg="#120D0B" data-dot="#EE2324" data-hi="#FFE4E4" aria-label="a macro photograph of an eye rendered in halftone dots; move your cursor to reveal the photograph"></canvas>
+      <div class="dots-cap">fig. 02 — the attention, in halftone<br>cursor reveals the photograph</div>
+      <div class="dots-head">
+        <h2 class="hl-lg">They scroll past ads.<br>They stop for people.</h2>
+        <div class="mono-line">move your cursor — the feed looks back</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="seam to-teal" style="--seamA:var(--black)"></div>
+
+  <!-- HOW AN ENGAGEMENT WORKS -->
+  <section class="on-teal terms" id="how" data-screen-label="engagement">
+    <span class="sec-index">02 / how it works</span>
+    <p class="eyebrow rv">how an engagement works</p>
+    <h2 class="hl-lg rv">One brief in. Forty films out.</h2>
+    <div class="term rv"><span class="ix">01</span><h3>The brief</h3><p>You tell us what the product does and who it's for. We turn it into hooks, angles and direction the deck can film against.</p></div>
+    <div class="term rv"><span class="ix">02</span><h3>The cast</h3><p>We put creators on deck whose voice fits your audience, on fresh TikTok and Instagram accounts built for this work.</p></div>
+    <div class="term rv"><span class="ix">03</span><h3>The volume</h3><p>Forty to sixty films per campaign, one or two a day. Short, casual, phone-shot — the format the feed rewards.</p></div>
+    <div class="term rv"><span class="ix">04</span><h3>The review</h3><p>Every film is approved by us before it goes live. Your name never rides on something unseen.</p></div>
+    <div class="term rv"><span class="ix">05</span><h3>The distribution</h3><p>Creators post native to their own accounts. When a film gains traction, we move it across more socials.</p></div>
+    <div class="term rv"><span class="ix">06</span><h3>The signal</h3><p>What hooks, what holds, what converts — visible week by week, so the next brief is sharper than the last.</p></div>
+    <div class="term rv"><span class="ix">07</span><h3>The alignment</h3><p>Part of every creator's pay is tied to the sign-ups their content drives. When you win, they win.</p></div>
+  </section>
+
+  <div class="seam from-teal" style="--seamB:var(--black)"></div>
+
+  <!-- THE WORK -->
+  <section id="work" data-screen-label="brands work">
+    <span class="sec-index">03 / the work</span>
+    <p class="eyebrow rv">the work</p>
+    <h2 class="hl-lg rv">Unpolished on purpose.</h2>
+    <p class="lede rv" style="margin-top:26px">This is not ad-agency gloss. It's the native language of the feed — and it's why people watch to the end.</p>
+    <div class="reels rv">
+      <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7551287371690446110" title="@katie_chipped on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
+      <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7626417888752110878" title="dropdeck creator on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
+      <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7623247785634106638" title="@ana.learningspanish on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
+    </div>
+    <div class="workfacts rv">
+      <span><b>7–120</b> seconds</span><span>most land under <b>30</b></span><span>phone-shot is the standard</span><span>native to each platform</span>
+    </div>
+  </section>
+
+  <div class="seam" style="--seamA:var(--black);--seamB:var(--red)"></div>
+
+  <!-- TALK / CLOSE -->
+  <section class="on-red close" id="talk" data-screen-label="brands close">
+    <div class="dotcorner" style="top:0;right:0;width:46%;height:64%;--dotc:rgba(255,255,255,.65);--dotat:100% 0%"></div>
+    <span class="sec-index" style="color:var(--pink)">04 / talk</span>
+    <h2 class="hl-xl rv">Got something worth posting about?</h2>
+    <p class="lede rv">Tell us what you're building. We take on a few partners at a time — if there's a fit, you'll hear from us within two business days.</p>
+    <form class="appform rv" id="brand-form" novalidate="">
+      <div class="row2">
+        <div class="field"><label for="bf-name">your name <b>*</b></label><input id="bf-name" name="name" type="text" autocomplete="name" placeholder="Sam Founder" required=""></div>
+        <div class="field"><label for="bf-email">work email <b>*</b></label><input id="bf-email" name="email" type="email" autocomplete="email" placeholder="you@yourbrand.com" required=""></div>
+        <div class="field"><label for="bf-company">brand / company <b>*</b></label><input id="bf-company" name="company" type="text" autocomplete="organization" placeholder="Acme" required=""></div>
+        <div class="field"><label for="bf-link">link — site or socials</label><input id="bf-link" name="link" type="url" placeholder="https://yourbrand.com"></div>
+      </div>
+      <div class="field">
+        <label for="bf-about">what are you building? <b>*</b></label>
+        <p class="hint">the product, who it's for, and what you want the content to do.</p>
+        <textarea id="bf-about" name="about" rows="5" placeholder="We make... and we want to reach..." required=""></textarea>
+      </div>
+      <div class="field" style="max-width:420px">
+        <label for="bf-when">when do you want to start?</label>
+        <select id="bf-when" name="when">
+          <option value="this month">this month</option>
+          <option value="next quarter">next quarter</option>
+          <option value="just exploring">just exploring</option>
+        </select>
+      </div>
+      <div class="form-err" id="bf-err" hidden=""></div>
+      <div class="actions-row">
+        <button class="btn" type="submit" id="bf-submit">tell us what you're building →</button>
+        <span class="form-note">we take on a few partners at a time</span>
+      </div>
+    </form>
+    <div class="form-done" id="bf-done" hidden="">
+      <h3>Heard. Loud and clear.</h3>
+      <p id="bf-done-msg">Your note is on its way. If there's a fit, you'll hear from us within two business days.</p>
+    </div>
+    <div class="close-word rv"><img src="/site/assets/v2-wordmark-pink.png" alt="dropdeck"></div>
+    <footer>
+      <span>© dropdeck 2026</span>
+      <span><a href="/creators">for creators</a> · <a href="#top">for brands</a></span>
+    </footer>
+  </section>
+
+
+  <script src="/site/halftone-art.js"></script>
+  <script src="/site/ascii-art.js"></script>
+  <script>
+    // scroll reveals
+    (function(){
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const seen = new WeakSet();
+      const io = new IntersectionObserver(es=>{
+        es.forEach(e=>{
+          if(!e.isIntersecting || seen.has(e.target)) return;
+          seen.add(e.target);
+          if (performance.now() > 600 || e.target.getBoundingClientRect().top > window.innerHeight*.92){
+            e.target.animate(
+              [{opacity:0, transform:'translateY(26px)'},{opacity:1, transform:'none'}],
+              {duration:700, easing:'cubic-bezier(.2,.7,.2,1)'});
+          }
+          io.unobserve(e.target);
+        });
+      },{threshold:0, rootMargin:'0px 0px -6% 0px'});
+      document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+    })();
+
+    // brand inquiry — POST to the dropdeck app api so leads land in the database.
+    // Falls back to a pre-filled email if the endpoint isn't reachable yet.
+    (function(){
+      const form = document.getElementById('brand-form');
+      if(!form) return;
+      // same-origin when the site is served by the app; otherwise hit the app host.
+      const API_BASE = /(^|\.)dropdeck\.xyz$/.test(location.hostname) ? '' : 'https://dropdeck.xyz';
+      const TO = 'hey@dropdeck.xyz';
+      const err = document.getElementById('bf-err');
+      const doneCard = document.getElementById('bf-done');
+      const doneMsg = document.getElementById('bf-done-msg');
+      function mailtoFallback(f){
+        const subject = `brand inquiry — ${f.get('company')}`;
+        const body = [
+          `name: ${f.get('name')}`, `email: ${f.get('email')}`, `brand: ${f.get('company')}`,
+          `link: ${f.get('link') || '—'}`, `start: ${f.get('when')}`, '', `${f.get('about')}`
+        ].join('\n');
+        window.location.href = `mailto:${TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
+      form.addEventListener('submit', async (e)=>{
+        e.preventDefault(); err.hidden = true;
+        if (!form.reportValidity()) return;
+        const f = new FormData(form);
+        const btn = document.getElementById('bf-submit');
+        btn.disabled = true; btn.textContent = 'sending…';
+        form.hidden = true; doneCard.hidden = false;
+        mailtoFallback(f);
+        doneMsg.textContent = `Thanks, ${f.get('name')} — we’ve opened a pre-filled email to ${TO}. Hit send and your note on ${f.get('company')} is in our queue.`;
+        btn.disabled = false; btn.textContent = 'tell us what you\u2019re building →';
+      });
+    })();
+  </script>
+
+</body>
+</html>

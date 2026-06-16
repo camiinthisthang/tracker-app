@@ -8,6 +8,10 @@ export async function middleware(request: NextRequest) {
 
   // Public routes — always accessible
   if (
+    pathname === "/" ||
+    pathname === "/brands" ||
+    pathname === "/creators" ||
+    pathname.startsWith("/site") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname === "/apply" ||
