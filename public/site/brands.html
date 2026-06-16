@@ -64,7 +64,7 @@
     padding:20px clamp(22px,6vw,90px);}
   nav .logo img{height:34px;width:auto;display:block;}
   nav .links{margin-left:auto;display:flex;gap:24px;align-items:center;}
-  nav a{font-family:var(--mono);font-size:12.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--pink);text-decoration:none;opacity:.92;white-space:nowrap;}
+  nav a{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--pink);text-decoration:none;opacity:1;white-space:nowrap;}
   nav a:hover{opacity:1;color:var(--teal);}
   nav a.apply{border:1.5px solid var(--pink);padding:9px 18px;border-radius:30px;opacity:1;}
   nav a.apply:hover{background:var(--pink);color:var(--red);}
@@ -193,7 +193,6 @@
   <!-- HERO : the audience, in ascii -->
   <section class="hero" id="top" data-screen-label="brands hero">
     <canvas data-ascii data-src="/site/assets/ph-laugh-dark.png" data-cell="11" data-lens-radius="150" data-bg="#120D0B" data-color="#EE2324" data-dim="#8A1B1D" data-faint="#3A1011" aria-label="a laughing face rendered in ascii characters; move your cursor to reveal the photograph"></canvas>
-    <div class="hero-cap">fig. 01 — the audience, in ascii<br>cursor reveals the photograph</div>
     <div class="hero-content">
       <img class="wordmark rv" src="/site/assets/v2-wordmark-pink.png" alt="dropdeck">
       <p class="eyebrow rv">for brands · a curated deck of ugc creators</p>
@@ -230,11 +229,9 @@
   <!-- HALFTONE SHOWPIECE -->
   <section class="dots-sec" data-screen-label="brands halftone">
     <div class="dots-wrap">
-      <canvas data-halftone data-src="/site/assets/ph-eye-macro.jpg" data-cell="12" data-lens-radius="140" data-bg="#120D0B" data-dot="#EE2324" data-hi="#FFE4E4" aria-label="a macro photograph of an eye rendered in halftone dots; move your cursor to reveal the photograph"></canvas>
-      <div class="dots-cap">fig. 02 — the attention, in halftone<br>cursor reveals the photograph</div>
+      <canvas data-halftone data-lens="off" data-src="/site/assets/ph-eye-macro.jpg" data-cell="12" data-bg="#120D0B" data-dot="#EE2324" data-hi="#FFE4E4" aria-label="a macro photograph of an eye rendered in halftone dots, twinkling"></canvas>
       <div class="dots-head">
         <h2 class="hl-lg">They scroll past ads.<br>They stop for people.</h2>
-        <div class="mono-line">move your cursor — the feed looks back</div>
       </div>
     </div>
   </section>
