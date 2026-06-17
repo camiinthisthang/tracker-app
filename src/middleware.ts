@@ -6,6 +6,13 @@ export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request });
   const { pathname } = request.nextUrl;
 
+  // viewtrackr.* is being deprecated — its homepage now goes to the app dashboard.
+  // dropdeck.xyz is unaffected (keeps the marketing landing at "/").
+  const host = (request.headers.get("host") || "").toLowerCase();
+  if (host.includes("viewtrackr") && pathname === "/") {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
   // Public routes — always accessible
   if (
     pathname === "/" ||
