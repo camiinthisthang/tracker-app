@@ -4,8 +4,8 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* viewtrackr brand palette — same color system as the Poncho deck.
- * Exposed as both raw `--brand-*` vars (for use in brand surfaces:
+/* dropdeck brand palette — red / pink / teal / ink, matching the dropdeck.xyz
+ * landing. Exposed as both raw `--brand-*` vars (for use in brand surfaces:
  * apply hero, login, invite, etc) and wired into the shadcn token
  * system below so all existing components inherit the new palette
  * automatically. */
@@ -60,32 +60,35 @@
 }
 
 /* dropdeck design-system color scale — used by the client report refresh.
- * royal/bone/lime overlap the existing --brand-* values; ink is the report's
- * neutral text ramp. Generates bg-/text-/border- utilities + opacity mods. */
+ * "royal"/"lime" var names are kept for compatibility but now hold dropdeck
+ * red / teal; bone + ink are the neutral ramps. Generates bg-/text-/border-
+ * utilities + opacity mods. */
 @theme {
-  --color-royal-100: #e6eefe;
-  --color-royal-200: #c7d7fb;
-  --color-royal-500: #054ff0;
-  --color-royal-600: #043fc0;
+  --color-royal-100: #fde7e7;
+  --color-royal-200: #f7c5c5;
+  --color-royal-500: #ee2324;
+  --color-royal-600: #b3181a;
   --color-bone-100: #f9f8f3;
   --color-bone-200: #efede4;
   --color-ink-300: #9a9aa3;
   --color-ink-500: #4d4d55;
   --color-ink-700: #232328;
   --color-ink-900: #0b0b0e;
-  --color-lime-500: #dcfc73;
+  --color-lime-500: #8edbdc;
 }
 
 :root {
-  /* viewtrackr brand colors — raw, shared with the Poncho deck. */
-  --brand-blue: #054ff0;
-  --brand-chartreuse: #dcfc73;
-  --brand-lavender: #e1d2f3;
+  /* dropdeck brand colors — raw, matching the dropdeck.xyz landing. The
+   * --brand-blue / --brand-chartreuse var names are kept so existing
+   * components keep working; their values are now dropdeck red / teal. */
+  --brand-blue: #ee2324;       /* dropdeck red */
+  --brand-chartreuse: #8edbdc; /* dropdeck teal */
+  --brand-lavender: #ffe4e4;   /* dropdeck pink */
   --brand-bone: #f9f8f3;
 
   /* App tokens (shadcn / Tailwind). Background stays off-white bone so the
-   * interior of the app feels editorial, not screaming blue. Primary becomes
-   * brand blue, accent becomes chartreuse. */
+   * interior of the app feels editorial, not screaming red. Primary becomes
+   * dropdeck red, accent becomes teal. */
   --background: #ffffff;
   --foreground: #0a0a0a;
   --card: #ffffff;
@@ -105,10 +108,10 @@
   --input: oklch(0.92 0 0);
   --ring: var(--brand-blue);
   --chart-1: var(--brand-blue);
-  --chart-2: oklch(0.65 0.18 260);
-  --chart-3: oklch(0.75 0.14 270);
-  --chart-4: oklch(0.85 0.1 280);
-  --chart-5: oklch(0.92 0.06 290);
+  --chart-2: #8edbdc;
+  --chart-3: #ffb0af;
+  --chart-4: #b3181a;
+  --chart-5: #4fb6b7;
   --radius: 0.625rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #0a0a0a;
@@ -140,10 +143,10 @@
   --input: oklch(1 0 0 / 15%);
   --ring: var(--brand-blue);
   --chart-1: var(--brand-blue);
-  --chart-2: oklch(0.65 0.18 260);
-  --chart-3: oklch(0.75 0.14 270);
-  --chart-4: oklch(0.85 0.1 280);
-  --chart-5: oklch(0.92 0.06 290);
+  --chart-2: #8edbdc;
+  --chart-3: #ffb0af;
+  --chart-4: #b3181a;
+  --chart-5: #4fb6b7;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: var(--brand-blue);
@@ -166,9 +169,9 @@
   }
 }
 
-/* viewtrackr brand surface — used on public/first-impression pages
- * (apply hero, login, invite). Mirrors the Poncho deck: solid blue
- * background, white text, mono labels, chartreuse highlight blocks. */
+/* dropdeck brand surface — used on public/first-impression pages
+ * (apply hero, login, invite). Solid dropdeck red background, white text,
+ * mono labels, teal highlight blocks. */
 .brand-surface {
   background-color: var(--brand-blue);
   color: #ffffff;
