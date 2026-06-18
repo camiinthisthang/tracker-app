@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-06-18 — scripts/grant-super-admin.ts — give a creator the admin view
+Cami needed a creator (Adrielugc.studio@gmail.com) to also have the admin view, but the admin-invite flow blocks emails that already own a Creator record.
+
+- `getUserAccessLevel` checks `isSuperAdmin` before the CREATOR role, so flipping `User.isSuperAdmin=true` gives the full agency admin view while leaving the Creator record intact (they use the admin view, not the creator view). Chosen over editing the invite flow because a session only carries one membership/role, so a scoped admin + creator can't reliably coexist without deeper changes.
+- New `scripts/grant-super-admin.ts --email <addr> [--revoke]`. Idempotent; errors clearly if the User has no login yet (creator-only), telling Cami to have them sign in once first.
+- **Run on prod:** `DATABASE_URL=<prod> npx tsx scripts/grant-super-admin.ts --email Adrielugc.studio@gmail.com` — Cami runs herself.
+
 ## 2026-06-09 17:10 — fix: Week 1 timezone, soft-cut creators, week tooltip
 
 Follow-ups on the Contract Tracker after review. No schema/DB changes —
@@ -89,7 +96,6 @@ videos per creator, so admins can see who's behind pace and decide who to cut.
 - **Tested:** `npm run build` passes; `tsc --noEmit` clean; manual click-through
   on the dev server (toggle, inline edit + save, pace badges, totals, new tab).
 - **Cost:** none (no Apify/Resend calls).
-
 ## 2026-06-08 12:40 — fix: sync never removed deleted posts (ghost post counts)
 Creator post counts drifted above reality (e.g. Sophia showed 12 IG posts vs 4 live) and re-syncing didn't fix it.
 
