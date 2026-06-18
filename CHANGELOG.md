@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-06-18 — fix: super-admin with a CREATOR membership was stuck in creator view
+Granting `isSuperAdmin` (above) didn't change Adriel's view — middleware routed him to /home anyway.
+
+- `src/middleware.ts` role-routing keyed purely off `token.role`, ignoring `isSuperAdmin`. A super admin whose only membership is CREATOR (e.g. staff who also post) got bounced from every admin route to /home, and root redirected to /home.
+- Fix: exempt super admins from the creator→admin bounce and the root redirect, so they land on /dashboard and can use the full admin view despite a CREATOR role. They can still visit /home (creator view) if they navigate there.
+- `getUserAccessLevel` already prioritized isSuperAdmin; this aligns the middleware with it. Tested: `npm run build` passes.
+
 ## 2026-06-18 — scripts/grant-super-admin.ts — give a creator the admin view
 Cami needed a creator (Adrielugc.studio@gmail.com) to also have the admin view, but the admin-invite flow blocks emails that already own a Creator record.
 
