@@ -38,6 +38,14 @@ const nextConfig: NextConfig = {
       ],
     };
   },
+  async redirects() {
+    return [
+      // Deprecated: the old /apply creator page is superseded by /creators.
+      // Page code stays in the repo (reversible); traffic goes to the
+      // current on-brand creators page + its application form.
+      { source: "/apply", destination: "/creators", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;
