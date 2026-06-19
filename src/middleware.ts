@@ -5,19 +5,38 @@ import { getToken } from "next-auth/jwt";
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request });
   const { pathname } = request.nextUrl;
-
-  // viewtrackr.* is being deprecated — its homepage now goes to the app dashboard.
-  // dropdeck.xyz is unaffected (keeps the marketing landing at "/").
   const host = (request.headers.get("host") || "").toLowerCase();
-  if (host.includes("viewtrackr") && pathname === "/") {
+
+  // viewtrackr.com is the (deprecated) app domain; dropdeck.xyz + preview URLs
+  // are the marketing site. The three landing paths ("/", "/brands",
+  // "/creators") are STATIC marketing pages on the marketing host, but REAL app
+  // routes on viewtrackr (e.g. /creators = the admin creator roster + analytics).
+  // We split behaviour by hostname so the marketing rewrite never shadows the
+  // app's own /creators page on viewtrackr.
+  const isAppHost = host.includes("viewtrackr");
+
+  // viewtrackr homepage -> straight into the app dashboard.
+  if (isAppHost && pathname === "/") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Public routes — always accessible
+  // Marketing landing pages (everywhere EXCEPT viewtrackr): serve the static
+  // files in /public/site. On viewtrackr these paths fall through to the app.
+  if (!isAppHost) {
+    if (pathname === "/") {
+      return NextResponse.rewrite(new URL("/site/index.html", request.url));
+    }
+    if (pathname === "/brands") {
+      return NextResponse.rewrite(new URL("/site/brands.html", request.url));
+    }
+    if (pathname === "/creators") {
+      return NextResponse.rewrite(new URL("/site/creators.html", request.url));
+    }
+  }
+
+  // Public routes — always accessible (app auth pages, public APIs, and the
+  // static marketing assets under /site).
   if (
-    pathname === "/" ||
-    pathname === "/brands" ||
-    pathname === "/creators" ||
     pathname.startsWith("/site") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
@@ -64,12 +83,9 @@ export async function middleware(request: NextRequest) {
   // Role-based routing
   const role = token.role as string;
 
-  // Creator trying to access admin routes. Super admins are exempt: a creator
-  // who's also been granted isSuperAdmin (e.g. staff who also post) gets the
-  // full admin view despite their CREATOR membership role.
+  // Creator trying to access admin routes
   if (
     role === "CREATOR" &&
-    !isSuperAdmin &&
     !pathname.startsWith("/home") &&
     !pathname.startsWith("/profile") &&
     !pathname.startsWith("/creator-") &&
@@ -83,9 +99,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Root redirect
+  // Root redirect (safety net; "/" is normally handled by host rules above)
   if (pathname === "/") {
-    if (role === "CREATOR" && !isSuperAdmin) {
+    if (role === "CREATOR") {
       return NextResponse.redirect(new URL("/home", request.url));
     }
     return NextResponse.redirect(new URL("/dashboard", request.url));
