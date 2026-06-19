@@ -29,15 +29,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  async rewrites() {
-    return {
-      beforeFiles: [
-        { source: "/", destination: "/site/index.html" },
-        { source: "/brands", destination: "/site/brands.html" },
-        { source: "/creators", destination: "/site/creators.html" },
-      ],
-    };
-  },
+  // Note: the marketing landing pages ("/", "/brands", "/creators") are routed
+  // by src/middleware.ts, which serves them only on the marketing host and
+  // leaves them as real app routes on viewtrackr.com.
   async redirects() {
     return [
       // Deprecated: the old /apply creator page is superseded by /creators.
