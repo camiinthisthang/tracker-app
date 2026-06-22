@@ -162,7 +162,7 @@ export function ReportConfig({ campaignId, config }: ReportConfigProps) {
               href={`/reports/${publicSlug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 hover:text-blue-600"
+              className="text-[color:var(--brand-blue)] hover:opacity-80"
             >
               <ExternalLink className="h-4 w-4" />
             </a>

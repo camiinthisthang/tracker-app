@@ -32,7 +32,7 @@ export function ReportTeamPicker({
           id="report-team"
           value={selectedId}
           onChange={(e) => select(e.target.value)}
-          className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm font-medium text-slate-700 focus:border-blue-500 focus:outline-none"
+          className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm font-medium text-slate-700 focus:border-[color:var(--brand-blue)] focus:outline-none"
         >
           {teams.map((t) => (
             <option key={t.id} value={t.id}>

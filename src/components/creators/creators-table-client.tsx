@@ -16,6 +16,7 @@ interface CreatorRow {
   tier: string;
   isActive: boolean;
   postCount: number;
+  recentPosts: number;
   totalViews: number;
   totalReferrals: number;
   viralCount: number;
@@ -46,7 +47,7 @@ const columns: ColumnDef<CreatorRow>[] = [
           {row.original.name[0]?.toUpperCase()}
         </div>
         <div>
-          <p className="text-sm font-medium text-slate-700 hover:text-blue-500">
+          <p className="text-sm font-medium text-slate-700 hover:text-[color:var(--brand-blue)]">
             {row.original.name}
           </p>
           <p className="text-xs text-slate-400">@{row.original.handle}</p>
@@ -80,6 +81,21 @@ const columns: ColumnDef<CreatorRow>[] = [
     cell: ({ row }) => (
       <span className="text-sm text-slate-700">
         {row.original.postCount.toLocaleString()}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "recentPosts",
+    header: "Posts (30d)",
+    cell: ({ row }) => (
+      <span
+        className={
+          row.original.recentPosts > 0
+            ? "text-sm font-medium text-slate-700"
+            : "text-sm text-slate-300"
+        }
+      >
+        {row.original.recentPosts}
       </span>
     ),
   },
