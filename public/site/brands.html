@@ -135,15 +135,14 @@
   @media(max-width:700px){.terms .term{grid-template-columns:50px 1fr;}.terms .term p{grid-column:2;}}
 
   /* ---------- work ---------- */
-  .reels{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:clamp(36px,4vw,60px);}
-  .reel{position:relative;aspect-ratio:9/16;overflow:hidden;border:1px solid rgba(255,228,228,.2);background:#1c1311;}
+  /* Rolling carousel of live TikTok embeds — see creators.html for notes. */
+  .reels{margin-top:clamp(36px,4vw,60px);overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);}
+  .reel-track{display:flex;width:max-content;animation:reelscroll 48s linear infinite;}
+  .reels:hover .reel-track{animation-play-state:paused;}
+  .reel{flex:0 0 clamp(216px,23vw,286px);margin-right:18px;position:relative;aspect-ratio:9/16;overflow:hidden;border:1px solid rgba(255,228,228,.2);background:#1c1311;}
   .reel iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;}
-  /* Clean branded video-link tiles (replaced TikTok's white embed card). */
-  .reel-link{display:flex;flex-direction:column;justify-content:flex-end;gap:7px;padding:18px;text-decoration:none;background:var(--red);}
-  .reel-link .reel-handle{font-family:var(--mono);font-weight:700;font-size:16px;letter-spacing:.03em;color:var(--white);}
-  .reel-link .reel-cta{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--pink);}
-  .reel-link:hover{background:var(--black);}
-  .reel-link:hover .reel-cta{color:var(--teal);}
+  @keyframes reelscroll{to{transform:translateX(-50%);}}
+  @media(prefers-reduced-motion: reduce){.reel-track{animation:none;}.reels{overflow-x:auto;}}
   .workfacts{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;font-family:var(--mono);font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(251,251,251,.78);}
   .workfacts b{color:var(--red);font-weight:500;}
   .workfacts span{white-space:nowrap;}
@@ -267,9 +266,14 @@
     <h2 class="hl-lg rv">Unpolished on purpose.</h2>
     <p class="lede rv" style="margin-top:26px">This is not ad-agency gloss. It's the native language of the feed — and it's why people watch to the end.</p>
     <div class="reels rv">
-      <a class="reel reel-link" href="https://www.tiktok.com/@biadoingai/video/7647216800496733471" target="_blank" rel="noopener"><span class="reel-handle">@biadoingai</span><span class="reel-cta">watch on tiktok &rarr;</span></a>
-      <a class="reel reel-link" href="https://www.tiktok.com/@rileyyy.hacks/video/7648040892275756318" target="_blank" rel="noopener"><span class="reel-handle">@rileyyy.hacks</span><span class="reel-cta">watch on tiktok &rarr;</span></a>
-      <a class="reel reel-link" href="https://www.tiktok.com/@lexatalkstech/video/7649404545532988702" target="_blank" rel="noopener"><span class="reel-handle">@lexatalkstech</span><span class="reel-cta">watch on tiktok &rarr;</span></a>
+      <div class="reel-track">
+        <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7647216800496733471" title="@biadoingai on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
+        <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="@rileyyy.hacks on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
+        <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7649404545532988702" title="@lexatalkstech on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
+        <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7647216800496733471" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
+        <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
+        <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7649404545532988702" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
+      </div>
     </div>
     <div class="workfacts rv">
       <span><b>7–120</b> seconds</span><span>most land under <b>30</b></span><span>phone-shot is the standard</span><span>native to each platform</span>
