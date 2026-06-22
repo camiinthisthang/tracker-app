@@ -212,31 +212,45 @@ export function CampaignForm({
 
       {showTeamPicker && (
         <div className="rounded-xl border border-slate-200 bg-white p-6">
-          <h3 className="text-sm font-semibold text-slate-800">Client</h3>
+          <h3 className="text-sm font-semibold text-slate-800">
+            Client <span className="text-[color:var(--brand-blue)]">*</span>
+          </h3>
           <p className="text-xs text-slate-400">
-            Which client this campaign belongs to. Only their managers will see
-            it on their dashboard.
+            Start here — pick which client this campaign belongs to. Only their
+            managers will see it on their dashboard.
           </p>
-          <div className="mt-3 max-w-md">
-            <Select value={teamId} onValueChange={(v) => setTeamId(v ?? "")}>
-              <SelectTrigger>
-                <SelectValue placeholder="Pick a client" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableTeams!.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-slate-400">
-                    No clients yet — add one on /clients first.
-                  </div>
-                ) : (
-                  availableTeams!.map((t) => (
+          {availableTeams!.length === 0 ? (
+            <div className="mt-3 flex flex-col items-start gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
+              <p className="text-sm text-slate-600">
+                You don&apos;t have any clients yet. Create one first, then come
+                back to set up this campaign.
+              </p>
+              <Link href="/clients/new">
+                <Button
+                  type="button"
+                  className="bg-[color:var(--brand-blue)] text-white hover:opacity-90"
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  Create a client
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-3 max-w-md">
+              <Select value={teamId} onValueChange={(v) => setTeamId(v ?? "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pick a client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableTeams!.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.name}
                     </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       )}
 
@@ -606,8 +620,12 @@ export function CampaignForm({
         </Button>
         {availableCreators.length === 0 && (
           <p className="mt-2 text-xs text-slate-400">
-            No creators on this team yet. Add one first from the{" "}
-            <Link href="/creators" className="text-blue-600 hover:underline">
+            No creators on this client yet — you can still create the campaign
+            now and add creators later from the{" "}
+            <Link
+              href="/creators"
+              className="text-[color:var(--brand-blue)] hover:underline"
+            >
               Creators
             </Link>{" "}
             tab.
@@ -623,6 +641,11 @@ export function CampaignForm({
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3">
+        {showTeamPicker && !teamId && (
+          <p className="mr-auto text-xs text-slate-400">
+            Pick a client above to enable creating the campaign.
+          </p>
+        )}
         <Button
           type="button"
           variant="outline"
@@ -632,8 +655,8 @@ export function CampaignForm({
         </Button>
         <Button
           type="submit"
-          className="bg-slate-800 text-white hover:bg-slate-700"
-          disabled={loading}
+          className="bg-[color:var(--brand-blue)] text-white hover:opacity-90"
+          disabled={loading || (showTeamPicker && !teamId)}
         >
           {loading ? (isEdit ? "Saving..." : "Creating...") : (isEdit ? "Save Changes" : "Create Campaign")}
         </Button>
