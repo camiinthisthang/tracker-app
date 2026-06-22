@@ -717,3 +717,30 @@ model CreatorEarning {
   @@index([creatorId])
   @@map("creator_earnings")
 }
+
+// ─── BRAND INQUIRIES ────────────────────────────────────────
+
+enum BrandInquiryStatus {
+  NEW
+  CONTACTED
+  WON
+  ARCHIVED
+}
+
+model BrandInquiry {
+  id          String             @id @default(cuid())
+  name        String
+  email       String
+  company     String
+  link        String?
+  startWindow String?
+  about       String
+  status      BrandInquiryStatus @default(NEW)
+  reviewNotes String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("brand_inquiries")
+}

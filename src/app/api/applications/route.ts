@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, hasAgencyWideAccess } from "@/lib/auth";
+import { notifyNewCreatorApplication } from "@/lib/email/notifications";
 
 export async function POST(req: Request) {
   try {
@@ -28,6 +29,12 @@ export async function POST(req: Request) {
       },
     });
 
+    // Fire-and-forget team notification to hey@dropdeck.xyz. Never block the
+    // public form on email delivery.
+    notifyNewCreatorApplication(application).catch((err) =>
+      console.error("notifyNewCreatorApplication failed", err)
+    );
+
     return NextResponse.json({ success: true, id: application.id });
   } catch (error) {
     console.error("Create application error:", error);
@@ -39,9 +46,11 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
+  // Hardened: applicant PII (name, email, phone, location) must only be
+  // readable by agency users, not any logged-in account (e.g. a creator).
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session || !hasAgencyWideAccess(session)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const applications = await prisma.creatorApplication.findMany({
