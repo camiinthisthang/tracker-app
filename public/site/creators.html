@@ -14,6 +14,8 @@
     --black:#120D0B;
     --teal:#8EDBDC;
     --white:#FBFBFB;
+    --brown:#694A3D;
+    --tan:#A87968;
     --mono:'JetBrains Mono', monospace;
     --disp:'Helvetica Neue', Helvetica, Arial, sans-serif;
   }
@@ -36,15 +38,15 @@
   .on-red .eyebrow{color:var(--pink);}
   .on-red p.lede{color:rgba(18,13,11,.85);}
   .on-pink{background:var(--pink);color:var(--black);}
-  .on-pink .eyebrow{color:var(--red);}
-  .on-pink p.lede{color:rgba(18,13,11,.8);}
+  .on-pink .eyebrow{color:var(--brown);}
+  .on-pink p.lede{color:var(--brown);}
   .on-pink h2{color:var(--red);}
   .on-teal{background:var(--teal);color:var(--black);}
   .on-teal .eyebrow{color:var(--black);}
   .on-teal h2{color:var(--red);}
   .on-teal p.lede{color:rgba(18,13,11,.82);}
   body.no-teal .on-teal{background:var(--pink);}
-  .sec-index{position:absolute;top:26px;right:clamp(22px,6vw,90px);font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;opacity:.85;text-transform:uppercase;white-space:nowrap;}
+  .sec-index{display:none;}
 
   /* halftone dot texture (brand book corner motif) */
   .dotcorner{position:absolute;pointer-events:none;
@@ -219,10 +221,6 @@
   .selection .stacked img{width:100%;display:block;}
   @media(max-width:820px){.sel-grid{grid-template-columns:1fr;}.selection .stacked{max-width:220px;justify-self:start;}}
 
-  /* ---------- fine print ---------- */
-  .fineprint{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:30px;margin-top:0;}
-  .fineprint div h4{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#aa1f23;margin:0 0 10px;}
-  .fineprint div p{font-family:var(--mono);font-size:13.5px;line-height:1.65;margin:0;color:rgba(18,13,11,.85);}
   .brand-strip{margin-top:clamp(44px,6vw,76px);display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
     border:1px solid rgba(255,228,228,.25);padding:20px 24px;font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:rgba(251,251,251,.85);}
   .brand-strip a{color:var(--red);text-decoration:none;}
@@ -240,6 +238,11 @@
   footer a:hover{color:var(--pink);}
 
   /* ---------- application form ---------- */
+  .searchband{display:block;line-height:0;}
+  .searchband img{width:100%;height:auto;display:block;}
+  .apply-head{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(24px,5vw,70px);align-items:center;}
+  .apply-mark{width:100%;max-width:520px;height:auto;display:block;justify-self:end;filter:drop-shadow(4px 5px 0 rgba(18,13,11,.10));}
+  @media(max-width:820px){.apply-head{grid-template-columns:1fr;}.apply-mark{display:none;}}
   .appform{margin-top:clamp(36px,4vw,60px);max-width:880px;display:grid;gap:24px;}
   .appform .row2{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
   @media(max-width:680px){.appform .row2{grid-template-columns:1fr;}}
@@ -370,28 +373,19 @@
     </div>
   </section>
 
-  <div class="seam" style="--seamA:var(--black);--seamB:var(--pink)"></div>
-
-  <!-- FINE PRINT -->
-  <section class="on-pink" id="faq" data-screen-label="fine print">
-    <span class="sec-index">04 / fine print</span>
-    <p class="eyebrow rv">fine print</p>
-    <div class="fineprint rv">
-      <div><h4>do i need a following</h4><p>No. Accounts start at zero. Direction is the advantage.</p></div>
-      <div><h4>do i need gear</h4><p>A phone. That is the standard here.</p></div>
-      <div><h4>who runs the accounts</h4><p>You do. We direct them, and everything is visible in the app.</p></div>
-      <div><h4>when is payday</h4><p>End of the month, bonuses included.</p></div>
-    </div>
-  </section>
-
-  <div class="seam" style="--seamA:var(--pink);--seamB:var(--pink)"></div>
+  <!-- SEARCHING BANNER -->
+  <div class="searchband rv"><img src="/site/assets/searching-creators.png" alt="dropdeck is searching for new creators"></div>
 
   <!-- APPLY -->
   <section class="on-pink" id="apply" data-screen-label="apply form">
-    <span class="sec-index">05 / apply</span>
-    <p class="eyebrow rv">apply</p>
-    <h2 class="hl-lg rv">Deal yourself in.</h2>
-    <p class="lede rv" style="margin-top:26px">We read every application within three business days. If we think you're a fit, we'll send a 15-minute video-call invite.</p>
+    <div class="apply-head">
+      <div class="apply-copy">
+        <p class="eyebrow rv">apply</p>
+        <h2 class="hl-lg rv">Deal yourself in.</h2>
+        <p class="lede rv" style="margin-top:26px">We read every application within three business days. If we think you're a fit, we'll send a 15-minute video-call invite.</p>
+      </div>
+      <img class="apply-mark rv" src="/site/assets/silver-wordmark.png" alt="dropdeck">
+    </div>
     <form class="appform rv" id="creator-form" novalidate="">
       <div class="row2">
         <div class="field"><label for="cf-name">full name <b>*</b></label><input id="cf-name" name="name" type="text" autocomplete="name" placeholder="Jane Creator" required=""></div>
