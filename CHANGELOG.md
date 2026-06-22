@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-06-22 — branding round 2: bone background, brand-red charts, TikTok crop
+- Page background across admin + creator layouts: slate-gray → brand bone (`bg-brand-bone`, #f9f8f3); cards stay white.
+- Charts/rings: primary series blue (#3b82f6) → brand red (#ee2324) in campaign-views-chart, campaign-charts-client, and creator-progress (multi-series green/amber/purple left intact). Progress-ring track + count text also brand-red.
+- Marketing site: cropped the live TikTok embeds (`.reel.embed iframe{height:132%}`) so only the video shows — hides TikTok's white caption/CTA footer. May want a px tweak after eyeballing live.
+- Staged brand element SVGs (star, sparkle, stamp; white variants) in public/site/assets for the decorative pass.
+- Tested: static only (CSS/class + static assets, low build risk). Confirm on the preview.
+
 ## 2026-06-22 — feat: brand inquiries (capture + dashboard), notifications, security fix, branding
 - New `BrandInquiry` model + migration (`brand_inquiries` table); enum `BrandInquiryStatus`.
 - `POST/GET /api/inquiries` + `PATCH /api/inquiries/[inquiryId]` (public create, agency-only read/update). Added `/api/inquiries` to middleware public allowlist.

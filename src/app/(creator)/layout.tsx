@@ -8,7 +8,7 @@ export default function CreatorLayout({
   return (
     <div className="flex min-h-screen">
       <CreatorSidebar />
-      <main className="ml-60 flex-1 bg-slate-50 p-6">{children}</main>
+      <main className="ml-60 flex-1 bg-brand-bone p-6">{children}</main>
     </div>
   );
 }

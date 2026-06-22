@@ -109,7 +109,7 @@ export function CampaignChartsClient({
                 <Line
                   type="monotone"
                   dataKey="views"
-                  stroke="#3b82f6"
+                  stroke="#ee2324"
                   strokeWidth={2}
                   dot={false}
                 />
@@ -171,7 +171,7 @@ export function CampaignChartsClient({
                 />
                 <YAxis tick={{ fontSize: 12, fill: "#94a3b8" }} />
                 <Tooltip />
-                <Bar dataKey="posts" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="posts" fill="#ee2324" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
