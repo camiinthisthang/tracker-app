@@ -11,6 +11,7 @@ import { InviteCreatorButton } from "@/components/creators/invite-creator-button
 import { CreatorSocialHandles } from "@/components/creators/creator-social-handles";
 import { AssignToCampaign } from "@/components/creators/assign-to-campaign";
 import { DeleteCreatorDangerZone } from "@/components/creators/delete-creator-danger-zone";
+import { DeactivateCreatorToggle } from "@/components/creators/deactivate-creator-toggle";
 import { SyncCreatorButton } from "@/components/creators/sync-creator-button";
 import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
 import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-progress";
@@ -154,6 +155,10 @@ export default async function CreatorDetailPage({
   return (
     <div>
       <PageHeader title={creator.name} description={`@${creator.handle}`}>
+        <DeactivateCreatorToggle
+          creatorId={creator.id}
+          isActive={creator.isActive}
+        />
         <SyncCreatorButton
           creatorId={creator.id}
           hasActiveCampaign={hasActiveCampaign}

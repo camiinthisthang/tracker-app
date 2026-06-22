@@ -149,7 +149,7 @@
   @media(max-width:820px){.poster h2 br.lg{display:none;}}
   .poster .meta{display:flex;gap:30px;align-items:flex-end;flex-wrap:wrap;margin:34px 0 clamp(44px,6vw,70px);}
   .poster .fine{font-family:var(--mono);font-size:13px;line-height:1.75;letter-spacing:.04em;color:rgba(18,13,11,.92);max-width:34ch;}
-  .poster .fine a{color:var(--red);}
+  .poster .fine a{color:#aa1f23;font-weight:700;}
   .poster-photo{align-self:end;overflow:hidden;position:relative;z-index:6;transform:rotate(-1.6deg);box-shadow:10px 10px 0 var(--red);margin-bottom:calc(-1*clamp(20px,4vw,50px));}
   .poster-photo img{display:block;width:100%;max-height:62vh;object-fit:cover;object-position:center 20%;filter:saturate(.94) contrast(1.05);transform:scale(1.16);transform-origin:center 30%;}
   @media(max-width:820px){.poster-grid{grid-template-columns:1fr;}.poster-photo{max-width:340px;}}
@@ -202,8 +202,12 @@
   .reel:hover img{transform:scale(1.045);}
   .reel .cap{position:absolute;left:10px;bottom:10px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;background:rgba(18,13,11,.8);color:var(--pink);padding:4px 9px;border-radius:3px;}
   .reel iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;}
-  /* Crop TikTok's white caption/CTA footer so only the video shows in the 9:16 tile. */
-  .reel.embed iframe{height:132%;top:0;bottom:auto;}
+  /* Clean branded video-link tiles (replaced TikTok's white embed card). */
+  .reel-link{display:flex;flex-direction:column;justify-content:flex-end;gap:7px;padding:18px;text-decoration:none;background:var(--red);}
+  .reel-link .reel-handle{font-family:var(--mono);font-weight:700;font-size:16px;letter-spacing:.03em;color:var(--white);}
+  .reel-link .reel-cta{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--pink);}
+  .reel-link:hover{background:var(--black);}
+  .reel-link:hover .reel-cta{color:var(--teal);}
   .reel.embed::after{display:none;}
   .workfacts{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;font-family:var(--mono);font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(251,251,251,.78);}
   .workfacts b{color:var(--red);font-weight:500;}
@@ -220,8 +224,8 @@
 
   /* ---------- fine print ---------- */
   .fineprint{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:30px;margin-top:0;}
-  .fineprint div h4{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--red);margin:0 0 10px;}
-  .fineprint div p{font-family:var(--mono);font-size:13.5px;line-height:1.65;margin:0;color:rgba(251,251,251,.85);}
+  .fineprint div h4{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#aa1f23;margin:0 0 10px;}
+  .fineprint div p{font-family:var(--mono);font-size:13.5px;line-height:1.65;margin:0;color:rgba(18,13,11,.85);}
   .brand-strip{margin-top:clamp(44px,6vw,76px);display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
     border:1px solid rgba(255,228,228,.25);padding:20px 24px;font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:rgba(251,251,251,.85);}
   .brand-strip a{color:var(--red);text-decoration:none;}
@@ -299,7 +303,7 @@
         <p class="eyebrow rv">creators on deck · ugc · united states</p>
         <h2 class="hl-xl rv">The stars are talking.<br class="lg">Are you listening?</h2>
         <div class="meta rv">
-          <a class="btn" href="#apply">apply for a place</a>
+          <a class="btn" href="#apply">get on deck</a>
           <p class="fine">retained by brands.<br>entry by application.<br>reviewed weekly.<br><a href="/brands">here for your brand?&nbsp;→</a></p>
         </div>
       </div>
@@ -355,19 +359,19 @@
     <h2 class="hl-lg rv">Unpolished on purpose.</h2>
     <p class="lede rv" style="margin-top:26px">Organic content, shot by real people, and made to be seen.</p>
     <div class="reels rv">
-      <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7647216800496733471" title="@biadoingai on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
-      <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="@rileyyy.hacks on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
-      <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7649404545532988702" title="@lexatalkstech on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
+      <a class="reel reel-link" href="https://www.tiktok.com/@biadoingai/video/7647216800496733471" target="_blank" rel="noopener"><span class="reel-handle">@biadoingai</span><span class="reel-cta">watch on tiktok &rarr;</span></a>
+      <a class="reel reel-link" href="https://www.tiktok.com/@rileyyy.hacks/video/7648040892275756318" target="_blank" rel="noopener"><span class="reel-handle">@rileyyy.hacks</span><span class="reel-cta">watch on tiktok &rarr;</span></a>
+      <a class="reel reel-link" href="https://www.tiktok.com/@lexatalkstech/video/7649404545532988702" target="_blank" rel="noopener"><span class="reel-handle">@lexatalkstech</span><span class="reel-cta">watch on tiktok &rarr;</span></a>
     </div>
     <div class="workfacts rv">
       <span><b>7–120</b> seconds</span><span>most land under <b>30</b></span><span>phone-shot is the standard</span><span>capcut is fine</span>
     </div>
   </section>
 
-  <div class="seam to-teal" style="--seamA:var(--black)"></div>
+  <div class="seam" style="--seamA:var(--black);--seamB:var(--pink)"></div>
 
   <!-- FINE PRINT -->
-  <section id="faq" data-screen-label="fine print">
+  <section class="on-pink" id="faq" data-screen-label="fine print">
     <span class="sec-index">04 / fine print</span>
     <p class="eyebrow rv">fine print</p>
     <div class="fineprint rv">
@@ -376,13 +380,9 @@
       <div><h4>who runs the accounts</h4><p>You do. We direct them, and everything is visible in the app.</p></div>
       <div><h4>when is payday</h4><p>End of the month, bonuses included.</p></div>
     </div>
-    <div class="brand-strip rv">
-      <span>got a brand worth posting about?</span>
-      <a href="/brands">dropdeck for brands&nbsp;→</a>
-    </div>
   </section>
 
-  <div class="seam" style="--seamA:var(--black);--seamB:var(--pink)"></div>
+  <div class="seam" style="--seamA:var(--pink);--seamB:var(--pink)"></div>
 
   <!-- APPLY -->
   <section class="on-pink" id="apply" data-screen-label="apply form">
