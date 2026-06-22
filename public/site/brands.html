@@ -39,6 +39,8 @@
   .on-teal h2{color:var(--red);}
   .on-teal p.lede{color:rgba(18,13,11,.85);}
   body.no-teal .on-teal{background:var(--pink);}
+  .brandstmt{display:flex;justify-content:center;}
+  .brandstmt-img{width:100%;max-width:1040px;height:auto;display:block;}
   .sec-index{position:absolute;top:26px;right:clamp(22px,6vw,90px);font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;opacity:.85;text-transform:uppercase;white-space:nowrap;}
 
   .dotcorner{position:absolute;pointer-events:none;
@@ -216,7 +218,12 @@
     </div>
   </div>
 
-  <div class="seam" style="--seamA:var(--black);--seamB:var(--pink)"></div>
+  <!-- BRAND STATEMENT -->
+  <section class="brandstmt on-red" data-screen-label="positioning">
+    <img class="brandstmt-img rv" src="/site/assets/brands-statement.png" alt="The UGC studio for brands done sounding like brands.">
+  </section>
+
+  <div class="seam" style="--seamA:var(--red);--seamB:var(--pink)"></div>
 
   <!-- THE OFFER -->
   <section class="offer on-pink" id="offer" data-screen-label="the offer">
