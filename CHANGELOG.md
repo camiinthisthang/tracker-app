@@ -27,6 +27,14 @@ tangent.
 
 ---
 
+## 2026-06-22 — Contract Tracker: monthly rate + payout column
+- Schema: `CampaignCreator.monthlyRate Decimal?(10,2)` + migration `20260622130000_add_monthly_rate` (additive). Rate stored in DB, never in source (privacy).
+- API `PATCH /api/campaigns/[id]/creators` now accepts `monthlyRate` (non-negative, 2dp, nullable).
+- Contract Tracker UI: inline `$` Rate/mo input per creator; new **Payout** column = `rate × min((TT+IG posted) ÷ (TT+IG contracted), 1)`, capped 100%, combined-platform basis (crossposted video counts on both); payout total in the footer.
+- Week columns now labelled by month (`M1·W1` … `M2·W1`) with a divider every 4 weeks, so a 5th week reads as Month 2 / Week 1. Remaining tracker blues → brand red.
+- NOT included: a hardcoded "−50% advance" column — advances vary month to month, so the table shows total earned; reconciliation against any advance is a subtraction.
+- Tested: static + JSX balance only. Verify payout numbers on the preview before paying (matches the $7,440 month total / $1,851.25 post-advance reconciliation computed in chat).
+
 ## 2026-06-22 — branding round 2: bone background, brand-red charts, TikTok crop
 - Page background across admin + creator layouts: slate-gray → brand bone (`bg-brand-bone`, #f9f8f3); cards stay white.
 - Charts/rings: primary series blue (#3b82f6) → brand red (#ee2324) in campaign-views-chart, campaign-charts-client, and creator-progress (multi-series green/amber/purple left intact). Progress-ring track + count text also brand-red.

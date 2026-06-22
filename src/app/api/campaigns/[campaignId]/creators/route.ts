@@ -68,9 +68,14 @@ export async function PATCH(
     return NextResponse.json({ error: "creatorId is required" }, { status: 400 });
   }
 
-  // Only the two contract fields are editable here. Each accepts a non-negative
-  // integer or null (cleared). Absent keys are left untouched.
-  const data: { contractedTiktok?: number | null; contractedInstagram?: number | null } = {};
+  // Editable contract fields. contractedTiktok/Instagram are non-negative
+  // integers; monthlyRate is a non-negative dollar amount (up to 2 decimals).
+  // Each accepts null (cleared). Absent keys are left untouched.
+  const data: {
+    contractedTiktok?: number | null;
+    contractedInstagram?: number | null;
+    monthlyRate?: number | null;
+  } = {};
   for (const key of ["contractedTiktok", "contractedInstagram"] as const) {
     if (!(key in body)) continue;
     const raw = body[key];
@@ -85,6 +90,21 @@ export async function PATCH(
         );
       }
       data[key] = n;
+    }
+  }
+  if ("monthlyRate" in body) {
+    const raw = body.monthlyRate;
+    if (raw === null || raw === "") {
+      data.monthlyRate = null;
+    } else {
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 0) {
+        return NextResponse.json(
+          { error: "monthlyRate must be a non-negative number" },
+          { status: 400 }
+        );
+      }
+      data.monthlyRate = Math.round(n * 100) / 100;
     }
   }
 
