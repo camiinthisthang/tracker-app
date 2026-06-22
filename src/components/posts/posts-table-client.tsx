@@ -264,7 +264,7 @@ export function PostsTableClient({
       />
 
       {/* Table */}
-      <DataTable columns={columns} data={filtered} />
+      <DataTable columns={columns} data={filtered} pageSize={25} />
     </div>
   );
 }

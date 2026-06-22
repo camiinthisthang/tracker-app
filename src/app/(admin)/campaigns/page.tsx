@@ -25,7 +25,7 @@ export default async function CampaignsPage() {
     <div>
       <PageHeader title="Campaigns" description="Manage your UGC campaigns">
         <Link href="/campaigns/new">
-          <Button className="bg-slate-800 text-white hover:bg-slate-700">
+          <Button className="bg-[color:var(--brand-blue)] text-white hover:opacity-90">
             <Plus className="mr-2 h-4 w-4" />
             New Campaign
           </Button>
@@ -39,7 +39,7 @@ export default async function CampaignsPage() {
           description="Create your first campaign to start tracking creator content."
         >
           <Link href="/campaigns/new">
-            <Button className="bg-slate-800 text-white hover:bg-slate-700">
+            <Button className="bg-[color:var(--brand-blue)] text-white hover:opacity-90">
               <Plus className="mr-2 h-4 w-4" />
               Create Campaign
             </Button>
@@ -53,9 +53,9 @@ export default async function CampaignsPage() {
               href={`/campaigns/${campaign.id}/overview`}
               className="group"
             >
-              <div className="rounded-xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 transition-colors hover:border-[color:var(--brand-blue)]/40 hover:bg-[color:var(--brand-blue)]/[0.02]">
                 <div className="flex items-start justify-between">
-                  <h3 className="text-sm font-medium text-slate-800 group-hover:text-blue-500">
+                  <h3 className="text-sm font-medium text-slate-800 group-hover:text-[color:var(--brand-blue)]">
                     {campaign.name}
                   </h3>
                   <Badge

@@ -55,14 +55,14 @@ const GRAIN_URL =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E";
 
 const ROYAL_SURFACE: React.CSSProperties = {
-  background: "#054FF0",
+  background: "#EE2324",
   backgroundImage: `url("${GRAIN_URL}")`,
   backgroundSize: "240px",
   backgroundBlendMode: "overlay",
 };
 
 const TOOLTIP_STYLE: React.CSSProperties = {
-  background: "#0B0B0E",
+  background: "#120D0B",
   border: "none",
   borderRadius: 8,
   fontFamily: "'JetBrains Mono', monospace",
@@ -320,8 +320,8 @@ export function ClientReport({ data }: { data: ReportData }) {
               <AreaChart data={trendData}>
                 <defs>
                   <linearGradient id="rv" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#054FF0" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#054FF0" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#EE2324" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#EE2324" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#EFEDE4" />
@@ -334,7 +334,7 @@ export function ClientReport({ data }: { data: ReportData }) {
                 <Area
                   type="monotone"
                   dataKey="views"
-                  stroke="#054FF0"
+                  stroke="#EE2324"
                   fill="url(#rv)"
                   strokeWidth={2}
                 />
@@ -505,7 +505,7 @@ export function ClientReport({ data }: { data: ReportData }) {
                 />
                 <Bar dataKey="avgViews" radius={[4, 4, 0, 0]}>
                   {data.postingByDay.map((d, i) => (
-                    <Cell key={i} fill={d.posts > 0 ? "#054FF0" : "#C7D7FB"} />
+                    <Cell key={i} fill={d.posts > 0 ? "#EE2324" : "#C7D7FB"} />
                   ))}
                 </Bar>
               </BarChart>
@@ -525,7 +525,7 @@ export function ClientReport({ data }: { data: ReportData }) {
                     `${item?.payload?.posts ?? 0} posts`,
                   ]}
                 />
-                <Bar dataKey="avgViews" fill="#054FF0" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="avgViews" fill="#EE2324" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </SectionCard>

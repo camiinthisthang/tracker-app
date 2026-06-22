@@ -64,6 +64,18 @@ export default async function CreatorsPage() {
     viralData.map((v) => [v.creatorId, v._count])
   );
 
+  // Posts in the last 30 days — recent activity, to spot who has gone quiet.
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentData =
+    creatorIds.length > 0
+      ? await prisma.post.groupBy({
+          by: ["creatorId"],
+          where: { creatorId: { in: creatorIds }, postedAt: { gte: since } },
+          _count: true,
+        })
+      : [];
+  const recentMap = new Map(recentData.map((v) => [v.creatorId, v._count]));
+
   const tableData = creators.map((creator) => ({
     id: creator.id,
     name: creator.name,
@@ -71,6 +83,7 @@ export default async function CreatorsPage() {
     tier: creator.tier,
     isActive: creator.isActive,
     postCount: creator._count.posts,
+    recentPosts: recentMap.get(creator.id) ?? 0,
     totalViews: viewsMap.get(creator.id) ?? 0,
     totalReferrals: referralsMap.get(creator.id) ?? 0,
     viralCount: viralMap.get(creator.id) ?? 0,

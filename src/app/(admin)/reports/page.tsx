@@ -113,7 +113,7 @@ async function ScheduledReports({
                         {" · "}
                         <a
                           href={`/reports/${c.publicSlug}`}
-                          className="text-blue-500 hover:text-blue-600"
+                          className="text-[color:var(--brand-blue)] hover:opacity-80"
                         >
                           public link
                         </a>
