@@ -83,9 +83,12 @@ export async function middleware(request: NextRequest) {
   // Role-based routing
   const role = token.role as string;
 
-  // Creator trying to access admin routes
+  // Creator trying to access admin routes. Super admins are exempt: a creator
+  // who's also been granted isSuperAdmin (e.g. staff who also post) gets the
+  // full admin view despite their CREATOR membership role.
   if (
     role === "CREATOR" &&
+    !isSuperAdmin &&
     !pathname.startsWith("/home") &&
     !pathname.startsWith("/profile") &&
     !pathname.startsWith("/creator-") &&
@@ -101,7 +104,7 @@ export async function middleware(request: NextRequest) {
 
   // Root redirect (safety net; "/" is normally handled by host rules above)
   if (pathname === "/") {
-    if (role === "CREATOR") {
+    if (role === "CREATOR" && !isSuperAdmin) {
       return NextResponse.redirect(new URL("/home", request.url));
     }
     return NextResponse.redirect(new URL("/dashboard", request.url));

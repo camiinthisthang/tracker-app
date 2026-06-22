@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-06-21 — re-apply: super-admin creator-view fix (clobbered by PR #26)
+Adriel had admin view, then lost it again. PR #26 (`reganomalley-patch-1`) rewrote `src/middleware.ts` from a branch that predated the 2026-06-18 fix, silently reverting the super-admin exemption in the role-routing block.
+
+- Re-applied the `!isSuperAdmin` exemption to the creator→admin bounce and root redirect, on top of Regan's restructured (host-aware marketing) middleware. Confirmed Adriel's DB state is still correct (`isSuperAdmin=true`, `Merit:CREATOR`) — only the middleware had regressed.
+- ⚠️ Drive-by: PRs that touch `src/middleware.ts` from stale branches can revert this again. A small regression test on the middleware (super-admin + CREATOR role → not redirected to /home) would prevent silent recurrences.
+- Tested: `npm run build` passes.
+
 ## 2026-06-18 — fix: super-admin with a CREATOR membership was stuck in creator view
 Granting `isSuperAdmin` (above) didn't change Adriel's view — middleware routed him to /home anyway.
 
