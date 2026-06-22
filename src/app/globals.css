@@ -67,14 +67,31 @@
   --color-royal-100: #fde7e7;
   --color-royal-200: #f7c5c5;
   --color-royal-500: #ee2324;
-  --color-royal-600: #b3181a;
+  --color-royal-600: #aa1f23;
   --color-bone-100: #f9f8f3;
   --color-bone-200: #efede4;
   --color-ink-300: #9a9aa3;
   --color-ink-500: #4d4d55;
   --color-ink-700: #232328;
-  --color-ink-900: #0b0b0e;
+  --color-ink-900: #120d0b;
   --color-lime-500: #8edbdc;
+  /* Palette warm neutrals */
+  --color-brown-500: #694a3d;
+  --color-tan-500: #a87968;
+  /* Warm-neutral gray ramp — overrides Tailwind slate so the whole app's
+   * text/borders/backgrounds read warm (matching the bone/red/brown brand)
+   * instead of cool blue-gray. Anchored on brand ink #120D0B. */
+  --color-slate-50: #faf9f6;
+  --color-slate-100: #f4f2ed;
+  --color-slate-200: #e8e4db;
+  --color-slate-300: #d4cec3;
+  --color-slate-400: #a8a094;
+  --color-slate-500: #7e7669;
+  --color-slate-600: #5d564b;
+  --color-slate-700: #443d33;
+  --color-slate-800: #2c261e;
+  --color-slate-900: #1c160f;
+  --color-slate-950: #120d0b;
 }
 
 :root {
@@ -90,7 +107,7 @@
    * interior of the app feels editorial, not screaming red. Primary becomes
    * dropdeck red, accent becomes teal. */
   --background: #ffffff;
-  --foreground: #0a0a0a;
+  --foreground: #120d0b;
   --card: #ffffff;
   --card-foreground: #0a0a0a;
   --popover: #ffffff;
@@ -100,17 +117,17 @@
   --secondary: var(--brand-bone);
   --secondary-foreground: #0a0a0a;
   --muted: var(--brand-bone);
-  --muted-foreground: oklch(0.5 0 0);
+  --muted-foreground: #7e7669;
   --accent: var(--brand-chartreuse);
   --accent-foreground: #0a0a0a;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.92 0 0);
+  --border: #e8e4db;
+  --input: #e8e4db;
   --ring: var(--brand-blue);
   --chart-1: var(--brand-blue);
   --chart-2: #8edbdc;
   --chart-3: #ffb0af;
-  --chart-4: #b3181a;
+  --chart-4: #aa1f23;
   --chart-5: #4fb6b7;
   --radius: 0.625rem;
   --sidebar: #ffffff;
@@ -145,7 +162,7 @@
   --chart-1: var(--brand-blue);
   --chart-2: #8edbdc;
   --chart-3: #ffb0af;
-  --chart-4: #b3181a;
+  --chart-4: #aa1f23;
   --chart-5: #4fb6b7;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
