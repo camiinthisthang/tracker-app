@@ -27,6 +27,16 @@ tangent.
 
 ---
 
+## 2026-06-22 — feat: brand inquiries (capture + dashboard), notifications, security fix, branding
+- New `BrandInquiry` model + migration (`brand_inquiries` table); enum `BrandInquiryStatus`.
+- `POST/GET /api/inquiries` + `PATCH /api/inquiries/[inquiryId]` (public create, agency-only read/update). Added `/api/inquiries` to middleware public allowlist.
+- New admin page `/inquiries` ("Brands" in sidebar) mirroring Applications, with status actions (Contacted / Won / Archive).
+- `src/lib/email/notifications.ts`: emails hey@dropdeck.xyz (override `TEAM_NOTIFICATION_EMAIL`) on every new brand inquiry AND creator application; reply-to set to the lead.
+- Security: `GET /api/applications` was readable by any logged-in session (incl. creators) — now gated to agency access (`hasAgencyWideAccess`).
+- Branding: sidebar + marketing nav logo swapped to transparent SVG monogram (fixes the white-box halo); brands.html nav recolored pink→white for contrast.
+- Tested: static checks only (component props, Resend v6 `replyTo` type, schema mirrors CreatorApplication). Full build = Vercel preview on push. The migration auto-applies via the build's `prisma migrate deploy` (additive table, safe).
+- Note for Cami: set `RESEND_FROM_EMAIL=hey@dropdeck.xyz` (+ verify the domain in Resend) so notifications send *from* hey@ rather than onboarding@resend.dev.
+
 ## 2026-06-21 — re-apply: super-admin creator-view fix (clobbered by PR #26)
 Adriel had admin view, then lost it again. PR #26 (`reganomalley-patch-1`) rewrote `src/middleware.ts` from a branch that predated the 2026-06-18 fix, silently reverting the super-admin exemption in the role-routing block.
 

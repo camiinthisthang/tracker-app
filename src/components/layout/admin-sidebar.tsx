@@ -16,6 +16,7 @@ import {
   Inbox,
   Lightbulb,
   Building2,
+  Briefcase,
   UserCog,
 } from "lucide-react";
 import { SidebarNavItem } from "./sidebar-nav-item";
@@ -45,6 +46,7 @@ const navItems = [
 // and Agency team (DropDeck members) all require cross-client visibility.
 const agencyNavItems = [
   { href: "/applications", label: "Applications", icon: Inbox },
+  { href: "/inquiries", label: "Brands", icon: Briefcase },
   { href: "/clients", label: "Clients", icon: Building2 },
   { href: "/team", label: "Agency team", icon: UserCog },
 ];
@@ -67,11 +69,11 @@ export function AdminSidebar() {
       {/* Logo — always the product wordmark, never the client team name. */}
       <div className="flex h-14 items-center gap-2 px-4">
         <Image
-          src="/dropdeck-logo.png"
+          src="/symbol.svg"
           alt="DropDeck"
           width={32}
           height={32}
-          className="h-8 w-8 rounded-md"
+          className="h-8 w-8"
           priority
         />
         <span className="text-base font-bold tracking-tight lowercase text-foreground">

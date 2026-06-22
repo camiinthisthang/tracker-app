@@ -44,6 +44,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/invite/") ||
     pathname.startsWith("/api/auth") ||
     pathname === "/api/applications" ||
+    pathname === "/api/inquiries" ||
     pathname === "/api/invite/team/accept" ||
     pathname.startsWith("/reports/") ||
     pathname.startsWith("/legal/") ||
