@@ -283,6 +283,9 @@ model CampaignCreator {
   // total contracted = the sum. Drives the contract-tracker pace flag.
   contractedTiktok    Int?
   contractedInstagram Int?
+  // Per-creator monthly rate (USD) for this campaign. Drives the payout column
+  // (rate x delivered/contracted, capped 100%). Stored here, never in source.
+  monthlyRate         Decimal? @db.Decimal(10, 2)
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

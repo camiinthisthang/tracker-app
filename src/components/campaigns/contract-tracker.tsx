@@ -22,6 +22,8 @@ export interface ContractCreatorRow {
   isActive: boolean;
   contractedTiktok: number | null;
   contractedInstagram: number | null;
+  /** Monthly rate in USD; null = not set. Drives the payout column. */
+  monthlyRate: number | null;
   postedTiktok: number;
   postedInstagram: number;
   /** Per-week posted counts keyed by ContractWeek.key. */
@@ -167,10 +169,94 @@ function ContractInput({
           if (e.key === "Enter") e.currentTarget.blur();
         }}
         placeholder="—"
-        className="w-12 rounded-md border border-slate-200 bg-white px-1 py-1 text-center text-sm tabular-nums text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 disabled:opacity-50"
+        className="w-12 rounded-md border border-slate-200 bg-white px-1 py-1 text-center text-sm tabular-nums text-slate-800 focus:border-[color:var(--brand-blue)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-blue)]/30 disabled:opacity-50"
       />
     </label>
   );
+}
+
+/** Inline-editable monthly rate (USD) for one creator on this campaign. */
+function RateInput({
+  campaignId,
+  creatorId,
+  initial,
+}: {
+  campaignId: string;
+  creatorId: string;
+  initial: number | null;
+}) {
+  const router = useRouter();
+  const [value, setValue] = useState(initial != null ? String(initial) : "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    const next = value.trim();
+    if (next === (initial != null ? String(initial) : "")) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/creators`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creatorId, monthlyRate: next === "" ? null : next }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(j?.error ?? "Save failed");
+      }
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+      setValue(initial != null ? String(initial) : "");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <label className="flex items-center justify-center gap-0.5">
+      <span className="text-xs text-slate-400">$</span>
+      <input
+        type="number"
+        min={0}
+        step="0.01"
+        inputMode="decimal"
+        value={value}
+        disabled={saving}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        placeholder="—"
+        className="w-20 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-right text-sm tabular-nums text-slate-800 focus:border-[color:var(--brand-blue)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-blue)]/30 disabled:opacity-50"
+      />
+    </label>
+  );
+}
+
+/** Format a USD amount: whole dollars when even, else 2 decimals. */
+function fmtUSD(n: number): string {
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+/**
+ * Payout = monthly rate × min(delivered ÷ contracted, 1), capped at 100%.
+ * Always uses the combined TT+IG basis (a crossposted video counts on both
+ * platforms), independent of the platform tab. Null if rate or contract unset.
+ */
+function payoutFor(row: ContractCreatorRow): number | null {
+  if (row.monthlyRate == null) return null;
+  const contracted =
+    (row.contractedTiktok ?? 0) + (row.contractedInstagram ?? 0);
+  if (contracted <= 0) return null;
+  const posted = row.postedTiktok + row.postedInstagram;
+  const ratio = Math.min(posted / contracted, 1);
+  return Math.round(row.monthlyRate * ratio * 100) / 100;
 }
 
 /** Info icon that reveals the pace-legend popover on hover/focus. */
@@ -253,10 +339,11 @@ export function ContractTracker({
       const v = valuesFor(row, view);
       acc.contracted += v.contracted ?? 0;
       acc.posted += v.posted;
+      acc.payout += payoutFor(row) ?? 0;
       for (const w of weeks) acc.week[w.key] = (acc.week[w.key] ?? 0) + v.week(w.key);
       return acc;
     },
-    { contracted: 0, posted: 0, week: {} as Record<string, number> }
+    { contracted: 0, posted: 0, payout: 0, week: {} as Record<string, number> }
   );
   const totalPct =
     totals.contracted > 0
@@ -298,7 +385,7 @@ export function ContractTracker({
                   // At risk can't sit above the On-track line.
                   if (atRisk > n) setAtRisk(n);
                 }}
-                className="h-1.5 w-28 cursor-pointer accent-blue-500"
+                className="h-1.5 w-28 cursor-pointer accent-[color:var(--brand-blue)]"
                 aria-label="On-track threshold, % of expected"
               />
               <span className="w-9 tabular-nums font-medium text-slate-700">
@@ -351,33 +438,41 @@ export function ContractTracker({
               <th className="px-3 py-2 text-center font-medium">
                 Contracted (TT / IG)
               </th>
+              <th className="px-3 py-2 text-center font-medium">Rate / mo</th>
               <th className="px-3 py-2 text-center font-medium">Posted</th>
               <th className="px-3 py-2 text-center font-medium">%</th>
+              <th className="px-3 py-2 text-center font-medium">Payout</th>
               <th className="px-3 py-2 text-center font-medium">
                 <span className="inline-flex items-center gap-1">
                   Pace
                   <PaceLegend onTrackPct={onTrack} atRiskPct={atRisk} />
                 </span>
               </th>
-              {weeks.map((w) => (
+              {weeks.map((w, i) => {
+                const month = Math.floor(i / 4) + 1;
+                const weekInMonth = (i % 4) + 1;
+                const monthStart = i % 4 === 0 && i > 0;
+                return (
                 <th
                   key={w.key}
                   className={cn(
                     "px-2 py-2 text-center font-medium whitespace-nowrap",
-                    w.isCurrent && "text-blue-500"
+                    w.isCurrent && "text-[color:var(--brand-blue)]",
+                    monthStart && "border-l border-slate-200"
                   )}
                 >
                   <span
                     tabIndex={0}
                     className="group relative inline-block cursor-help underline decoration-dotted decoration-slate-300 underline-offset-2 focus:outline-none"
                   >
-                    {w.label}
+                    M{month}·W{weekInMonth}
                     <span className="pointer-events-none absolute left-1/2 top-6 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-normal text-slate-600 shadow-lg group-hover:block group-focus:block">
                       {w.range}
                     </span>
                   </span>
                 </th>
-              ))}
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -385,6 +480,7 @@ export function ContractTracker({
               .sort((a, b) => Number(b.isActive) - Number(a.isActive))
               .map((row) => {
               const v = valuesFor(row, view);
+              const payout = payoutFor(row);
               const pace = paceStatus(v.contracted, v.posted, elapsedFraction, onTrack, atRisk);
               const pct =
                 v.contracted && v.contracted > 0
@@ -441,11 +537,27 @@ export function ContractTracker({
                       </span>
                     </div>
                   </td>
+                  <td className="px-3 py-2.5 text-center">
+                    <RateInput
+                      campaignId={campaignId}
+                      creatorId={row.creatorId}
+                      initial={row.monthlyRate}
+                    />
+                  </td>
                   <td className="px-3 py-2.5 text-center font-semibold tabular-nums text-slate-800">
                     {v.posted}
                   </td>
                   <td className="px-3 py-2.5 text-center tabular-nums text-slate-500">
                     {pct == null ? "—" : `${pct}%`}
+                  </td>
+                  <td className="px-3 py-2.5 text-center">
+                    {payout == null ? (
+                      <span className="text-slate-300">—</span>
+                    ) : (
+                      <span className="font-semibold tabular-nums text-[color:var(--brand-blue)]">
+                        {fmtUSD(payout)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-center">
                     {row.isActive ? (
@@ -456,15 +568,17 @@ export function ContractTracker({
                       </span>
                     )}
                   </td>
-                  {weeks.map((w) => {
+                  {weeks.map((w, i) => {
                     const c = v.week(w.key);
+                    const monthStart = i % 4 === 0 && i > 0;
                     return (
                       <td
                         key={w.key}
                         className={cn(
                           "px-2 py-2.5 text-center tabular-nums",
                           c > 0 ? "text-slate-700" : "text-slate-300",
-                          w.isCurrent && "bg-blue-50/50"
+                          w.isCurrent && "bg-[color:var(--brand-blue)]/5",
+                          monthStart && "border-l border-slate-200"
                         )}
                       >
                         {c}
@@ -483,21 +597,26 @@ export function ContractTracker({
               <td className="px-3 py-2.5 text-center tabular-nums">
                 {totals.contracted || "—"}
               </td>
+              <td className="px-3 py-2.5 text-center text-slate-300">—</td>
               <td className="px-3 py-2.5 text-center tabular-nums">
                 {totals.posted}
               </td>
               <td className="px-3 py-2.5 text-center tabular-nums text-slate-500">
                 {totalPct == null ? "—" : `${totalPct}%`}
               </td>
+              <td className="px-3 py-2.5 text-center font-bold tabular-nums text-[color:var(--brand-blue)]">
+                {totals.payout > 0 ? fmtUSD(totals.payout) : "—"}
+              </td>
               <td className="px-3 py-2.5 text-center">
                 <PaceBadge pace={totalPace} />
               </td>
-              {weeks.map((w) => (
+              {weeks.map((w, i) => (
                 <td
                   key={w.key}
                   className={cn(
                     "px-2 py-2.5 text-center tabular-nums",
-                    w.isCurrent && "bg-blue-50/50"
+                    w.isCurrent && "bg-[color:var(--brand-blue)]/5",
+                    i % 4 === 0 && i > 0 && "border-l border-slate-200"
                   )}
                 >
                   {totals.week[w.key] ?? 0}

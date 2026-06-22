@@ -191,6 +191,7 @@ export default async function CampaignProgressPage({
       isActive: cc.isActive,
       contractedTiktok: cc.contractedTiktok,
       contractedInstagram: cc.contractedInstagram,
+      monthlyRate: cc.monthlyRate != null ? Number(cc.monthlyRate) : null,
       postedTiktok,
       postedInstagram,
       weekly,
