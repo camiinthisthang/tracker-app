@@ -65,7 +65,8 @@ export default async function CreatorsPage() {
   );
 
   // Posts in the last 30 days — recent activity, to spot who has gone quiet.
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const since = new Date();
+  since.setDate(since.getDate() - 30);
   const recentData =
     creatorIds.length > 0
       ? await prisma.post.groupBy({
