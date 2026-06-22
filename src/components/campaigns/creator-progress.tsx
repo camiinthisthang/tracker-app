@@ -30,7 +30,7 @@ function ProgressRing({ count, target }: { count: number; target: number }) {
           cy="18"
           r={radius}
           fill="none"
-          stroke={count > 0 ? "#dbeafe" : "#f1f5f9"}
+          stroke={count > 0 ? "#fde7e7" : "#f1f5f9"}
           strokeWidth="2.5"
         />
         {pct > 0 && (
@@ -39,7 +39,7 @@ function ProgressRing({ count, target }: { count: number; target: number }) {
             cy="18"
             r={radius}
             fill="none"
-            stroke="#3b82f6"
+            stroke="#ee2324"
             strokeWidth="2.5"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
@@ -52,9 +52,9 @@ function ProgressRing({ count, target }: { count: number; target: number }) {
           className={cn(
             "text-sm font-semibold",
             hit
-              ? "text-blue-600"
+              ? "text-[color:var(--brand-blue)]"
               : partial
-              ? "text-blue-500"
+              ? "text-[color:var(--brand-blue)]"
               : "text-slate-400"
           )}
         >
