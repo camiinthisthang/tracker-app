@@ -19,7 +19,7 @@
   ::selection{background:var(--red);color:var(--pink);}
 
   .mono{font-family:var(--mono);}
-  .eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--red);margin:0 0 22px;font-weight:500;white-space:nowrap;}
+  .eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.2em;text-transform:lowercase;color:var(--red);margin:0 0 22px;font-weight:500;white-space:nowrap;}
   .eyebrow::before{content:"★ ";letter-spacing:.05em;}
   h1,h2{font-family:var(--disp);font-weight:700;letter-spacing:-.025em;line-height:.97;margin:0;text-transform:uppercase;}
   .hl-xl{font-size:clamp(44px,7vw,112px);}
@@ -41,7 +41,7 @@
   body.no-teal .on-teal{background:var(--pink);}
   .brandstmt{display:flex;justify-content:center;}
   .brandstmt-img{width:100%;max-width:1040px;height:auto;display:block;}
-  .sec-index{position:absolute;top:26px;right:clamp(22px,6vw,90px);font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;opacity:.85;text-transform:uppercase;white-space:nowrap;}
+  .sec-index{display:none;}
 
   .dotcorner{position:absolute;pointer-events:none;
     background-image:radial-gradient(circle, var(--dotc,rgba(255,255,255,.8)) 1.6px, transparent 1.9px);
@@ -66,7 +66,7 @@
     padding:20px clamp(22px,6vw,90px);}
   nav .logo img{height:34px;width:auto;display:block;}
   nav .links{margin-left:auto;display:flex;gap:24px;align-items:center;}
-  nav a{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--white);text-decoration:none;opacity:1;white-space:nowrap;}
+  nav a{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:lowercase;color:var(--white);text-decoration:none;opacity:1;white-space:nowrap;}
   nav a:hover{opacity:1;color:var(--teal);}
   nav a.apply{background:var(--white);color:var(--red);border:1.5px solid var(--white);padding:9px 18px;border-radius:30px;opacity:1;}
   nav a.apply:hover{background:var(--pink);color:var(--red);border-color:var(--pink);}
@@ -108,7 +108,7 @@
   .ledger{margin-top:clamp(40px,5vw,70px);border-top:1px solid rgba(18,13,11,.3);}
   .ledger-row{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:18px;
     padding:22px 0;border-bottom:1px solid rgba(18,13,11,.3);}
-  .ledger-row .k{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:rgba(18,13,11,.8);white-space:nowrap;}
+  .ledger-row .k{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:lowercase;color:rgba(18,13,11,.8);white-space:nowrap;}
   .ledger-row .v{font-family:var(--disp);font-weight:700;font-size:clamp(28px,3.6vw,54px);letter-spacing:-.02em;text-transform:uppercase;white-space:nowrap;text-align:right;color:var(--black);}
   .ledger-row .v small{display:block;font-family:var(--mono);font-size:12px;font-weight:400;letter-spacing:.08em;color:rgba(18,13,11,.7);margin:6px 0 0;}
   @media(max-width:680px){.ledger-row{grid-template-columns:1fr;}.ledger-row .k{white-space:normal;}.ledger-row .v{white-space:normal;text-align:left;}}
@@ -136,6 +136,19 @@
   .terms .term p{font-family:var(--disp);font-size:16px;line-height:1.6;margin:0;color:rgba(18,13,11,.88);transition:color .22s ease;}
   @media(max-width:700px){.terms .term{grid-template-columns:50px 1fr;}.terms .term p{grid-column:2;}}
 
+  /* ---------- how it works : the handoff ---------- */
+  .handoff-grid{display:grid;grid-template-columns:0.85fr 1.4fr;gap:clamp(16px,2.5vw,30px);margin-top:clamp(40px,4.5vw,66px);align-items:start;}
+  @media(max-width:760px){.handoff-grid{grid-template-columns:1fr;}}
+  .ho-col{background:var(--black);color:var(--white);padding:clamp(26px,3vw,42px);}
+  .ho-label{display:block;font-family:var(--mono);font-size:12.5px;font-weight:700;letter-spacing:.22em;text-transform:lowercase;margin-bottom:clamp(18px,2vw,26px);}
+  .ho-you .ho-label{color:var(--pink);}
+  .ho-us .ho-label{color:var(--teal);}
+  .ho-you .ho-big{font-family:var(--disp);font-weight:700;text-transform:uppercase;letter-spacing:-.01em;line-height:1.03;font-size:clamp(24px,2.6vw,34px);margin:0;color:var(--white);}
+  .ho-you .ho-sub{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:rgba(251,251,251,.55);margin:18px 0 0;}
+  .ho-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:clamp(11px,1.2vw,15px);}
+  .ho-list li{font-family:var(--disp);font-size:clamp(16px,1.5vw,21px);line-height:1.25;display:flex;gap:13px;align-items:baseline;color:rgba(251,251,251,.92);}
+  .ho-list li::before{content:"";flex:0 0 auto;width:7px;height:7px;transform:translateY(-2px);background:var(--red);border-radius:50%;}
+
   /* ---------- work ---------- */
   /* Rolling carousel of live TikTok embeds — see creators.html for notes. */
   .reels{margin-top:clamp(36px,4vw,60px);overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);}
@@ -145,7 +158,7 @@
   .reel iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;}
   @keyframes reelscroll{to{transform:translateX(-50%);}}
   @media(prefers-reduced-motion: reduce){.reel-track{animation:none;}.reels{overflow-x:auto;}}
-  .workfacts{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;font-family:var(--mono);font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(251,251,251,.78);}
+  .workfacts{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;font-family:var(--mono);font-size:12.5px;letter-spacing:.14em;text-transform:lowercase;color:rgba(251,251,251,.78);}
   .workfacts b{color:var(--red);font-weight:500;}
   .workfacts span{white-space:nowrap;}
 
@@ -157,7 +170,7 @@
   .appform .row2{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
   @media(max-width:680px){.appform .row2{grid-template-columns:1fr;}}
   .field{display:flex;flex-direction:column;gap:9px;}
-  .field label{font-family:var(--mono);font-size:12.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--black);}
+  .field label{font-family:var(--mono);font-size:12.5px;font-weight:500;letter-spacing:.14em;text-transform:lowercase;color:var(--black);}
   .field label b{color:var(--pink);font-weight:700;}
   .field .hint{font-family:var(--mono);font-size:12.5px;line-height:1.6;color:rgba(18,13,11,.75);margin:0;}
   .field input,.field textarea,.field select{font-family:var(--mono);font-size:14px;color:var(--black);background:var(--white);
@@ -169,7 +182,7 @@
     background-position:calc(100% - 21px) 50%, calc(100% - 16px) 50%;background-size:5px 5px;background-repeat:no-repeat;}
   .appform .actions-row{display:flex;gap:22px;align-items:center;flex-wrap:wrap;}
   .appform button.btn{cursor:pointer;}
-  .form-note{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:rgba(18,13,11,.8);}
+  .form-note{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:lowercase;color:rgba(18,13,11,.8);}
   .form-err{font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--pink);background:var(--black);padding:14px 18px;}
   .form-err a{color:var(--teal);}
   .form-done{position:relative;z-index:2;margin:clamp(36px,4vw,60px) 0 clamp(44px,6vw,80px);max-width:880px;border:2px solid var(--black);background:var(--white);padding:clamp(30px,4vw,50px);box-shadow:8px 8px 0 var(--black);}
@@ -177,10 +190,11 @@
   .form-done p{font-family:var(--mono);font-size:13.5px;line-height:1.7;margin:0;color:rgba(18,13,11,.85);}
   .close-word{width:auto;max-width:clamp(230px,32vw,380px);margin-top:clamp(44px,6vw,84px);position:relative;z-index:2;}
   .close-word img{width:100%;display:block;}
-  footer{display:flex;gap:26px;flex-wrap:wrap;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(18,13,11,.85);padding:22px 0 8px;margin-top:22px;border-top:1px solid rgba(18,13,11,.22);position:relative;z-index:2;}
+  footer{display:flex;gap:26px;flex-wrap:wrap;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:lowercase;color:rgba(18,13,11,.85);padding:22px 0 8px;margin-top:22px;border-top:1px solid rgba(18,13,11,.22);position:relative;z-index:2;}
   footer span,footer a{white-space:nowrap;}
   footer a{color:inherit;text-decoration:none;}
   footer a:hover{color:var(--pink);}
+  footer.page-footer{background:var(--black);color:rgba(251,251,251,.7);border-top:1px solid rgba(255,255,255,.14);padding:24px clamp(22px,6vw,90px) 32px;margin-top:0;}
 
   #tweaks-root{position:relative;z-index:100;}
 </style>
@@ -247,14 +261,14 @@
     <p class="lede rv" style="margin-top:26px">This is not ad-agency gloss. It's the native language of the feed — and it's why people watch to the end.</p>
     <div class="reels rv">
       <div class="reel-track">
-        <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7647216800496733471" title="@biadoingai on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
-        <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="@rileyyy.hacks on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
         <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7649404545532988702" title="@lexatalkstech on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
         <div class="reel embed"><iframe src="https://www.instagram.com/p/DZovPniy7tF/embed" title="dropdeck creator on instagram" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
-        <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7647216800496733471" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
-        <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
+        <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="@rileyyy.hacks on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
+        <div class="reel embed"><iframe src="https://www.instagram.com/p/DZbZCaQNZzI/embed" title="dropdeck creator on instagram" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
         <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7649404545532988702" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
         <div class="reel embed" aria-hidden="true"><iframe src="https://www.instagram.com/p/DZovPniy7tF/embed" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
+        <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
+        <div class="reel embed" aria-hidden="true"><iframe src="https://www.instagram.com/p/DZbZCaQNZzI/embed" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
       </div>
     </div>
     <div class="workfacts rv">
@@ -264,33 +278,34 @@
 
   <div class="seam to-teal" style="--seamA:var(--black)"></div>
 
-  <!-- HOW AN ENGAGEMENT WORKS -->
-  <section class="on-teal terms" id="how" data-screen-label="engagement">
+  <!-- HOW IT WORKS — the handoff -->
+  <section class="on-teal handoff" id="how" data-screen-label="how it works">
     <span class="sec-index">02 / how it works</span>
-    <p class="eyebrow rv">how an engagement works</p>
-    <h2 class="hl-lg rv">One brief becomes forty videos.</h2>
-    <div class="term rv"><span class="ix">01</span><h3>The brief</h3><p>You tell us what the product does and who it's for. We turn that into the hooks, angles and direction our creators film against.</p></div>
-    <div class="term rv"><span class="ix">02</span><h3>The cast</h3><p>We pick creators whose voice fits your audience and set them up on fresh TikTok and Instagram accounts for the work.</p></div>
-    <div class="term rv"><span class="ix">03</span><h3>The volume</h3><p>Forty to sixty videos per campaign, one or two a day. Short, casual, shot on a phone — the way people actually post.</p></div>
-    <div class="term rv"><span class="ix">04</span><h3>The review</h3><p>We approve every video before it goes up. Nothing posts with your brand on it until we've checked it.</p></div>
-    <div class="term rv"><span class="ix">05</span><h3>The distribution</h3><p>Creators post to their own accounts. When something takes off, we push it across more of their socials.</p></div>
-    <div class="term rv"><span class="ix">06</span><h3>The signal</h3><p>You see what's landing week by week — what people watch, what they skip, what converts — so each brief gets sharper.</p></div>
-    <div class="term rv"><span class="ix">07</span><h3>The alignment</h3><p>Part of every creator's pay is tied to the sign-ups their content drives. When you win, they win.</p></div>
-  </section>
-
-  <div class="seam from-teal" style="--seamB:var(--black)"></div>
-
-  <!-- HALFTONE SHOWPIECE (moved down) -->
-  <section class="dots-sec" data-screen-label="brands halftone">
-    <div class="dots-wrap">
-      <canvas data-halftone data-lens="off" data-src="/site/assets/ph-eye-macro.jpg" data-cell="12" data-bg="#120D0B" data-dot="#EE2324" data-hi="#FFE4E4" aria-label="a macro photograph of an eye rendered in halftone dots, twinkling"></canvas>
-      <div class="dots-head">
-        <h2 class="hl-lg">Nobody watches ads anymore.<br>They watch people.</h2>
+    <p class="eyebrow rv">how it works</p>
+    <h2 class="hl-lg rv">You send a brief.<br>We do the rest.</h2>
+    <div class="handoff-grid rv">
+      <div class="ho-col ho-you">
+        <span class="ho-label">you</span>
+        <p class="ho-big">Tell us about your product.</p>
+        <p class="ho-sub">that's the whole ask.</p>
+      </div>
+      <div class="ho-col ho-us">
+        <span class="ho-label">dropdeck</span>
+        <ul class="ho-list">
+          <li>Cast the creators</li>
+          <li>Build fresh accounts</li>
+          <li>Write the hooks and scripts</li>
+          <li>Direct the shoots</li>
+          <li>Review every video before it posts</li>
+          <li>Post daily, native to each platform</li>
+          <li>Push the winners across socials</li>
+          <li>Report what's working, every week</li>
+        </ul>
       </div>
     </div>
   </section>
 
-  <div class="seam" style="--seamA:var(--black);--seamB:var(--red)"></div>
+  <div class="seam from-teal" style="--seamB:var(--red)"></div>
 
   <!-- TALK / CLOSE -->
   <section class="on-red close" id="talk" data-screen-label="brands close">
@@ -329,11 +344,24 @@
       <p id="bf-done-msg">Your note is on its way. If there's a fit, you'll hear from us within two business days.</p>
     </div>
     <div class="close-word rv"><img src="/site/assets/silver-wordmark.png" alt="dropdeck"></div>
-    <footer>
-      <span>© dropdeck 2026</span>
-      <span><a href="/creators">for creators</a> · <a href="#top">for brands</a></span>
-    </footer>
   </section>
+
+  <div class="seam" style="--seamA:var(--red);--seamB:var(--black)"></div>
+
+  <!-- HALFTONE SHOWPIECE (page-closing visual) -->
+  <section class="dots-sec" data-screen-label="brands halftone">
+    <div class="dots-wrap">
+      <canvas data-halftone data-lens="off" data-src="/site/assets/ph-eye-macro.jpg" data-cell="12" data-bg="#120D0B" data-dot="#EE2324" data-hi="#FFE4E4" aria-label="a macro photograph of an eye rendered in halftone dots, twinkling"></canvas>
+      <div class="dots-head">
+        <h2 class="hl-lg">Nobody watches ads anymore.<br>They watch people.</h2>
+      </div>
+    </div>
+  </section>
+
+  <footer class="page-footer">
+    <span>© dropdeck 2026</span>
+    <span><a href="/creators">for creators</a> · <a href="#top">for brands</a></span>
+  </footer>
 
 
   <script src="/site/halftone-art.js"></script>

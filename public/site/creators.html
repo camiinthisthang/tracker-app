@@ -26,7 +26,7 @@
 
   /* type system — brand book 2026: tight grotesque caps + jetbrains mono */
   .mono{font-family:var(--mono);}
-  .eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--red);margin:0 0 22px;font-weight:500;white-space:nowrap;}
+  .eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.2em;text-transform:lowercase;color:var(--red);margin:0 0 22px;font-weight:500;white-space:nowrap;}
   .eyebrow::before{content:"★ ";letter-spacing:.05em;}
   h1,h2{font-family:var(--disp);font-weight:700;letter-spacing:-.025em;line-height:.97;margin:0;text-transform:uppercase;}
   .hl-xl{font-size:clamp(44px,7vw,112px);}
@@ -38,8 +38,8 @@
   .on-red .eyebrow{color:var(--pink);}
   .on-red p.lede{color:rgba(18,13,11,.85);}
   .on-pink{background:var(--pink);color:var(--black);}
-  .on-pink .eyebrow{color:var(--brown);}
-  .on-pink p.lede{color:var(--brown);}
+  .on-pink .eyebrow{color:var(--red);}
+  .on-pink p.lede{color:rgba(18,13,11,.82);}
   .on-pink h2{color:var(--red);}
   .on-teal{background:var(--teal);color:var(--black);}
   .on-teal .eyebrow{color:var(--black);}
@@ -99,7 +99,7 @@
     padding:20px clamp(22px,6vw,90px);background:linear-gradient(180deg,rgba(18,13,11,.6),rgba(18,13,11,0));}
   nav .logo img{height:34px;width:auto;display:block;}
   nav .links{margin-left:auto;display:flex;gap:24px;align-items:center;}
-  nav a{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--white);text-decoration:none;opacity:1;white-space:nowrap;text-shadow:0 1px 4px rgba(18,13,11,.7);}
+  nav a{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:lowercase;color:var(--white);text-decoration:none;opacity:1;white-space:nowrap;text-shadow:0 1px 4px rgba(18,13,11,.7);}
   nav a:hover{opacity:1;color:var(--pink);}
   nav a.apply{background:var(--black);color:var(--white);border:1.5px solid var(--black);padding:9px 18px;border-radius:30px;opacity:1;text-shadow:none;}
   nav a.apply:hover{background:var(--pink);color:var(--black);border-color:var(--pink);}
@@ -177,15 +177,15 @@
   .terms .term:hover .ix{color:var(--pink);}
   .terms .term:first-of-type{border-top:1px solid rgba(255,228,228,.18);margin-top:clamp(36px,4vw,60px);}
   .terms .term .ix{font-family:var(--mono);font-size:13px;letter-spacing:.2em;color:var(--red);}
-  .terms .term h3{font-family:var(--disp);font-weight:700;font-size:clamp(19px,2.2vw,30px);margin:0;text-transform:uppercase;letter-spacing:-.01em;}
+  .terms .term h3{font-family:var(--disp);font-weight:700;font-size:clamp(19px,2.2vw,30px);margin:0;text-transform:lowercase;letter-spacing:-.01em;}
   .terms .term p{font-family:var(--disp);font-size:16px;line-height:1.6;margin:0;color:rgba(251,251,251,.88);transition:color .22s ease;}
   @media(max-width:700px){.terms .term{grid-template-columns:50px 1fr;}.terms .term p{grid-column:2;}}
 
   /* ---------- the month ---------- */
   .month-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,228,228,.18);margin-top:clamp(36px,4vw,60px);border:1px solid rgba(255,228,228,.18);}
-  .month-grid .mv{background:var(--brown);padding:26px 22px 30px;}
-  .month-grid .mv .ix{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--tan);}
-  .month-grid .mv h3{font-family:var(--disp);font-weight:700;font-size:17px;margin:14px 0 10px;text-transform:uppercase;letter-spacing:.01em;}
+  .month-grid .mv{background:#1b1310;padding:26px 22px 30px;}
+  .month-grid .mv .ix{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--red);}
+  .month-grid .mv h3{font-family:var(--disp);font-weight:700;font-size:17px;margin:14px 0 10px;text-transform:lowercase;letter-spacing:.01em;}
   .month-grid .mv p{font-family:var(--disp);font-size:14.5px;line-height:1.55;margin:0;color:rgba(251,251,251,.8);}
   .month-grid .mv.loop{background:var(--teal);color:var(--black);display:flex;flex-direction:column;justify-content:space-between;gap:18px;grid-column:span 2;}
   .month-grid .mv.loop .star{width:20px;height:20px;background:var(--red);}
@@ -208,7 +208,7 @@
   .reel iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;}
   @keyframes reelscroll{to{transform:translateX(-50%);}}
   @media(prefers-reduced-motion: reduce){.reel-track{animation:none;}.reels{overflow-x:auto;}}
-  .workfacts{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;font-family:var(--mono);font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(251,251,251,.78);}
+  .workfacts{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;font-family:var(--mono);font-size:12.5px;letter-spacing:.14em;text-transform:lowercase;color:rgba(251,251,251,.78);}
   .workfacts b{color:var(--red);font-weight:500;}
   .workfacts span{white-space:nowrap;}
 
@@ -232,7 +232,7 @@
   .close .actions{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:40px 0 70px;position:relative;z-index:2;}
   .close-word{width:100%;position:relative;z-index:2;}
   .close-word img{width:100%;display:block;}
-  footer{display:flex;gap:26px;flex-wrap:wrap;justify-content:space-between;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(18,13,11,.85);padding:26px 0 8px;position:relative;z-index:2;}
+  footer{display:flex;gap:26px;flex-wrap:wrap;justify-content:space-between;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:lowercase;color:rgba(18,13,11,.85);padding:26px 0 8px;position:relative;z-index:2;}
   footer span,footer a{white-space:nowrap;}
   footer a{color:inherit;text-decoration:none;}
   footer a:hover{color:var(--pink);}
@@ -244,7 +244,7 @@
   .appform .row2{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
   @media(max-width:680px){.appform .row2{grid-template-columns:1fr;}}
   .field{display:flex;flex-direction:column;gap:9px;}
-  .field label{font-family:var(--mono);font-size:12.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--black);}
+  .field label{font-family:var(--mono);font-size:12.5px;font-weight:500;letter-spacing:.14em;text-transform:lowercase;color:var(--black);}
   .field label b{color:var(--red);font-weight:700;}
   .field .hint{font-family:var(--mono);font-size:12.5px;line-height:1.6;color:rgba(18,13,11,.7);margin:0;}
   .field input,.field textarea{font-family:var(--mono);font-size:14px;color:var(--black);background:var(--white);
@@ -259,7 +259,7 @@
   .appform .actions-row{display:flex;gap:22px;align-items:center;flex-wrap:wrap;}
   .appform button.btn{cursor:pointer;}
   .appform button.btn[disabled]{opacity:.6;cursor:wait;transform:none;}
-  .form-note{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:rgba(18,13,11,.75);}
+  .form-note{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:lowercase;color:rgba(18,13,11,.75);}
   .form-err{font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--pink);background:var(--black);padding:14px 18px;}
   .form-err a{color:var(--teal);}
   .form-done{margin-top:clamp(36px,4vw,60px);max-width:880px;border:2px solid var(--black);background:var(--white);padding:clamp(30px,4vw,50px);box-shadow:8px 8px 0 var(--red);}
@@ -292,8 +292,8 @@
 
   <div class="ticker" aria-hidden="true">
     <div class="track">
-      <span>real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b></span>
-      <span>real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b> real faces <b>★</b> real words <b>★</b> real results <b>★</b></span>
+      <span>real faces <b>★</b> real voices <b>★</b> real results <b>★</b> real faces <b>★</b> real voices <b>★</b> real results <b>★</b> real faces <b>★</b> real voices <b>★</b> real results <b>★</b> real faces <b>★</b> real voices <b>★</b> real results <b>★</b></span>
+      <span>real faces <b>★</b> real voices <b>★</b> real results <b>★</b> real faces <b>★</b> real voices <b>★</b> real results <b>★</b> real faces <b>★</b> real voices <b>★</b> real results <b>★</b> real faces <b>★</b> real voices <b>★</b> real results <b>★</b></span>
     </div>
   </div>
 
@@ -305,14 +305,14 @@
     <p class="lede rv" style="margin-top:26px">Real people, shooting on their own phones. That's the whole thing.</p>
     <div class="reels rv">
       <div class="reel-track">
-        <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7647216800496733471" title="@biadoingai on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
-        <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="@rileyyy.hacks on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
         <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7649404545532988702" title="@lexatalkstech on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
         <div class="reel embed"><iframe src="https://www.instagram.com/p/DZovPniy7tF/embed" title="dropdeck creator on instagram" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
-        <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7647216800496733471" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
-        <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
+        <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="@rileyyy.hacks on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
+        <div class="reel embed"><iframe src="https://www.instagram.com/p/DZbZCaQNZzI/embed" title="dropdeck creator on instagram" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
         <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7649404545532988702" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
         <div class="reel embed" aria-hidden="true"><iframe src="https://www.instagram.com/p/DZovPniy7tF/embed" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
+        <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
+        <div class="reel embed" aria-hidden="true"><iframe src="https://www.instagram.com/p/DZbZCaQNZzI/embed" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
       </div>
     </div>
     <div class="workfacts rv">
@@ -326,13 +326,10 @@
     <p class="eyebrow rv">how it works</p>
     <h2 class="hl-lg rv">What a month looks like.</h2>
     <div class="month-grid rv">
-      <div class="mv"><span class="ix">01</span><h3>Fresh accounts</h3><p>New accounts, set up with us so the algorithm trusts them from day one.</p></div>
-      <div class="mv"><span class="ix">02</span><h3>The briefs</h3><p>Hooks, direction, angles and notes, posted weekly in dropdeck. We guide the videos and adjust as trends move.</p></div>
-      <div class="mv"><span class="ix">03</span><h3>Film</h3><p>Film, edit, post. We'll see you on the feeds.</p></div>
-      <div class="mv"><span class="ix">04</span><h3>Post</h3><p>Same videos, every platform. More places to be seen.</p></div>
-      <div class="mv"><span class="ix">05</span><h3>Pace</h3><p>Aim for one or two videos a day to reach a broader audience.</p></div>
-      <div class="mv"><span class="ix">06</span><h3>Payment</h3><p>End of the month, bonuses included.</p></div>
-      <div class="mv loop"><span class="star"></span><div><h3>07 — Expansion</h3><p>New clients, new briefs, bigger portfolio. Grow with us.</p></div></div>
+      <div class="mv"><span class="ix">01</span><h3>Fresh accounts</h3><p>New accounts, warmed so the algorithm trusts them.</p></div>
+      <div class="mv"><span class="ix">02</span><h3>Weekly briefs</h3><p>Hooks and direction, dropped in dropdeck every week.</p></div>
+      <div class="mv"><span class="ix">03</span><h3>You film</h3><p>Film, edit, post. One or two a day.</p></div>
+      <div class="mv"><span class="ix">04</span><h3>We scale it</h3><p>The winners get pushed across every platform.</p></div>
     </div>
   </section>
 
@@ -342,12 +339,9 @@
     <p class="eyebrow rv">the terms</p>
     <h2 class="hl-lg rv">The campaign contract.</h2>
     <div class="term rv"><span class="ix">01</span><h3>Retained</h3><p>$700–1,200 a month, set by experience.</p></div>
-    <div class="term rv"><span class="ix">02</span><h3>Performance</h3><p>$1–6 for every sign-up your content drives, on top of your base retainer. Stacks across clients.</p></div>
-    <div class="term rv"><span class="ix">03</span><h3>Volume</h3><p>40–60 unique videos per campaign, cross-posted to all socials.</p></div>
-    <div class="term rv"><span class="ix">04</span><h3>Schedule</h3><p>None. Film whenever it works for you — in batches or around your day. Just post one or two a day.</p></div>
-    <div class="term rv"><span class="ix">05</span><h3>Product</h3><p>Briefs, reviews, notes and pay, all in one place. See you on dropdeck.</p></div>
-    <div class="term rv"><span class="ix">06</span><h3>Distribution</h3><p>You post to your own socials. When a video takes off, we move it across more of them.</p></div>
-    <div class="term rv"><span class="ix">07</span><h3>Referral</h3><p>Good work gets you on more campaigns. Your videos are your résumé — as we grow, you do too.</p></div>
+    <div class="term rv"><span class="ix">02</span><h3>Performance</h3><p>$1–6 per sign-up you drive, on top. Stacks across clients.</p></div>
+    <div class="term rv"><span class="ix">03</span><h3>Volume</h3><p>40–60 videos a campaign, cross-posted everywhere.</p></div>
+    <div class="term rv"><span class="ix">04</span><h3>Schedule</h3><p>None. Post one or two a day, whenever suits you.</p></div>
   </section>
 
   <div class="seam" style="--seamA:var(--black);--seamB:var(--pink)"></div>
@@ -355,8 +349,8 @@
   <!-- APPLY -->
   <section class="on-pink" id="apply" data-screen-label="apply form">
     <p class="eyebrow rv">apply</p>
-    <h2 class="hl-lg rv">Deal yourself in.</h2>
-    <p class="lede rv" style="margin-top:26px">We read every application within three business days. If we think you're a fit, we'll send a 15-minute video-call invite.</p>
+    <h2 class="hl-lg rv">Get on deck.</h2>
+    <p class="lede rv" style="margin-top:26px">We read every application within three business days. If you're a fit, we'll send a 15-minute video call.</p>
     <form class="appform rv" id="creator-form" novalidate="">
       <div class="row2">
         <div class="field"><label for="cf-name">full name <b>*</b></label><input id="cf-name" name="name" type="text" autocomplete="name" placeholder="Jane Creator" required=""></div>
@@ -399,9 +393,9 @@
     <div class="dotcorner" style="top:0;right:0;width:46%;height:64%;--dotc:rgba(255,255,255,.65);--dotat:100% 0%"></div>
     <p class="eyebrow rv">selection</p>
     <h2 class="hl-xl rv">Next on deck: you.</h2>
-    <p class="lede rv" style="max-width:58ch;margin-top:24px">Most applications get declined — yours doesn't have to. We read every one. We're looking for people who are easy to watch on camera, sound like themselves, and can post around sixty times a month. You don't need a following. We hire for taste.</p>
+    <p class="lede rv" style="max-width:58ch;margin-top:24px">Most applications get declined — yours doesn't have to. We read every one, looking for people who are easy to watch on camera and can post around sixty times a month. You don't need a following. We hire for taste.</p>
     <div class="actions rv">
-      <span class="mono" style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(18,13,11,.85)">applications reviewed weekly</span>
+      <span class="mono" style="font-size:12px;letter-spacing:.14em;text-transform:lowercase;color:rgba(18,13,11,.85)">applications reviewed weekly</span>
     </div>
     <div class="close-word rv"><img src="/site/assets/v2-wordmark-pink.png" alt="dropdeck"></div>
     <footer>
