@@ -332,7 +332,7 @@
     <span class="sec-index">01 / the terms</span>
     <p class="eyebrow rv">the terms</p>
     <h2 class="hl-lg rv">The campaign contract.</h2>
-    <div class="term rv"><span class="ix">01</span><h3>Retained</h3><p>Creators get $700–1.2k/month per campaign (set by experience).</p></div>
+    <div class="term rv"><span class="ix">01</span><h3>Retained</h3><p>You get $700–1.2k/month per campaign (set by experience).</p></div>
     <div class="term rv"><span class="ix">02</span><h3>Performance</h3><p>$1–6 per sign-up you drive.</p></div>
     <div class="term rv"><span class="ix">03</span><h3>Volume</h3><p>40–60 videos a campaign.</p></div>
     <div class="term rv"><span class="ix">04</span><h3>Schedule</h3><p>Post once or twice a day.</p></div>
@@ -375,7 +375,7 @@
     </form>
     <div class="form-done" id="cf-done" hidden="">
       <h3>Application received.</h3>
-      <p id="cf-done-msg">We review applications within three business days. If you're a fit, we'll send a short video-call invite.</p>
+      <p id="cf-done-msg">We review applications within three business days. If you're a fit, we'll schedule a 15-min video call.</p>
     </div>
   </section>
 
@@ -436,7 +436,7 @@
           document.getElementById('cf-done-msg').textContent =
             `Thanks, ${f.get('name')}. We review applications within three business days. If you're a fit, we'll reach out at ${f.get('email')}.`;
         }catch(ex){
-          fail('something went wrong — your application was not sent. you can apply directly at <a href="/apply">dropdeck.xyz/apply</a>.');
+          fail('something went wrong. your application was not sent. you can apply directly at <a href="/apply">dropdeck.xyz/apply</a>.');
         }
         btn.disabled = false; btn.textContent = 'submit application';
       });
