@@ -141,7 +141,7 @@
   @media(max-width:760px){.handoff-grid{grid-template-columns:1fr;}}
   .ho-col{background:var(--black);color:var(--white);padding:clamp(26px,3vw,42px);}
   .ho-label{display:block;font-family:var(--mono);font-size:12.5px;font-weight:700;letter-spacing:.22em;text-transform:lowercase;margin-bottom:clamp(18px,2vw,26px);}
-  .ho-you .ho-label{color:var(--pink);}
+  .ho-you .ho-label{color:var(--tan);}
   .ho-us .ho-label{color:var(--teal);}
   .ho-you .ho-big{font-family:var(--disp);font-weight:700;text-transform:lowercase;letter-spacing:-.01em;line-height:1.03;font-size:clamp(24px,2.6vw,34px);margin:0;color:var(--white);}
   .ho-you .ho-sub{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:rgba(251,251,251,.55);margin:18px 0 0;}
@@ -243,11 +243,11 @@
     <span class="sec-index">01 / the offer</span>
     <p class="eyebrow rv">the offer</p>
     <h2 class="hl-lg rv">More content than you could make in-house.</h2>
-    <p class="lede rv" style="margin-top:30px">We keep a small roster of creators on call and point them at your product. We write the briefs and hooks, review every video before it goes up, and run the accounts where your customers already spend their time. You get one person to talk to and a feed that never goes quiet.</p>
+    <p class="lede rv" style="margin-top:30px">We keep a small roster of creators on call and point them at your product. We write the briefs and hooks, review every video before it posts, and run the accounts where your customers already are.</p>
     <div class="ledger rv">
-      <div class="ledger-row"><span class="k">unique videos per campaign, per creator</span><span class="v">40–60<small>cross-posted to all socials</small></span></div>
-      <div class="ledger-row"><span class="k">where the best ones go</span><span class="v">Everywhere<small>we push whatever's working across socials</small></span></div>
-      <div class="ledger-row"><span class="k">videos we review before they post</span><span class="v">All of them<small>nothing goes up unseen</small></span></div>
+      <div class="ledger-row"><span class="k">unique videos per campaign, per creator</span><span class="v">40–60<small>cross-posted to ig + tiktok</small></span></div>
+      <div class="ledger-row"><span class="k">where the best ones go</span><span class="v">Everywhere</span></div>
+      <div class="ledger-row"><span class="k">videos we review before they post</span><span class="v">All of them</span></div>
     </div>
   </section>
 
@@ -257,8 +257,8 @@
   <section id="work" data-screen-label="brands work">
     <span class="sec-index">03 / the work</span>
     <p class="eyebrow rv">the work</p>
-    <h2 class="hl-lg rv">Unpolished on purpose.</h2>
-    <p class="lede rv" style="margin-top:26px">This is not ad-agency gloss. It's the native language of the feed — and it's why people watch to the end.</p>
+    <h2 class="hl-lg rv">Creator-led on purpose.</h2>
+    <p class="lede rv" style="margin-top:26px">Real creators, shooting from their phones.</p>
     <div class="reels rv">
       <div class="reel-track">
         <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7649404545532988702" title="@lexatalkstech on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
@@ -270,9 +270,6 @@
         <div class="reel embed" aria-hidden="true"><iframe src="https://www.tiktok.com/embed/v2/7648040892275756318" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
         <div class="reel embed" aria-hidden="true"><iframe src="https://www.instagram.com/p/DZbZCaQNZzI/embed" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
       </div>
-    </div>
-    <div class="workfacts rv">
-      <span><b>7–120</b> seconds</span><span>most land under <b>30</b></span><span>phone-shot is the standard</span><span>native to each platform</span>
     </div>
   </section>
 
@@ -312,13 +309,13 @@
     <div class="dotcorner" style="top:0;right:0;width:46%;height:64%;--dotc:rgba(255,255,255,.65);--dotat:100% 0%"></div>
     <span class="sec-index" style="color:var(--pink)">04 / talk</span>
     <h2 class="hl-xl rv">Got a product worth talking about?</h2>
-    <p class="lede rv">Tell us what you're building. We take on a few brands at a time — if it's a fit, you'll hear from us within two business days.</p>
+    <p class="lede rv">Tell us what you're building. We only take on a few brands at a time, and we'll be in touch within 24 hours.</p>
     <form class="appform rv" id="brand-form" novalidate="">
       <div class="row2">
         <div class="field"><label for="bf-name">your name <b>*</b></label><input id="bf-name" name="name" type="text" autocomplete="name" placeholder="Sam Founder" required=""></div>
         <div class="field"><label for="bf-email">work email <b>*</b></label><input id="bf-email" name="email" type="email" autocomplete="email" placeholder="you@yourbrand.com" required=""></div>
         <div class="field"><label for="bf-company">brand / company <b>*</b></label><input id="bf-company" name="company" type="text" autocomplete="organization" placeholder="Acme" required=""></div>
-        <div class="field"><label for="bf-link">link — site or socials</label><input id="bf-link" name="link" type="url" placeholder="https://yourbrand.com"></div>
+        <div class="field"><label for="bf-link">link (site or socials)</label><input id="bf-link" name="link" type="url" placeholder="https://yourbrand.com"></div>
       </div>
       <div class="field">
         <label for="bf-about">what are you building? <b>*</b></label>
@@ -336,14 +333,12 @@
       <div class="form-err" id="bf-err" hidden=""></div>
       <div class="actions-row">
         <button class="btn" type="submit" id="bf-submit">tell us what you're building →</button>
-        <span class="form-note">we take on a few brands at a time</span>
       </div>
     </form>
     <div class="form-done" id="bf-done" hidden="">
-      <h3>Thanks — we've got it.</h3>
-      <p id="bf-done-msg">Your note is on its way. If there's a fit, you'll hear from us within two business days.</p>
+      <h3>Thanks, we've got it.</h3>
+      <p id="bf-done-msg">Your note is on its way. If it's a fit, we'll be in touch within 24 hours.</p>
     </div>
-    <div class="close-word rv"><img src="/site/assets/silver-wordmark.png" alt="dropdeck"></div>
   </section>
 
   <div class="seam" style="--seamA:var(--red);--seamB:var(--black)"></div>
@@ -426,10 +421,10 @@
         } catch (ex) { landed = false; }
         form.hidden = true; doneCard.hidden = false;
         if (landed) {
-          doneMsg.textContent = `Thanks, ${f.get('name')}. Your note on ${f.get('company')} is in our queue — we’ll be in touch within two business days.`;
+          doneMsg.textContent = `Thanks, ${f.get('name')}. Your note on ${f.get('company')} is in our queue. We'll be in touch within 24 hours.`;
         } else {
           mailtoFallback(f);
-          doneMsg.textContent = `Thanks, ${f.get('name')} — we’ve opened a pre-filled email to ${TO}. Hit send and your note on ${f.get('company')} is in our queue.`;
+          doneMsg.textContent = `Thanks, ${f.get('name')}. We've opened a pre-filled email to ${TO}. Hit send and your note on ${f.get('company')} is in our queue.`;
         }
         btn.disabled = false; btn.textContent = 'tell us what you\u2019re building →';
       });
