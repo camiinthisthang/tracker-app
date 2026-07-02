@@ -21,7 +21,7 @@
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
   body{margin:0;background:var(--black);color:var(--white);font-family:var(--disp);-webkit-font-smoothing:antialiased;text-transform:lowercase;}
-  input,textarea,select{text-transform:none;}
+  input,textarea,select{text-transform:lowercase;}
   ::selection{background:var(--teal);color:var(--black);}
 
   /* type system — brand book 2026: tight grotesque caps + jetbrains mono */
@@ -99,9 +99,9 @@
     padding:20px clamp(22px,6vw,90px);background:linear-gradient(180deg,rgba(18,13,11,.6),rgba(18,13,11,0));}
   nav .logo img{height:34px;width:auto;display:block;}
   nav .links{margin-left:auto;display:flex;gap:24px;align-items:center;}
-  nav a{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:lowercase;color:var(--white);text-decoration:none;opacity:1;white-space:nowrap;text-shadow:0 1px 4px rgba(18,13,11,.7);}
+  nav a{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:lowercase;color:var(--teal);text-decoration:none;opacity:1;white-space:nowrap;text-shadow:0 1px 4px rgba(18,13,11,.7);}
   nav a:hover{opacity:1;color:var(--pink);}
-  nav a.apply{background:var(--black);color:var(--white);border:1.5px solid var(--black);padding:9px 18px;border-radius:30px;opacity:1;text-shadow:none;}
+  nav a.apply{background:var(--black);color:var(--teal);border:1.5px solid var(--black);padding:9px 18px;border-radius:30px;opacity:1;text-shadow:none;}
   nav a.apply:hover{background:var(--pink);color:var(--black);border-color:var(--pink);}
 
   /* ---------- buttons ---------- */
@@ -284,7 +284,7 @@
     <canvas data-halftone data-src="/site/assets/ph-glitter-eye.png" data-cell="12" data-lens-radius="150" data-bg="#EE2324" data-dot="#FFE4E4" data-hi="#FFFFFF" aria-label="an eye dusted in glitter, rendered in halftone dots; move your cursor to reveal the photograph"></canvas>
     <div class="hero-content">
       <img class="wordmark rv" src="/site/assets/v2-wordmark-pink.png" alt="dropdeck">
-      <h1 class="hl-xl rv">Content that refuses to be ignored.</h1>
+      <h1 class="hl-xl rv">Create content that refuses to be ignored.</h1>
     </div>
   </section>
 
@@ -299,7 +299,7 @@
   <section id="work" data-screen-label="work">
     <span class="sec-index">03 / the work</span>
     <p class="eyebrow rv">the work</p>
-    <h2 class="hl-lg rv">Creator-led on purpose.</h2>
+    <h2 class="hl-lg rv">Led by you.</h2>
     <p class="lede rv" style="margin-top:26px">Real creators, shooting from their phones.</p>
     <div class="reels rv">
       <div class="reel-track">
@@ -313,20 +313,17 @@
         <div class="reel embed" aria-hidden="true"><iframe src="https://www.instagram.com/p/DZbZCaQNZzI/embed" title="" allow="encrypted-media; fullscreen" loading="lazy" tabindex="-1"></iframe></div>
       </div>
     </div>
-    <div class="workfacts rv">
-      <span><b>7–120</b> seconds</span><span>most land under <b>30</b></span><span>phone-shot is the standard</span><span>capcut is fine</span>
-    </div>
   </section>
 
   <!-- THE MONTH (the chart) -->
   <section data-screen-label="month">
     <span class="sec-index">02 / how it works</span>
     <p class="eyebrow rv">how it works</p>
-    <h2 class="hl-lg rv">What a month looks like.</h2>
+    <h2 class="hl-lg rv">What each month looks like.</h2>
     <div class="month-grid rv">
-      <div class="mv"><span class="ix">01</span><h3>Fresh accounts</h3><p>New accounts, warmed so the algorithm trusts them.</p></div>
-      <div class="mv"><span class="ix">02</span><h3>Weekly briefs</h3><p>Hooks and direction, dropped weekly in our creator Slack.</p></div>
-      <div class="mv"><span class="ix">03</span><h3>You film</h3><p>Film, edit and post. Once or twice a day.</p></div>
+      <div class="mv"><span class="ix">01</span><h3>Fresh accounts</h3><p>We give you fresh TikTok + IG accounts and a creator manager to warm them up.</p></div>
+      <div class="mv"><span class="ix">02</span><h3>Weekly briefs</h3><p>We send hooks and feedback, and run weekly workshops to sharpen your videos.</p></div>
+      <div class="mv"><span class="ix">03</span><h3>You film</h3><p>Edit and post once or twice a day.</p></div>
       <div class="mv"><span class="ix">04</span><h3>We scale it</h3><p>The winners get pushed across every platform.</p></div>
     </div>
   </section>
@@ -336,10 +333,10 @@
     <span class="sec-index">01 / the terms</span>
     <p class="eyebrow rv">the terms</p>
     <h2 class="hl-lg rv">The campaign contract.</h2>
-    <div class="term rv"><span class="ix">01</span><h3>Retained</h3><p>$700–1,200 a month, set by experience.</p></div>
-    <div class="term rv"><span class="ix">02</span><h3>Performance</h3><p>$1–6 per sign-up you drive, on top.</p></div>
+    <div class="term rv"><span class="ix">01</span><h3>Retained</h3><p>Creators get $700–1.2k/month per campaign (set by experience).</p></div>
+    <div class="term rv"><span class="ix">02</span><h3>Performance</h3><p>$1–6 per sign-up you drive.</p></div>
     <div class="term rv"><span class="ix">03</span><h3>Volume</h3><p>40–60 videos a campaign.</p></div>
-    <div class="term rv"><span class="ix">04</span><h3>Schedule</h3><p>Post once or twice a day, at your convenience.</p></div>
+    <div class="term rv"><span class="ix">04</span><h3>Schedule</h3><p>Post once or twice a day.</p></div>
   </section>
 
   <div class="seam" style="--seamA:var(--black);--seamB:var(--pink)"></div>
@@ -375,7 +372,6 @@
       <div class="form-err" id="cf-err" hidden=""></div>
       <div class="actions-row">
         <button class="btn" type="submit" id="cf-submit">submit application</button>
-        <span class="form-note">reviewed within 3 business days</span>
       </div>
     </form>
     <div class="form-done" id="cf-done" hidden="">
@@ -392,9 +388,6 @@
     <p class="eyebrow rv">selection</p>
     <h2 class="hl-xl rv">Next on deck: you.</h2>
     <p class="lede rv" style="max-width:58ch;margin-top:24px">You don't need a following. We hire for taste.</p>
-    <div class="actions rv">
-      <span class="mono" style="font-size:12px;letter-spacing:.14em;text-transform:lowercase;color:rgba(18,13,11,.85)">applications reviewed weekly</span>
-    </div>
     <div class="close-word rv"><img src="/site/assets/v2-wordmark-pink.png" alt="dropdeck"></div>
     <footer>
       <span>© dropdeck 2026</span>
