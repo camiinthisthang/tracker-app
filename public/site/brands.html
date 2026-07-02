@@ -108,7 +108,7 @@
   .ledger{margin-top:clamp(40px,5vw,70px);border-top:1px solid rgba(18,13,11,.3);}
   .ledger-row{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:18px;
     padding:22px 0;border-bottom:1px solid rgba(18,13,11,.3);}
-  .ledger-row .k{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:lowercase;color:rgba(18,13,11,.8);white-space:nowrap;}
+  .ledger-row .k{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:lowercase;color:rgba(18,13,11,.92);white-space:nowrap;}
   .ledger-row .v{font-family:var(--disp);font-weight:700;font-size:clamp(28px,3.6vw,54px);letter-spacing:-.02em;text-transform:uppercase;white-space:nowrap;text-align:right;color:var(--black);}
   .ledger-row .v small{display:block;font-family:var(--mono);font-size:12px;font-weight:400;letter-spacing:.08em;color:rgba(18,13,11,.7);margin:6px 0 0;}
   @media(max-width:680px){.ledger-row{grid-template-columns:1fr;}.ledger-row .k{white-space:normal;}.ledger-row .v{white-space:normal;text-align:left;}}
@@ -141,7 +141,7 @@
   @media(max-width:760px){.handoff-grid{grid-template-columns:1fr;}}
   .ho-col{background:var(--black);color:var(--white);padding:clamp(26px,3vw,42px);}
   .ho-label{display:block;font-family:var(--mono);font-size:12.5px;font-weight:700;letter-spacing:.22em;text-transform:lowercase;margin-bottom:clamp(18px,2vw,26px);}
-  .ho-you .ho-label{color:var(--tan);}
+  .ho-you .ho-label{color:var(--red);}
   .ho-us .ho-label{color:var(--teal);}
   .ho-you .ho-big{font-family:var(--disp);font-weight:700;text-transform:lowercase;letter-spacing:-.01em;line-height:1.03;font-size:clamp(24px,2.6vw,34px);margin:0;color:var(--white);}
   .ho-you .ho-sub{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:rgba(251,251,251,.55);margin:18px 0 0;}
@@ -207,7 +207,6 @@
       <a href="#how">how it works</a>
       <a href="#work">the work</a>
       <a href="/creators">for creators</a>
-      <a class="apply" href="#talk">talk to dropdeck</a>
     </div>
   </nav>
 
@@ -245,9 +244,7 @@
     <h2 class="hl-lg rv">More content than you could make in-house.</h2>
     <p class="lede rv" style="margin-top:30px">We keep a small roster of creators on call and point them at your product. We write the briefs and hooks, review every video before it posts, and run the accounts where your customers already are.</p>
     <div class="ledger rv">
-      <div class="ledger-row"><span class="k">unique videos per campaign, per creator</span><span class="v">40–60<small>cross-posted to ig + tiktok</small></span></div>
-      <div class="ledger-row"><span class="k">where the best ones go</span><span class="v">Everywhere</span></div>
-      <div class="ledger-row"><span class="k">videos we review before they post</span><span class="v">All of them</span></div>
+      <div class="ledger-row"><span class="k">unique videos per campaign, per creator</span><span class="v">40–60</span></div>
     </div>
   </section>
 
@@ -258,7 +255,7 @@
     <span class="sec-index">03 / the work</span>
     <p class="eyebrow rv">the work</p>
     <h2 class="hl-lg rv">Creator-led on purpose.</h2>
-    <p class="lede rv" style="margin-top:26px">Real creators, shooting from their phones.</p>
+    <p class="lede rv" style="margin-top:26px">Real creators shooting from their phones.</p>
     <div class="reels rv">
       <div class="reel-track">
         <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7649404545532988702" title="@lexatalkstech on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
@@ -284,19 +281,17 @@
       <div class="ho-col ho-you">
         <span class="ho-label">you</span>
         <p class="ho-big">Tell us about your product.</p>
-        <p class="ho-sub">that's the whole ask.</p>
       </div>
       <div class="ho-col ho-us">
         <span class="ho-label">dropdeck</span>
         <ul class="ho-list">
-          <li>Cast the creators</li>
-          <li>Build fresh accounts</li>
-          <li>Write the hooks and scripts</li>
-          <li>Direct the shoots</li>
-          <li>Review every video before it posts</li>
-          <li>Post daily, native to each platform</li>
-          <li>Push the winners across socials</li>
-          <li>Report what's working, every week</li>
+          <li>Cast creators</li>
+          <li>Create fresh TikTok + IG accounts per creator</li>
+          <li>Generate weekly hooks + scripts based on viral trends</li>
+          <li>Run weekly workshops to help creators improve</li>
+          <li>Review every video before creators post</li>
+          <li>Amplify winners across socials</li>
+          <li>Provide a comprehensive weekly report with analytics</li>
         </ul>
       </div>
     </div>
@@ -349,6 +344,7 @@
       <canvas data-halftone data-lens="off" data-src="/site/assets/ph-eye-macro.jpg" data-cell="12" data-bg="#120D0B" data-dot="#EE2324" data-hi="#FFE4E4" aria-label="a macro photograph of an eye rendered in halftone dots, twinkling"></canvas>
       <div class="dots-head">
         <h2 class="hl-lg">Nobody watches ads anymore.<br>They watch people.</h2>
+        <a class="btn" href="#talk" style="margin-top:26px;pointer-events:auto;background:var(--red);border-color:var(--red);color:var(--pink);--sh:var(--teal)">get your brand on deck</a>
       </div>
     </div>
   </section>
