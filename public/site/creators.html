@@ -183,8 +183,8 @@
 
   /* ---------- the month ---------- */
   .month-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,228,228,.18);margin-top:clamp(36px,4vw,60px);border:1px solid rgba(255,228,228,.18);}
-  .month-grid .mv{background:var(--black);padding:26px 22px 30px;}
-  .month-grid .mv .ix{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--red);}
+  .month-grid .mv{background:var(--brown);padding:26px 22px 30px;}
+  .month-grid .mv .ix{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--tan);}
   .month-grid .mv h3{font-family:var(--disp);font-weight:700;font-size:17px;margin:14px 0 10px;text-transform:uppercase;letter-spacing:.01em;}
   .month-grid .mv p{font-family:var(--disp);font-size:14.5px;line-height:1.55;margin:0;color:rgba(251,251,251,.8);}
   .month-grid .mv.loop{background:var(--teal);color:var(--black);display:flex;flex-direction:column;justify-content:space-between;gap:18px;grid-column:span 2;}
@@ -281,8 +281,14 @@
     </div>
   </nav>
 
-  <!-- SEARCHING BANNER (hero) -->
-  <div class="searchband rv" id="top"><img src="/site/assets/searching-creators.png" alt="dropdeck is searching for new creators"></div>
+  <!-- HERO : the deck, in halftone -->
+  <section class="hero" id="top" data-screen-label="hero">
+    <canvas data-halftone data-src="/site/assets/ph-glitter-eye.png" data-cell="12" data-lens-radius="150" data-bg="#EE2324" data-dot="#FFE4E4" data-hi="#FFFFFF" aria-label="an eye dusted in glitter, rendered in halftone dots; move your cursor to reveal the photograph"></canvas>
+    <div class="hero-content">
+      <img class="wordmark rv" src="/site/assets/v2-wordmark-pink.png" alt="dropdeck">
+      <h1 class="hl-xl rv">Content that refuses to be ignored.</h1>
+    </div>
+  </section>
 
   <div class="ticker" aria-hidden="true">
     <div class="track">
@@ -296,7 +302,7 @@
     <span class="sec-index">03 / the work</span>
     <p class="eyebrow rv">the work</p>
     <h2 class="hl-lg rv">Unpolished on purpose.</h2>
-    <p class="lede rv" style="margin-top:26px">Organic content, shot by real people, and made to be seen.</p>
+    <p class="lede rv" style="margin-top:26px">Real people, shooting on their own phones. That's the whole thing.</p>
     <div class="reels rv">
       <div class="reel-track">
         <div class="reel embed"><iframe src="https://www.tiktok.com/embed/v2/7647216800496733471" title="@biadoingai on tiktok" allow="encrypted-media; fullscreen" loading="lazy"></iframe></div>
@@ -318,12 +324,12 @@
   <section data-screen-label="month">
     <span class="sec-index">02 / how it works</span>
     <p class="eyebrow rv">how it works</p>
-    <h2 class="hl-lg rv">The shape of a month.</h2>
+    <h2 class="hl-lg rv">What a month looks like.</h2>
     <div class="month-grid rv">
       <div class="mv"><span class="ix">01</span><h3>Fresh accounts</h3><p>New accounts, set up with us so the algorithm trusts them from day one.</p></div>
-      <div class="mv"><span class="ix">02</span><h3>The briefs</h3><p>Hooks, direction, angles and notes, posted weekly in dropdeck. We guide the content and adjust to the trends.</p></div>
+      <div class="mv"><span class="ix">02</span><h3>The briefs</h3><p>Hooks, direction, angles and notes, posted weekly in dropdeck. We guide the videos and adjust as trends move.</p></div>
       <div class="mv"><span class="ix">03</span><h3>Film</h3><p>Film, edit, post. We'll see you on the feeds.</p></div>
-      <div class="mv"><span class="ix">04</span><h3>Post</h3><p>Same videos, multiple platforms. Built to be seen.</p></div>
+      <div class="mv"><span class="ix">04</span><h3>Post</h3><p>Same videos, every platform. More places to be seen.</p></div>
       <div class="mv"><span class="ix">05</span><h3>Pace</h3><p>Aim for one or two videos a day to reach a broader audience.</p></div>
       <div class="mv"><span class="ix">06</span><h3>Payment</h3><p>End of the month, bonuses included.</p></div>
       <div class="mv loop"><span class="star"></span><div><h3>07 — Expansion</h3><p>New clients, new briefs, bigger portfolio. Grow with us.</p></div></div>
@@ -338,10 +344,10 @@
     <div class="term rv"><span class="ix">01</span><h3>Retained</h3><p>$700–1,200 a month, set by experience.</p></div>
     <div class="term rv"><span class="ix">02</span><h3>Performance</h3><p>$1–6 for every sign-up your content drives, on top of your base retainer. Stacks across clients.</p></div>
     <div class="term rv"><span class="ix">03</span><h3>Volume</h3><p>40–60 unique videos per campaign, cross-posted to all socials.</p></div>
-    <div class="term rv"><span class="ix">04</span><h3>Schedule</h3><p>None. Film whenever your schedule allows, in batches or around your day — just post one or two a day.</p></div>
-    <div class="term rv"><span class="ix">05</span><h3>Product</h3><p>Briefs, review, notes and pay, all in one place. See you on dropdeck.</p></div>
-    <div class="term rv"><span class="ix">06</span><h3>Distribution</h3><p>You post to your socials. When a video gains traction, we move it across multiple socials.</p></div>
-    <div class="term rv"><span class="ix">07</span><h3>Referral</h3><p>Strong work travels to new partners. Your content is the résumé. As we expand, so do you.</p></div>
+    <div class="term rv"><span class="ix">04</span><h3>Schedule</h3><p>None. Film whenever it works for you — in batches or around your day. Just post one or two a day.</p></div>
+    <div class="term rv"><span class="ix">05</span><h3>Product</h3><p>Briefs, reviews, notes and pay, all in one place. See you on dropdeck.</p></div>
+    <div class="term rv"><span class="ix">06</span><h3>Distribution</h3><p>You post to your own socials. When a video takes off, we move it across more of them.</p></div>
+    <div class="term rv"><span class="ix">07</span><h3>Referral</h3><p>Good work gets you on more campaigns. Your videos are your résumé — as we grow, you do too.</p></div>
   </section>
 
   <div class="seam" style="--seamA:var(--black);--seamB:var(--pink)"></div>
@@ -393,7 +399,7 @@
     <div class="dotcorner" style="top:0;right:0;width:46%;height:64%;--dotc:rgba(255,255,255,.65);--dotat:100% 0%"></div>
     <p class="eyebrow rv">selection</p>
     <h2 class="hl-xl rv">Next on deck: you.</h2>
-    <p class="lede rv" style="max-width:58ch;margin-top:24px">Most applications are declined — yours doesn't have to be. We read every one, looking for a face the camera trusts, an ear for how people actually talk, and the discipline to post sixty times a month. You don't need a following. We hire for taste.</p>
+    <p class="lede rv" style="max-width:58ch;margin-top:24px">Most applications get declined — yours doesn't have to. We read every one. We're looking for people who are easy to watch on camera, sound like themselves, and can post around sixty times a month. You don't need a following. We hire for taste.</p>
     <div class="actions rv">
       <span class="mono" style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(18,13,11,.85)">applications reviewed weekly</span>
     </div>
