@@ -23,7 +23,7 @@
   html{scroll-behavior:smooth;}
   body{margin:0;background:var(--black);color:var(--white);font-family:var(--disp);-webkit-font-smoothing:antialiased;text-transform:lowercase;}
   input,textarea,select{text-transform:none;}
-  ::selection{background:var(--red);color:var(--pink);}
+  ::selection{background:var(--teal);color:var(--black);}
 
   /* type system — brand book 2026: tight grotesque caps + jetbrains mono */
   .mono{font-family:var(--mono);}
@@ -173,10 +173,7 @@
   .terms .term{display:grid;grid-template-columns:80px 1fr 1.5fr;gap:26px;align-items:center;
     padding:30px clamp(22px,6vw,90px);margin:0 calc(-1*clamp(22px,6vw,90px));border-bottom:1px solid rgba(255,228,228,.18);
     transition:background .22s ease;}
-  .terms .term:hover{background:var(--red);}
-  .terms .term:hover p{color:var(--pink);}
-  .terms .term:hover h3{color:var(--black);}
-  .terms .term:hover .ix{color:var(--pink);}
+  .terms .term:hover{background:rgba(142,219,220,.07);}
   .terms .term:first-of-type{border-top:1px solid rgba(255,228,228,.18);margin-top:clamp(36px,4vw,60px);}
   .terms .term .ix{font-family:var(--mono);font-size:13px;letter-spacing:.2em;color:var(--red);}
   .terms .term h3{font-family:var(--disp);font-weight:700;font-size:clamp(19px,2.2vw,30px);margin:0;text-transform:lowercase;letter-spacing:-.01em;color:var(--teal);transition:color .22s ease;}
