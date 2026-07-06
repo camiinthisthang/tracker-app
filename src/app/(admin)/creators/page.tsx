@@ -1,6 +1,10 @@
 import { Users } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession, AGENCY_TEAM_SLUGS } from "@/lib/auth";
+import {
+  getRequiredSession,
+  hasAgencyWideAccess,
+  AGENCY_TEAM_SLUGS,
+} from "@/lib/auth";
 import { creatorVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -11,10 +15,13 @@ import { AddCreatorButton } from "@/components/creators/add-creator-button";
 export default async function CreatorsPage() {
   const session = await getRequiredSession();
 
-  // Super admins can pick any team when adding a creator — except the agency
-  // team itself, which is admins-only by intent. Hiding it from the picker
-  // stops the recurring mistake of adding creators to DropDeck.
-  const teams = session.user.isSuperAdmin
+  // Agency-wide users (super admins + agency managers) can pick any client team
+  // when adding a creator — except the agency team itself, which is admins-only
+  // by intent. Hiding it from the picker stops the recurring mistake of adding
+  // creators to DropDeck. Client managers don't pick — they're locked to their
+  // own team server-side.
+  const canPickClient = hasAgencyWideAccess(session);
+  const teams = canPickClient
     ? await prisma.team.findMany({
         where: { slug: { notIn: AGENCY_TEAM_SLUGS } },
         select: { id: true, name: true },
@@ -107,12 +114,12 @@ export default async function CreatorsPage() {
         description="Manage your creator roster and leaderboard"
       >
         <AddCreatorButton
-          isSuperAdmin={session.user.isSuperAdmin}
+          canPickClient={canPickClient}
           teams={teams}
-          // Super admins must pick a client every time — defaulting to their
-          // own team is what put creators onto the agency team. Non-super
-          // admins are locked to their own team server-side anyway.
-          defaultTeamId={session.user.isSuperAdmin ? "" : session.user.teamId}
+          // Agency-wide users must pick a client every time — defaulting to
+          // their own team is what put creators onto the agency team. Client
+          // managers are locked to their own team server-side anyway.
+          defaultTeamId={canPickClient ? "" : session.user.teamId}
         />
       </PageHeader>
 

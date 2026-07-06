@@ -27,6 +27,15 @@ tangent.
 
 ---
 
+## 2026-07-06 — fix: agency managers can add creators (client picker)
+- Bug: an agency manager (member of the DropDeck agency team but not a super admin, e.g. Jacqueline) had no way to add a creator. The "Add a new creator" form only rendered the **Client** picker for `isSuperAdmin`, so their submit fell through to their own team — the agency team — and the server rejected it with "Creators can't belong to the agency team. Pick a client team (e.g. Merit) instead." There was literally no route to succeed.
+- Fix: swapped the three `isSuperAdmin` gates in the add-creator flow to the existing `hasAgencyWideAccess()` helper (super admin **or** agency manager), matching how `creatorVisibilityWhere` / `campaignVisibilityWhere` already gate cross-tenant access.
+  - `src/app/(admin)/creators/page.tsx` — fetch the client-teams list and force "pick a client" (`defaultTeamId=""`) for any agency-wide user, not just super admins. Agency team still excluded from the picker (`notIn AGENCY_TEAM_SLUGS`).
+  - `src/components/creators/add-creator-button.tsx` — prop `isSuperAdmin` → `canPickClient`; renders the Client dropdown and sends `teamId` for agency-wide users.
+  - `src/app/api/creators/route.ts` — resolve `teamId` from the posted client team for agency-wide users; client managers still locked to their own team server-side. The agency-team guard is unchanged, so creators can never land on DropDeck.
+- No schema change, no migration, no data touched — purely permissions/UI gating. Creating a creator still inserts one `Creator` row under a **client** team (which is what makes it appear in the creators list).
+- Tested: `prisma generate` + `next build` pass clean (typecheck + lint); `/creators` and `/creators/[creatorId]` compile. Skipped `prisma migrate deploy` deliberately to avoid any DB connection.
+
 ## 2026-06-22 — Contract Tracker: monthly rate + payout column
 - Schema: `CampaignCreator.monthlyRate Decimal?(10,2)` + migration `20260622130000_add_monthly_rate` (additive). Rate stored in DB, never in source (privacy).
 - API `PATCH /api/campaigns/[id]/creators` now accepts `monthlyRate` (non-negative, 2dp, nullable).

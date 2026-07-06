@@ -30,7 +30,7 @@ interface Team {
 }
 
 interface Props {
-  isSuperAdmin: boolean;
+  canPickClient: boolean;
   teams: Team[];
   defaultTeamId: string;
 }
@@ -42,7 +42,7 @@ const TIER_OPTIONS = [
   { value: "GOLD", label: "Gold" },
 ] as const;
 
-export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) {
+export function AddCreatorButton({ canPickClient, teams, defaultTeamId }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -75,7 +75,7 @@ export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) 
       toast.error("Name is required");
       return;
     }
-    if (isSuperAdmin && !teamId) {
+    if (canPickClient && !teamId) {
       toast.error("Pick a client");
       return;
     }
@@ -88,7 +88,7 @@ export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) 
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim() || undefined,
-          teamId: isSuperAdmin ? teamId : undefined,
+          teamId: canPickClient ? teamId : undefined,
           tier,
           isActive: true,
           sendInvite: true,
@@ -191,7 +191,7 @@ export function AddCreatorButton({ isSuperAdmin, teams, defaultTeamId }: Props) 
                   the link yourself.
                 </p>
               </div>
-              {isSuperAdmin && (
+              {canPickClient && (
                 <div className="grid gap-1.5">
                   <Label className="text-xs text-slate-600">Client</Label>
                   <Select
