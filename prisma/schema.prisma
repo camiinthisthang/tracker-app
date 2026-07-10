@@ -199,6 +199,7 @@ model Campaign {
   uploads           Upload[]
   creatorMessages   CreatorMessage[]
   hooks             Hook[]
+  creatorAccounts   CreatorAccount[]
 
   @@index([teamId])
   @@map("campaigns")
@@ -283,11 +284,16 @@ model CreatorAccount {
   isActive  Boolean  @default(true)
   // Free-form context, e.g. "replacement — main banned 2026-07"
   note      String?
+  // Scope this account to a single campaign (creators on multiple campaigns
+  // can use different handles per campaign). Null = used for all campaigns.
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([creatorId, platform, handle])
   @@index([creatorId])
+  @@index([campaignId])
   @@map("creator_accounts")
 }
 
