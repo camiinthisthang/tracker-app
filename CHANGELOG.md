@@ -27,6 +27,12 @@ tangent.
 
 ---
 
+## 2026-07-10 — YouTube Shorts + dashboard revamp, PR 1/2: schema
+- Migration `20260710120000_creator_accounts_youtube_music`: new `creator_accounts` table (multiple scraped accounts per creator per platform — shadow-ban replacement accounts; `isActive=false` keeps historical posts but stops syncing), `creators.youtubeHandle`, `posts.musicTitle/musicAuthor/musicOriginal` (TikTok sound metadata).
+- Tested: full migration chain applied to a throwaway local Postgres 16, `prisma migrate diff` confirms zero drift vs schema, `npm run build` green.
+- No data backfill: legacy `tiktokHandle`/`instagramHandle` columns stay the "primary" account; `creator_accounts` holds extras only.
+- Cost: none.
+
 ## 2026-06-22 — Contract Tracker: monthly rate + payout column
 - Schema: `CampaignCreator.monthlyRate Decimal?(10,2)` + migration `20260622130000_add_monthly_rate` (additive). Rate stored in DB, never in source (privacy).
 - API `PATCH /api/campaigns/[id]/creators` now accepts `monthlyRate` (non-negative, 2dp, nullable).

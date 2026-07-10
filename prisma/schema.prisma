@@ -243,6 +243,7 @@ model Creator {
   // back to `handle` / `tiktokUsername` when tiktokHandle is empty.
   tiktokHandle    String?
   instagramHandle String?
+  youtubeHandle   String?
 
   // Invite flow
   inviteToken String? @unique
@@ -263,9 +264,31 @@ model Creator {
   messages         CreatorMessage[]
   attributions     CreatorAttribution[]
   viralNotifications ViralNotification[]
+  accounts         CreatorAccount[]
 
   @@index([teamId])
   @@map("creators")
+}
+
+// Additional scraped accounts beyond the primary per-platform handle columns
+// above. Covers shadow-ban replacement accounts and secondary accounts: posts
+// from every account count toward the creator's totals. Deactivated accounts
+// keep their historical posts but are skipped by the Apify sync.
+model CreatorAccount {
+  id        String   @id @default(cuid())
+  creatorId String
+  creator   Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  platform  Platform
+  handle    String
+  isActive  Boolean  @default(true)
+  // Free-form context, e.g. "replacement — main banned 2026-07"
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([creatorId, platform, handle])
+  @@index([creatorId])
+  @@map("creator_accounts")
 }
 
 model CampaignCreator {
@@ -317,6 +340,11 @@ model Post {
   comments     Int      @default(0)
   referrals    Int      @default(0)
   hook         String?
+  // Sound metadata from the TikTok scraper's musicMeta (other platforms'
+  // scrapers don't expose audio). musicOriginal = creator's own sound.
+  musicTitle    String?
+  musicAuthor   String?
+  musicOriginal Boolean?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
