@@ -43,7 +43,7 @@ export function CreatorViewsChart({ data }: { data: DailyPoint[] }) {
         Your Views Over Time
       </h3>
       <p className="text-xs text-slate-400">
-        Combined views across TikTok + Instagram
+        Combined views across TikTok + Instagram + YouTube Shorts
       </p>
       <div className="mt-6 h-56">
         <ResponsiveContainer width="100%" height="100%">

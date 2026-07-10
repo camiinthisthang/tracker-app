@@ -27,6 +27,14 @@ tangent.
 
 ---
 
+## 2026-07-10 — Sync visibility, clickable sounds + handles
+- Per-creator sync now reports YouTube in the result toast and surfaces per-platform fetch failures (previously swallowed into "0 posts" with only a server log) — diagnosing why a platform returned nothing no longer requires Vercel logs.
+- YouTube actor timeout raised 120s → 240s (streamers/youtube-scraper runs slower than the TikTok/IG actors; the old timeout could abort real runs).
+- Top Sounds This Week rows now click out to the top-viewed post using that sound.
+- Handle fields (manager + creator forms) and extra-account rows now have "Open" links that open the TikTok/IG/YouTube profile in a new tab.
+- Creator views chart subtitle now mentions YouTube Shorts.
+- Tested: `npm run build` green.
+
 ## 2026-07-10 — Campaign overview: hide cut creators, expand progress
 - Crosspost audit and Creator Progress on `/campaigns/[id]/overview` now exclude creators cut from the campaign (`CampaignCreator.isActive=false`) or deactivated entirely. Their history stays on the `/progress` page and in campaign totals.
 - Creator Progress on the overview now shows every active creator (was: 3-card preview); header link renamed to "Weekly history" pointing at the week-picker page.

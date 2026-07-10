@@ -212,12 +212,18 @@ export async function fetchYouTubeShortsViaApify(
   const clean = stripHandle(handle);
   if (!clean) return [];
 
-  const items = await runActorSync("streamers~youtube-scraper", {
-    startUrls: [{ url: `https://www.youtube.com/@${clean}/shorts` }],
-    maxResults: limit,
-    maxResultsShorts: limit,
-    maxResultStreams: 0,
-  });
+  // YouTube runs slower than the TikTok/IG actors — give it more headroom
+  // than the default 120s before the client gives up.
+  const items = await runActorSync(
+    "streamers~youtube-scraper",
+    {
+      startUrls: [{ url: `https://www.youtube.com/@${clean}/shorts` }],
+      maxResults: limit,
+      maxResultsShorts: limit,
+      maxResultStreams: 0,
+    },
+    240_000
+  );
 
   const posts: SocialPost[] = [];
   for (const raw of items) {

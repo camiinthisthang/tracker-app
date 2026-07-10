@@ -99,11 +99,18 @@ export async function POST(
     accounts: creator.accounts,
   });
 
+  const failures: { platform: SyncPlatform; handle: string; error: string }[] =
+    [];
   const fetchResults = await Promise.all(
     handleTasks.map(async (t) => ({
       ...t,
       posts: await fetchForPlatform(t.platform, t.handle).catch((e) => {
         console.error(`${t.platform.toLowerCase()} scrape failed`, e);
+        failures.push({
+          platform: t.platform,
+          handle: t.handle,
+          error: e instanceof Error ? e.message : String(e),
+        });
         return [] as SocialPost[];
       }),
     }))
@@ -233,6 +240,8 @@ export async function POST(
     tiktokPosts: countByPlatform("TIKTOK"),
     instagramPosts: countByPlatform("INSTAGRAM"),
     youtubePosts: countByPlatform("YOUTUBE"),
+    youtubeAttempted: handleTasks.some((t) => t.platform === "YOUTUBE"),
+    failures,
     accountsAttempted: handleTasks.length,
     attachedToCampaign: campaignId ?? null,
     window:

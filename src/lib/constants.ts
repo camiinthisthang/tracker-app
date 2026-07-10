@@ -34,3 +34,20 @@ export const PLATFORM_ICONS: Record<string, string> = {
   YOUTUBE: "youtube",
   FACEBOOK: "facebook",
 };
+
+/** Public profile URL for a handle (without @) on a platform. */
+export function platformProfileUrl(platform: string, handle: string): string {
+  const clean = handle.trim().replace(/^@+/, "");
+  switch (platform) {
+    case "TIKTOK":
+      return `https://www.tiktok.com/@${clean}`;
+    case "INSTAGRAM":
+      return `https://www.instagram.com/${clean}/`;
+    case "YOUTUBE":
+      return `https://www.youtube.com/@${clean}/shorts`;
+    case "FACEBOOK":
+      return `https://www.facebook.com/${clean}`;
+    default:
+      return "#";
+  }
+}

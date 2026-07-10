@@ -41,10 +41,24 @@ export function SyncCreatorButton({
         toast.error(data?.error || "Sync failed");
         return;
       }
+      const counts = [
+        `TikTok: ${data.tiktokPosts}`,
+        `Instagram: ${data.instagramPosts}`,
+        data.youtubeAttempted ? `YouTube: ${data.youtubePosts}` : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
       const lines = [
-        `Fetched ${data.fetched} posts (TikTok: ${data.tiktokPosts}, Instagram: ${data.instagramPosts})`,
+        `Fetched ${data.fetched} posts (${counts})`,
         `Saved ${data.upserted} to the DB.`,
       ];
+      const failures: { platform: string; handle: string; error: string }[] =
+        data.failures ?? [];
+      for (const f of failures) {
+        lines.push(
+          `${f.platform === "TIKTOK" ? "TikTok" : f.platform === "INSTAGRAM" ? "Instagram" : "YouTube"} fetch failed for @${f.handle}: ${f.error}`
+        );
+      }
       const skipped =
         typeof data.droppedOutOfRange === "number" ? data.droppedOutOfRange : 0;
       if (skipped > 0) {
@@ -67,9 +81,9 @@ export function SyncCreatorButton({
         );
       }
       if (data.warning) lines.push(data.warning);
-      // When posts were skipped, the date window is the likely cause of
-      // "missing" posts — keep it on screen long enough to read and act on.
-      if (skipped > 0 || data.warning) {
+      // When posts were skipped or a platform fetch failed, keep the toast on
+      // screen long enough to read and act on.
+      if (skipped > 0 || data.warning || failures.length > 0) {
         toast.warning(lines.join(" "), { duration: 15000 });
       } else {
         toast.success(lines.join(" "), { duration: 7000 });
@@ -84,7 +98,7 @@ export function SyncCreatorButton({
 
   const disabled = syncing || !hasHandles;
   const tooltip = !hasHandles
-    ? "Creator hasn't set a TikTok or Instagram handle yet"
+    ? "Creator hasn't set a TikTok, Instagram, or YouTube handle yet"
     : !hasActiveCampaign
     ? "Tip: posts only save when the creator is on an active campaign"
     : undefined;
