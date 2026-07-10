@@ -27,6 +27,15 @@ tangent.
 
 ---
 
+## 2026-07-10 — YouTube Shorts + dashboard revamp, PR 2/2: features
+- **YouTube Shorts sync**: `fetchYouTubeShortsViaApify` (streamers/youtube-scraper pointed at the channel's `/shorts` tab), wired into the campaign cron sync + per-creator manual sync; YouTube handle fields added to manager + creator handle forms; "YouTube Shorts" added to ACTIVE_PLATFORMS.
+- **Multi-account creators**: extra-accounts card on `/creators/[id]` (add / deactivate / reactivate per platform, with note). Active extra accounts are scraped alongside the primary handle; deactivated (banned) accounts keep their posts counting toward totals. Sync prune logic reworked so sibling accounts can't delete each other's posts and inactive accounts' history survives.
+- **TikTok sound capture**: `musicMeta` (name/author/original) now stored on every synced TikTok post.
+- **Dashboard**: Weekly Shoutouts grid (top performer, most improved vs prior 4-week avg, most engaged, best converter, most consistent); Top Posts of the Week card with Mon–Sun week navigation, platform tabs (All/TT/IG/YT), Top 5/10 toggle, hook shown with caption fallback; Views/Posts This Week stat cards now show % delta vs previous 7 days; Top Creators now ranked by views with avg views / engagement % / post count; Top Sounds This Week card (TikTok).
+- **Creators page**: free-text search over name + handle next to the tier/status pills.
+- Tested: `npm run build` green; smoke script against local Postgres verified multi-account handle resolution (active-only scraping, banned handles retained for history), YT platform filtering, music column round-trip, and the top-creators aggregation. **Not yet run against live Apify** — the streamers/youtube-scraper field mapping is defensive but should be spot-checked with `npx tsx scripts/test-apify.ts <handle> 3` once an APIFY_TOKEN is on hand (verify postedAt dates look right before trusting window filtering).
+- Cost: none (no live Apify calls made).
+
 ## 2026-07-10 — YouTube Shorts + dashboard revamp, PR 1/2: schema
 - Migration `20260710120000_creator_accounts_youtube_music`: new `creator_accounts` table (multiple scraped accounts per creator per platform — shadow-ban replacement accounts; `isActive=false` keeps historical posts but stops syncing), `creators.youtubeHandle`, `posts.musicTitle/musicAuthor/musicOriginal` (TikTok sound metadata).
 - Tested: full migration chain applied to a throwaway local Postgres 16, `prisma migrate diff` confirms zero drift vs schema, `npm run build` green.

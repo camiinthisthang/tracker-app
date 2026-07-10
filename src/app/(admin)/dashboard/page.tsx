@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { format } from "date-fns";
-import { ExternalLink, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 import {
@@ -9,14 +9,47 @@ import {
 } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
-import { TierBadge } from "@/components/creators/tier-badge";
-import { PLATFORM_LABELS } from "@/lib/constants";
+import { TopPostsWeek } from "@/components/dashboard/top-posts-week";
+import { WeeklyShoutouts } from "@/components/dashboard/weekly-shoutouts";
+import { TopSounds } from "@/components/dashboard/top-sounds";
+import { parseWeekOffset } from "@/lib/weeks";
 
-export default async function DashboardPage() {
+function weekDelta(current: number, previous: number): string {
+  if (previous === 0) {
+    return current > 0 ? "no data for previous week" : "—";
+  }
+  const pct = Math.round((current / previous - 1) * 100);
+  const arrow = pct > 0 ? "▲" : pct < 0 ? "▼" : "＝";
+  return `${arrow} ${pct > 0 ? "+" : ""}${pct}% vs previous week (${previous.toLocaleString()})`;
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await getRequiredSession();
+  const params = await searchParams;
 
-  const sevenDaysAgo = new Date();
+  const weekOffset = parseWeekOffset(params.week);
+  const platformRaw = Array.isArray(params.platform)
+    ? params.platform[0]
+    : params.platform;
+  const platform = ["TIKTOK", "INSTAGRAM", "YOUTUBE"].includes(
+    platformRaw ?? ""
+  )
+    ? (platformRaw as string)
+    : "ALL";
+  const top = params.top === "10" ? 10 : 5;
+
+  // Stat cards use rolling 7-day windows: this week = last 7 days, previous
+  // week = the 7 days before that. Both sum current view counts of posts
+  // *posted* in the window.
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const fourteenDaysAgo = new Date(now);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
   // Agency users (super admin / agency manager) see across every client team;
   // client managers stay scoped to their own team. Helpers return {} for
@@ -29,49 +62,76 @@ export default async function DashboardPage() {
   const [
     activeCampaigns,
     totalCreators,
-    totalPostsThisWeek,
-    viewsThisWeek,
-    topPosts,
-    topCreators,
+    thisWeekAgg,
+    prevWeekAgg,
+    topCreatorViews,
   ] = await Promise.all([
     prisma.campaign.count({ where: { ...campaignWhere, isActive: true } }),
     prisma.creator.count({ where: creatorWhere }),
-    prisma.post.count({
-      where: { campaign: campaignWhere, postedAt: { gte: sevenDaysAgo } },
-    }),
     prisma.post.aggregate({
       where: { campaign: campaignWhere, postedAt: { gte: sevenDaysAgo } },
       _sum: { views: true },
+      _count: true,
     }),
-    prisma.post.findMany({
-      where: { campaign: campaignWhere },
-      include: {
-        creator: { select: { handle: true } },
-        campaign: { select: { name: true } },
+    prisma.post.aggregate({
+      where: {
+        campaign: campaignWhere,
+        postedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
       },
-      orderBy: { views: "desc" },
-      take: 5,
+      _sum: { views: true },
+      _count: true,
     }),
-    prisma.creator.findMany({
-      where: creatorWhere,
-      include: {
-        _count: { select: { posts: true } },
-      },
-      orderBy: { tier: "desc" },
+    prisma.post.groupBy({
+      by: ["creatorId"],
+      where: { campaign: campaignWhere, creator: { isActive: true } },
+      _sum: { views: true, likes: true, comments: true, shares: true, saves: true },
+      _count: { _all: true },
+      orderBy: { _sum: { views: "desc" } },
       take: 5,
     }),
   ]);
 
-  const weeklyViews = viewsThisWeek._sum.views ?? 0;
+  const weeklyViews = thisWeekAgg._sum.views ?? 0;
+  const prevWeeklyViews = prevWeekAgg._sum.views ?? 0;
+  const weeklyPosts = thisWeekAgg._count;
+  const prevWeeklyPosts = prevWeekAgg._count;
 
-  const attributedThisWeek = await prisma.creatorAttribution.aggregate({
-    where: {
-      creator: creatorVisibilityWhere(session),
-      date: { gte: sevenDaysAgo },
-    },
-    _sum: { signupCount: true },
-  });
+  const [attributedThisWeek, topCreatorRows] = await Promise.all([
+    prisma.creatorAttribution.aggregate({
+      where: {
+        creator: creatorVisibilityWhere(session),
+        date: { gte: sevenDaysAgo },
+      },
+      _sum: { signupCount: true },
+    }),
+    prisma.creator.findMany({
+      where: { id: { in: topCreatorViews.map((g) => g.creatorId) } },
+      select: { id: true, name: true, handle: true },
+    }),
+  ]);
   const signupsThisWeek = attributedThisWeek._sum.signupCount ?? 0;
+
+  const creatorById = new Map(topCreatorRows.map((c) => [c.id, c]));
+  const topCreators = topCreatorViews.flatMap((g) => {
+    const creator = creatorById.get(g.creatorId);
+    if (!creator) return [];
+    const views = g._sum.views ?? 0;
+    const posts = g._count._all;
+    const engagements =
+      (g._sum.likes ?? 0) +
+      (g._sum.comments ?? 0) +
+      (g._sum.shares ?? 0) +
+      (g._sum.saves ?? 0);
+    return [
+      {
+        ...creator,
+        views,
+        posts,
+        avgViews: posts > 0 ? Math.round(views / posts) : 0,
+        engagementPct: views > 0 ? (engagements / views) * 100 : 0,
+      },
+    ];
+  });
 
   return (
     <div>
@@ -84,71 +144,51 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Active Campaigns" value={activeCampaigns} />
         <StatCard label="Active Creators" value={totalCreators} />
-        <StatCard label="Posts This Week" value={totalPostsThisWeek.toLocaleString()} />
-        <StatCard label="Views This Week" value={weeklyViews.toLocaleString()} />
+        <StatCard
+          label="Posts This Week"
+          value={weeklyPosts.toLocaleString()}
+          subtext={weekDelta(weeklyPosts, prevWeeklyPosts)}
+        />
+        <StatCard
+          label="Views This Week"
+          value={weeklyViews.toLocaleString()}
+          subtext={weekDelta(weeklyViews, prevWeeklyViews)}
+        />
         <StatCard
           label="Attributed Signups (7d)"
           value={signupsThisWeek.toLocaleString()}
         />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Top Performing Posts */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-800">
-              Top Performing Posts
-            </h3>
-            <Link
-              href="/posts"
-              className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
-            >
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-          {topPosts.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-400">No posts yet</p>
-          ) : (
-            <div className="mt-3 space-y-2">
-              {topPosts.map((post) => (
-                <div
-                  key={post.id}
-                  className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-700">
-                      {post.title || "Untitled post"}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      @{post.creator.handle} · {post.campaign.name} ·{" "}
-                      {PLATFORM_LABELS[post.platform]}
-                    </p>
-                  </div>
-                  <div className="ml-4 flex items-center gap-3">
-                    <span className="text-sm font-medium text-slate-700">
-                      {post.views.toLocaleString()} views
-                    </span>
-                    <a
-                      href={post.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:text-blue-600"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Weekly shoutouts */}
+      <div className="mt-6">
+        <WeeklyShoutouts
+          campaignWhere={campaignWhere}
+          creatorWhere={creatorVisibilityWhere(session)}
+          weekOffset={weekOffset}
+        />
+      </div>
 
+      {/* Top posts of the week */}
+      <div className="mt-6">
+        <TopPostsWeek
+          campaignWhere={campaignWhere}
+          weekOffset={weekOffset}
+          platform={platform}
+          top={top}
+        />
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         {/* Top Creators */}
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-800">
-              Top Creators
-            </h3>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800">
+                Top Creators
+              </h3>
+              <p className="text-xs text-slate-400">By total views</p>
+            </div>
             <Link
               href="/creators"
               className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
@@ -166,25 +206,47 @@ export default async function DashboardPage() {
                   href={`/creators/${creator.id}`}
                   className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 hover:bg-slate-100"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-xs font-medium text-slate-500">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-medium text-slate-500">
                       {idx + 1}
                     </span>
-                    <div>
-                      <p className="text-sm font-medium text-slate-700">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-700">
                         {creator.name}
                       </p>
-                      <p className="text-xs text-slate-400">
-                        @{creator.handle} · {creator._count.posts} posts
+                      <p className="truncate text-xs text-slate-400">
+                        @{creator.handle}
                       </p>
                     </div>
                   </div>
-                  <TierBadge tier={creator.tier} />
+                  <div className="ml-3 flex shrink-0 gap-4 text-right">
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">
+                        {creator.avgViews.toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-slate-400">avg views</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">
+                        {creator.engagementPct.toFixed(1)}%
+                      </p>
+                      <p className="text-[10px] text-slate-400">engagement</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">
+                        {creator.posts}
+                      </p>
+                      <p className="text-[10px] text-slate-400">posts</p>
+                    </div>
+                  </div>
                 </Link>
               ))}
             </div>
           )}
         </div>
+
+        {/* Top sounds (TikTok) */}
+        <TopSounds campaignWhere={campaignWhere} weekOffset={weekOffset} />
       </div>
 
       {/* Recent Campaigns */}

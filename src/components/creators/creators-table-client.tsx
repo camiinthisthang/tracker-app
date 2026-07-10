@@ -3,11 +3,12 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
-import { Flame } from "lucide-react";
+import { Flame, Search } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { FilterPills } from "@/components/creators/creator-filter-pills";
 import { TierBadge } from "@/components/creators/tier-badge";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 interface CreatorRow {
   id: string;
@@ -163,9 +164,18 @@ const statusFilters = [
 export function CreatorsTableClient({ creators }: CreatorsTableClientProps) {
   const [tierFilter, setTierFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
     let result = creators;
+    const q = search.trim().toLowerCase().replace(/^@+/, "");
+    if (q) {
+      result = result.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.handle.toLowerCase().includes(q)
+      );
+    }
     if (tierFilter !== "all") {
       result = result.filter((c) => c.tier === tierFilter);
     }
@@ -176,11 +186,20 @@ export function CreatorsTableClient({ creators }: CreatorsTableClientProps) {
     }
     // Sort by referrals descending for leaderboard
     return result.sort((a, b) => b.totalReferrals - a.totalReferrals);
-  }, [creators, tierFilter, statusFilter]);
+  }, [creators, tierFilter, statusFilter, search]);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <Input
+            className="w-56 pl-8"
+            placeholder="Search name or handle"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
         <div>
           <p className="mb-1.5 text-xs font-medium text-slate-500">Tier</p>
           <FilterPills
