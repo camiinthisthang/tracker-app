@@ -43,11 +43,25 @@ const columns: ColumnDef<PostRow>[] = [
   {
     accessorKey: "creator",
     header: "Creator",
-    cell: ({ row }) => (
-      <span className="text-sm font-medium text-slate-700">
-        {row.original.creator.handle}
-      </span>
-    ),
+    cell: ({ row }) => {
+      // With multi-account creators the posting account can differ from the
+      // profile's main handle — show which account the post came from.
+      const viaOtherAccount =
+        row.original.username.toLowerCase() !==
+        row.original.creator.handle.toLowerCase();
+      return (
+        <div>
+          <span className="text-sm font-medium text-slate-700">
+            {row.original.creator.handle}
+          </span>
+          {viaOtherAccount && (
+            <p className="text-xs text-slate-400">
+              via @{row.original.username}
+            </p>
+          )}
+        </div>
+      );
+    },
     enableSorting: false,
   },
   {
@@ -174,6 +188,7 @@ export function PostsTableClient({
   function handleExportCsv() {
     const headers = [
       "Creator",
+      "Account",
       "Title",
       "Link",
       "Platform",
@@ -186,6 +201,7 @@ export function PostsTableClient({
     ];
     const rows = filtered.map((p) => [
       p.creator.handle,
+      p.username,
       p.title || "",
       p.link,
       PLATFORM_LABELS[p.platform] || p.platform,

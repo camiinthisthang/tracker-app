@@ -33,6 +33,7 @@ tangent.
 - **TikTok sound capture**: `musicMeta` (name/author/original) now stored on every synced TikTok post.
 - **Dashboard**: Weekly Shoutouts grid (top performer, most improved vs prior 4-week avg, most engaged, best converter, most consistent); Top Posts of the Week card with Mon–Sun week navigation, platform tabs (All/TT/IG/YT), Top 5/10 toggle, hook shown with caption fallback; Views/Posts This Week stat cards now show % delta vs previous 7 days; Top Creators now ranked by views with avg views / engagement % / post count; Top Sounds This Week card (TikTok).
 - **Creators page**: free-text search over name + handle next to the tier/status pills.
+- **Posts table**: rows now show "via @account" when a post came from an account other than the creator's main handle (multi-account visibility); CSV export gained an Account column.
 - Tested: `npm run build` green; smoke script against local Postgres verified multi-account handle resolution (active-only scraping, banned handles retained for history), YT platform filtering, music column round-trip, and the top-creators aggregation. **Not yet run against live Apify** — the streamers/youtube-scraper field mapping is defensive but should be spot-checked with `npx tsx scripts/test-apify.ts <handle> 3` once an APIFY_TOKEN is on hand (verify postedAt dates look right before trusting window filtering).
 - Cost: none (no live Apify calls made).
 
