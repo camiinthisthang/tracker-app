@@ -27,6 +27,12 @@ tangent.
 
 ---
 
+## 2026-07-10 — All-time top posts, creators-tab redirect fix, campaign-scoped accounts
+- **Bug fix — creators tab opening the marketing site:** middleware treated every non-viewtrackr host (vercel.app previews/default domains) as the marketing site and rewrote `/creators` to the static landing page. Marketing rewrites now apply only on dropdeck hosts; the app is the default everywhere else. Marketing pages stay previewable at `/site/*.html` on any host.
+- **All-Time Top Posts** card on `/dashboard` under the weekly card — top 10 highest-viewed videos across all campaigns, hook + creator + campaign per row. Campaign overview's gallery relabelled "Top Posts · All-time".
+- **Campaign-scoped creator accounts** (schema in migration `20260710180000`): an extra account can be scoped to one campaign for creators who use different handles per campaign. Campaign sync only scrapes accounts scoped to that campaign (or unscoped); posts from scoped accounts attach/reassign to their campaign, fixing multi-campaign creators' posts landing in whichever campaign synced first. Extra-accounts card gains a campaign picker + per-account campaign badge.
+- Tested: `npm run build` green; unit check on scoped-handle resolution (scoped handle only scrapes on its own campaign, flagged for post reassignment).
+
 ## 2026-07-10 — Hide attribution/referrals UI (dub.co API not connected)
 - New `ATTRIBUTION_ENABLED = false` flag in `src/lib/constants.ts` — signups/referrals run through dub.co with no API wired, so every number was a permanent 0 cluttering the boards. One-line flip when the API lands.
 - Hidden when off: dashboard "Attributed Signups (7d)" card, shoutouts "Best converter", creator detail + creator home + creators page + campaign overview referral stat cards, Referrals columns (creators table, campaign creators table), viral-video referral overlay, hooks page referral stats/columns.

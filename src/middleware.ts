@@ -7,22 +7,24 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = (request.headers.get("host") || "").toLowerCase();
 
-  // viewtrackr.com is the (deprecated) app domain; dropdeck.xyz + preview URLs
-  // are the marketing site. The three landing paths ("/", "/brands",
-  // "/creators") are STATIC marketing pages on the marketing host, but REAL app
-  // routes on viewtrackr (e.g. /creators = the admin creator roster + analytics).
-  // We split behaviour by hostname so the marketing rewrite never shadows the
-  // app's own /creators page on viewtrackr.
-  const isAppHost = host.includes("viewtrackr");
+  // dropdeck.xyz is the marketing site; everything else (viewtrackr.com,
+  // vercel.app previews/default domains, localhost) is the app. The three
+  // landing paths ("/", "/brands", "/creators") are STATIC marketing pages on
+  // the marketing host, but REAL app routes elsewhere (e.g. /creators = the
+  // admin creator roster). The old rule treated every non-viewtrackr host as
+  // marketing, which sent app users on vercel.app URLs to the static creators
+  // landing page when they clicked the Creators tab. Marketing pages remain
+  // previewable on any host directly at /site/*.html.
+  const isMarketingHost = host.includes("dropdeck");
 
-  // viewtrackr homepage -> straight into the app dashboard.
-  if (isAppHost && pathname === "/") {
+  // App homepage -> straight into the dashboard.
+  if (!isMarketingHost && pathname === "/") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Marketing landing pages (everywhere EXCEPT viewtrackr): serve the static
-  // files in /public/site. On viewtrackr these paths fall through to the app.
-  if (!isAppHost) {
+  // Marketing landing pages (dropdeck hosts only): serve the static files in
+  // /public/site. Everywhere else these paths fall through to the app.
+  if (isMarketingHost) {
     if (pathname === "/") {
       return NextResponse.rewrite(new URL("/site/index.html", request.url));
     }

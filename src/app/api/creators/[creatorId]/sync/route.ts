@@ -89,15 +89,18 @@ export async function POST(
 
   // The historical TikTok fallback to the generic `handle` is preserved here
   // (the campaign-wide sync only falls back to tiktokUsername).
-  const handleTasks = resolveSyncHandles({
-    handle: creator.handle,
-    tiktokHandle:
-      creator.tiktokHandle || creator.tiktokUsername || creator.handle,
-    tiktokUsername: creator.tiktokUsername,
-    instagramHandle: creator.instagramHandle,
-    youtubeHandle: creator.youtubeHandle,
-    accounts: creator.accounts,
-  });
+  const handleTasks = resolveSyncHandles(
+    {
+      handle: creator.handle,
+      tiktokHandle:
+        creator.tiktokHandle || creator.tiktokUsername || creator.handle,
+      tiktokUsername: creator.tiktokUsername,
+      instagramHandle: creator.instagramHandle,
+      youtubeHandle: creator.youtubeHandle,
+      accounts: creator.accounts,
+    },
+    campaignId ?? null
+  );
 
   const failures: { platform: SyncPlatform; handle: string; error: string }[] =
     [];
@@ -117,19 +120,24 @@ export async function POST(
   );
 
   const allPosts = fetchResults.flatMap((r) => r.posts);
-  const inWindowPosts =
-    windowStart && windowEnd
-      ? allPosts.filter(
-          (p) => p.postedAt >= windowStart && p.postedAt < windowEnd
-        )
-      : [];
+  const inWindow = (p: SocialPost) =>
+    !!windowStart && !!windowEnd && p.postedAt >= windowStart && p.postedAt < windowEnd;
+  const inWindowPosts = allPosts.filter(inWindow);
   const droppedOutOfRange = allPosts.length - inWindowPosts.length;
   let upserted = 0;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  for (const post of inWindowPosts) {
+  const upsertQueue = fetchResults.flatMap((r) =>
+    r.posts.filter(inWindow).map((post) => ({
+      post,
+      // Posts from a campaign-scoped account belong to this campaign even if
+      // another campaign's sync created the row first.
+      reassignCampaign: r.scopedToCampaign,
+    }))
+  );
+  for (const { post, reassignCampaign } of upsertQueue) {
     // Prefer the creator's active campaign to attach the post. If there is
     // none, skip creating — Post requires campaignId.
     if (!campaignId) continue;
@@ -171,6 +179,7 @@ export async function POST(
         musicTitle: post.musicTitle ?? null,
         musicAuthor: post.musicAuthor ?? null,
         musicOriginal: post.musicOriginal ?? null,
+        ...(reassignCampaign ? { campaignId } : {}),
       },
     });
 

@@ -20,9 +20,11 @@ export function TopPostsGallery({ posts }: { posts: TopPost[] }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-800">Top Posts</h3>
+        <h3 className="text-sm font-semibold text-slate-800">
+          Top Posts · All-time
+        </h3>
         <span className="text-xs text-slate-400">
-          Ranked by views
+          This campaign&apos;s highest-viewed posts, ranked by views
         </span>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
