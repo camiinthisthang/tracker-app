@@ -41,7 +41,10 @@ export default async function CreatorDetailPage({
         },
       },
       teamMember: { select: { id: true } },
-      accounts: { orderBy: [{ platform: "asc" }, { createdAt: "asc" }] },
+      accounts: {
+        include: { campaign: { select: { id: true, name: true } } },
+        orderBy: [{ platform: "asc" }, { createdAt: "asc" }],
+      },
       _count: { select: { posts: true } },
     },
   });
@@ -239,7 +242,14 @@ export default async function CreatorDetailPage({
       <div className="mt-4">
         <CreatorExtraAccounts
           creatorId={creator.id}
-          accounts={creator.accounts}
+          accounts={creator.accounts.map((a) => ({
+            ...a,
+            campaignName: a.campaign?.name ?? null,
+          }))}
+          campaigns={creator.campaignCreators.map((cc) => ({
+            id: cc.campaign.id,
+            name: cc.campaign.name,
+          }))}
         />
       </div>
 

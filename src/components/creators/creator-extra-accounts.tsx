@@ -26,18 +26,21 @@ interface Account {
   handle: string;
   isActive: boolean;
   note: string | null;
+  campaignName: string | null;
 }
 
 interface Props {
   creatorId: string;
   accounts: Account[];
+  campaigns: { id: string; name: string }[];
 }
 
-export function CreatorExtraAccounts({ creatorId, accounts }: Props) {
+export function CreatorExtraAccounts({ creatorId, accounts, campaigns }: Props) {
   const router = useRouter();
   const [platform, setPlatform] = useState<string>("TIKTOK");
   const [handle, setHandle] = useState("");
   const [note, setNote] = useState("");
+  const [campaignId, setCampaignId] = useState<string>("all");
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -55,6 +58,7 @@ export function CreatorExtraAccounts({ creatorId, accounts }: Props) {
           platform,
           handle: handle.trim(),
           note: note.trim() || null,
+          campaignId: campaignId === "all" ? null : campaignId,
         }),
       });
       if (!res.ok) {
@@ -110,8 +114,9 @@ export function CreatorExtraAccounts({ creatorId, accounts }: Props) {
           Additional accounts beyond the main handles above — e.g. a new
           account after a shadow ban, or a second account posting for other
           campaigns. Posts from every account count toward this creator&apos;s
-          totals. Deactivate an account to stop syncing it without losing its
-          history.
+          totals. Scope an account to one campaign when the creator uses a
+          different handle there. Deactivate an account to stop syncing it
+          without losing its history.
         </p>
       </div>
 
@@ -132,6 +137,9 @@ export function CreatorExtraAccounts({ creatorId, accounts }: Props) {
                   </a>
                   <span className="ml-2 text-xs text-slate-400">
                     {PLATFORM_LABELS[a.platform] ?? a.platform}
+                  </span>
+                  <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                    {a.campaignName ?? "All campaigns"}
                   </span>
                 </p>
                 {a.note && (
@@ -185,6 +193,24 @@ export function CreatorExtraAccounts({ creatorId, accounts }: Props) {
           value={handle}
           onChange={(e) => setHandle(e.target.value)}
         />
+        <div className="w-44">
+          <Select
+            value={campaignId}
+            onValueChange={(v) => v && setCampaignId(v)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All campaigns</SelectItem>
+              {campaigns.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <Input
           className="min-w-40 flex-1"
           placeholder="note, e.g. replacement — main banned"

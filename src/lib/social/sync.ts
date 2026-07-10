@@ -19,6 +19,7 @@ type CreatorAccountRow = {
   platform: Platform;
   handle: string;
   isActive: boolean;
+  campaignId?: string | null;
 };
 
 type CreatorHandles = {
@@ -38,38 +39,60 @@ function cleanHandle(raw: string | null | undefined): string | null {
   return c.length > 0 ? c : null;
 }
 
+export type SyncHandle = {
+  platform: SyncPlatform;
+  handle: string;
+  // True when the handle comes from an account scoped to the campaign being
+  // synced — its posts belong to that campaign even if another campaign's
+  // sync saw them first.
+  scopedToCampaign: boolean;
+};
+
 // Every creator is treated as multi-platform: we try every platform the
 // creator has at least one handle for, regardless of the
 // CampaignCreator.platform column (kept around for historical reasons but no
 // longer surfaced in the UI). Per platform there is the primary handle column
 // plus any extra CreatorAccount rows (shadow-ban replacements, secondary
-// accounts) — only active ones are scraped.
+// accounts) — only active ones are scraped, and campaign-scoped accounts only
+// when syncing their campaign.
 export function resolveSyncHandles(
-  c: CreatorHandles
-): { platform: SyncPlatform; handle: string }[] {
+  c: CreatorHandles,
+  forCampaignId?: string | null
+): SyncHandle[] {
   const primary: Record<SyncPlatform, string | null> = {
     TIKTOK: cleanHandle(c.tiktokHandle) ?? cleanHandle(c.tiktokUsername),
     INSTAGRAM: cleanHandle(c.instagramHandle),
     YOUTUBE: cleanHandle(c.youtubeHandle),
   };
 
-  const out: { platform: SyncPlatform; handle: string }[] = [];
+  const out: SyncHandle[] = [];
   const seen = new Set<string>();
-  const push = (platform: SyncPlatform, handle: string | null) => {
+  const push = (
+    platform: SyncPlatform,
+    handle: string | null,
+    scopedToCampaign: boolean
+  ) => {
     if (!handle) return;
     const key = `${platform}:${handle.toLowerCase()}`;
     if (seen.has(key)) return;
     seen.add(key);
-    out.push({ platform, handle });
+    out.push({ platform, handle, scopedToCampaign });
   };
 
-  for (const platform of ["TIKTOK", "INSTAGRAM", "YOUTUBE"] as const) {
-    push(platform, primary[platform]);
-  }
+  // Campaign-scoped accounts first so they win handle dedup over an identical
+  // unscoped/primary handle.
   for (const acct of c.accounts ?? []) {
-    if (!acct.isActive) continue;
-    if (acct.platform === "FACEBOOK") continue;
-    push(acct.platform as SyncPlatform, cleanHandle(acct.handle));
+    if (!acct.isActive || acct.platform === "FACEBOOK") continue;
+    const scope = acct.campaignId ?? null;
+    if (scope !== null && scope !== (forCampaignId ?? null)) continue;
+    push(
+      acct.platform as SyncPlatform,
+      cleanHandle(acct.handle),
+      scope !== null
+    );
+  }
+  for (const platform of ["TIKTOK", "INSTAGRAM", "YOUTUBE"] as const) {
+    push(platform, primary[platform], false);
   }
   return out;
 }
@@ -158,12 +181,18 @@ export async function syncCampaign(campaignId: string) {
     cc: (typeof campaign.campaignCreators)[number];
     platform: SyncPlatform;
     handle: string;
+    scopedToCampaign: boolean;
   };
   const tasks: FetchTask[] = [];
   for (const cc of campaign.campaignCreators) {
-    const handles = resolveSyncHandles(cc.creator);
+    const handles = resolveSyncHandles(cc.creator, campaignId);
     for (const h of handles) {
-      tasks.push({ cc, platform: h.platform, handle: h.handle });
+      tasks.push({
+        cc,
+        platform: h.platform,
+        handle: h.handle,
+        scopedToCampaign: h.scopedToCampaign,
+      });
     }
     if (handles.length === 0) {
       skipped.push({
@@ -212,7 +241,12 @@ export async function syncCampaign(campaignId: string) {
   // DB writes are sequential to avoid overwhelming the connection pool.
   for (const { task, posts } of fetchResults) {
     for (const post of posts) {
-      await upsertPost(post, campaignId, task.cc.creatorId);
+      await upsertPost(
+        post,
+        campaignId,
+        task.cc.creatorId,
+        task.scopedToCampaign
+      );
       totalPostsUpserted++;
     }
   }
@@ -305,12 +339,16 @@ function filterByHashtags(
 }
 
 /**
- * Upsert a social post into the database and create/update today's metric snapshot.
+ * Upsert a social post into the database and create/update today's metric
+ * snapshot. `reassignCampaign` is set for posts scraped via a campaign-scoped
+ * account: they belong to that campaign even if a different campaign's sync
+ * created the row first.
  */
 async function upsertPost(
   post: SocialPost,
   campaignId: string,
-  creatorId: string
+  creatorId: string,
+  reassignCampaign = false
 ) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -352,6 +390,7 @@ async function upsertPost(
       musicTitle: post.musicTitle ?? null,
       musicAuthor: post.musicAuthor ?? null,
       musicOriginal: post.musicOriginal ?? null,
+      ...(reassignCampaign ? { campaignId } : {}),
     },
   });
 

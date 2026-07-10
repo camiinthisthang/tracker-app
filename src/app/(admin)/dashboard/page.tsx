@@ -10,6 +10,7 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TopPostsWeek } from "@/components/dashboard/top-posts-week";
+import { TopPostsAllTime } from "@/components/dashboard/top-posts-alltime";
 import { WeeklyShoutouts } from "@/components/dashboard/weekly-shoutouts";
 import { TopSounds } from "@/components/dashboard/top-sounds";
 import { parseWeekOffset } from "@/lib/weeks";
@@ -184,6 +185,11 @@ export default async function DashboardPage({
           platform={platform}
           top={top}
         />
+      </div>
+
+      {/* All-time top posts across every campaign */}
+      <div className="mt-6">
+        <TopPostsAllTime campaignWhere={campaignWhere} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
