@@ -6,6 +6,7 @@ import "dotenv/config";
 import {
   fetchTikTokPostsViaApify,
   fetchInstagramPostsViaApify,
+  fetchYouTubeShortsViaApify,
 } from "../src/lib/social/apify";
 
 function summarize(label: string, posts: unknown[]) {
@@ -46,6 +47,13 @@ async function main() {
     summarize("Instagram", ig);
   } catch (err) {
     console.error("Instagram fetch failed:", (err as Error).message);
+  }
+
+  try {
+    const yt = await fetchYouTubeShortsViaApify(handle, limit);
+    summarize("YouTube Shorts", yt);
+  } catch (err) {
+    console.error("YouTube fetch failed:", (err as Error).message);
   }
 }
 

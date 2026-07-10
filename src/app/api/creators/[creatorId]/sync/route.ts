@@ -3,14 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { canAccessCreator } from "@/lib/visibility";
 import {
-  fetchTikTokPostsViaApify,
-  fetchInstagramPostsViaApify,
-} from "@/lib/social/apify";
+  fetchForPlatform,
+  resolveSyncHandles,
+  type SyncPlatform,
+} from "@/lib/social/sync";
 import type { SocialPost } from "@/lib/social/types";
 
 /**
- * Manual per-creator sync. Scrapes TikTok + Instagram via Apify for the
- * creator's handles and upserts into Post + PostMetricsSnapshot.
+ * Manual per-creator sync. Scrapes TikTok + Instagram + YouTube Shorts via
+ * Apify for every active handle the creator has (primary columns plus extra
+ * CreatorAccount rows) and upserts into Post + PostMetricsSnapshot.
  *
  * Attaches posts to the creator's most recent active campaign if any,
  * otherwise only creates a fresh PostMetricsSnapshot against existing posts.
@@ -29,6 +31,7 @@ export async function POST(
   const creator = await prisma.creator.findUnique({
     where: { id: creatorId },
     include: {
+      accounts: true,
       campaignCreators: {
         where: { isActive: true },
         orderBy: { createdAt: "desc" },
@@ -84,26 +87,29 @@ export async function POST(
     prunedOutOfRange = pruned.count;
   }
 
-  const tiktokHandle =
-    creator.tiktokHandle || creator.tiktokUsername || creator.handle;
-  const instagramHandle = creator.instagramHandle;
+  // The historical TikTok fallback to the generic `handle` is preserved here
+  // (the campaign-wide sync only falls back to tiktokUsername).
+  const handleTasks = resolveSyncHandles({
+    handle: creator.handle,
+    tiktokHandle:
+      creator.tiktokHandle || creator.tiktokUsername || creator.handle,
+    tiktokUsername: creator.tiktokUsername,
+    instagramHandle: creator.instagramHandle,
+    youtubeHandle: creator.youtubeHandle,
+    accounts: creator.accounts,
+  });
 
-  const [tiktokPosts, instagramPosts] = await Promise.all([
-    tiktokHandle
-      ? fetchTikTokPostsViaApify(tiktokHandle).catch((e) => {
-          console.error("tiktok scrape failed", e);
-          return [] as SocialPost[];
-        })
-      : Promise.resolve([] as SocialPost[]),
-    instagramHandle
-      ? fetchInstagramPostsViaApify(instagramHandle).catch((e) => {
-          console.error("instagram scrape failed", e);
-          return [] as SocialPost[];
-        })
-      : Promise.resolve([] as SocialPost[]),
-  ]);
+  const fetchResults = await Promise.all(
+    handleTasks.map(async (t) => ({
+      ...t,
+      posts: await fetchForPlatform(t.platform, t.handle).catch((e) => {
+        console.error(`${t.platform.toLowerCase()} scrape failed`, e);
+        return [] as SocialPost[];
+      }),
+    }))
+  );
 
-  const allPosts = [...tiktokPosts, ...instagramPosts];
+  const allPosts = fetchResults.flatMap((r) => r.posts);
   const inWindowPosts =
     windowStart && windowEnd
       ? allPosts.filter(
@@ -143,6 +149,9 @@ export async function POST(
         shares: post.shares,
         saves: post.saves,
         comments: post.comments,
+        musicTitle: post.musicTitle ?? null,
+        musicAuthor: post.musicAuthor ?? null,
+        musicOriginal: post.musicOriginal ?? null,
       },
       update: {
         views: post.views,
@@ -152,6 +161,9 @@ export async function POST(
         comments: post.comments,
         title: post.title,
         thumbnailUrl: post.thumbnailUrl,
+        musicTitle: post.musicTitle ?? null,
+        musicAuthor: post.musicAuthor ?? null,
+        musicOriginal: post.musicOriginal ?? null,
       },
     });
 
@@ -178,27 +190,26 @@ export async function POST(
     upserted++;
   }
 
-  // Reconcile deletions: for each platform that returned results, drop in-window
+  // Reconcile deletions: for each account that returned results, drop in-window
   // posts whose externalId no longer appears on the platform (deleted videos —
   // e.g. a creator who took down 8 of 12 reels). Guarded by a non-empty live
   // set so a failed or soft-empty scrape can't wipe real posts. Scoped to the
-  // campaign window, matching what the upsert above writes.
+  // campaign window AND this account's username, so one account's scrape can't
+  // delete a sibling account's posts (inactive/banned accounts keep history).
   let prunedDeleted = 0;
   if (campaignId && windowStart && windowEnd) {
-    const byPlatform: [SocialPost["platform"], SocialPost[]][] = [
-      ["TIKTOK", tiktokPosts],
-      ["INSTAGRAM", instagramPosts],
-    ];
-    for (const [platform, posts] of byPlatform) {
+    for (const { platform, handle, posts } of fetchResults) {
       const liveIds = posts
         .filter((p) => p.postedAt >= windowStart && p.postedAt < windowEnd)
         .map((p) => p.externalId);
       if (liveIds.length === 0) continue;
+      const clean = handle.trim().replace(/^@+/, "");
       const del = await prisma.post.deleteMany({
         where: {
           campaignId,
           creatorId,
           platform,
+          username: { equals: clean, mode: "insensitive" },
           postedAt: { gte: windowStart, lt: windowEnd },
           externalId: { notIn: liveIds },
         },
@@ -207,6 +218,11 @@ export async function POST(
     }
   }
 
+  const countByPlatform = (p: SyncPlatform) =>
+    fetchResults
+      .filter((r) => r.platform === p)
+      .reduce((n, r) => n + r.posts.length, 0);
+
   return NextResponse.json({
     ok: true,
     fetched: allPosts.length,
@@ -214,8 +230,10 @@ export async function POST(
     prunedDeleted,
     droppedOutOfRange,
     prunedOutOfRange,
-    tiktokPosts: tiktokPosts.length,
-    instagramPosts: instagramPosts.length,
+    tiktokPosts: countByPlatform("TIKTOK"),
+    instagramPosts: countByPlatform("INSTAGRAM"),
+    youtubePosts: countByPlatform("YOUTUBE"),
+    accountsAttempted: handleTasks.length,
     attachedToCampaign: campaignId ?? null,
     window:
       windowStart && windowEnd

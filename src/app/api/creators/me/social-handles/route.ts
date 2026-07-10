@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
 /**
- * Creator-self endpoint for updating their own TikTok + Instagram handles.
- * Kept separate from the admin PATCH at /api/creators/[id] so creators can
- * only touch these two fields on their own record — nothing else.
+ * Creator-self endpoint for updating their own TikTok + Instagram + YouTube
+ * handles. Kept separate from the admin PATCH at /api/creators/[id] so
+ * creators can only touch these fields on their own record — nothing else.
  */
 export async function PATCH(req: Request) {
   const session = await getSession();
@@ -22,16 +22,25 @@ export async function PATCH(req: Request) {
   const clean = (v: unknown) =>
     typeof v === "string" ? v.trim().replace(/^@+/, "") || null : null;
 
-  const data: { tiktokHandle?: string | null; instagramHandle?: string | null } =
-    {};
+  const data: {
+    tiktokHandle?: string | null;
+    instagramHandle?: string | null;
+    youtubeHandle?: string | null;
+  } = {};
   if ("tiktokHandle" in body) data.tiktokHandle = clean(body.tiktokHandle);
   if ("instagramHandle" in body)
     data.instagramHandle = clean(body.instagramHandle);
+  if ("youtubeHandle" in body) data.youtubeHandle = clean(body.youtubeHandle);
 
   const updated = await prisma.creator.update({
     where: { id: creatorId },
     data,
-    select: { id: true, tiktokHandle: true, instagramHandle: true },
+    select: {
+      id: true,
+      tiktokHandle: true,
+      instagramHandle: true,
+      youtubeHandle: true,
+    },
   });
 
   return NextResponse.json(updated);

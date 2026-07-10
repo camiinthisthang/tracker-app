@@ -18,6 +18,8 @@ import type { SocialPost } from "./types";
  * Actors used:
  * - clockworks/tiktok-scraper ($0.20 / 1K results)
  * - apify/instagram-scraper (~$1 / 1K results)
+ * - streamers/youtube-scraper (~$0.50 / 1K results) — pointed at the channel's
+ *   /shorts tab so we only pull Shorts
  *
  * Required env var: APIFY_TOKEN (create from apify.com account settings).
  */
@@ -82,6 +84,7 @@ export async function fetchTikTokPostsViaApify(
 
     const createTime = typeof v.createTime === "number" ? v.createTime : null;
     const videoMeta = (v.videoMeta as Record<string, unknown> | undefined) ?? {};
+    const musicMeta = (v.musicMeta as Record<string, unknown> | undefined) ?? {};
 
     console.log(
       `[tt-sync] @${clean} ${id} playCount=${String(v.playCount)} ` +
@@ -117,6 +120,11 @@ export async function fetchTikTokPostsViaApify(
       shares: toInt(v.shareCount),
       saves: toInt(v.collectCount),
       comments: toInt(v.commentCount),
+      musicTitle: typeof musicMeta.musicName === "string" ? musicMeta.musicName : null,
+      musicAuthor:
+        typeof musicMeta.musicAuthor === "string" ? musicMeta.musicAuthor : null,
+      musicOriginal:
+        typeof musicMeta.musicOriginal === "boolean" ? musicMeta.musicOriginal : null,
     });
   }
   return posts;
@@ -189,6 +197,74 @@ export async function fetchInstagramPostsViaApify(
     });
   }
   return posts;
+}
+
+/**
+ * Fetch a creator's recent YouTube Shorts via streamers/youtube-scraper,
+ * pointed at the channel's /shorts tab so regular videos and streams never
+ * enter the dataset. Field names vary a little between actor versions, so the
+ * mapper tries the known aliases for each metric.
+ */
+export async function fetchYouTubeShortsViaApify(
+  handle: string,
+  limit = 60
+): Promise<SocialPost[]> {
+  const clean = stripHandle(handle);
+  if (!clean) return [];
+
+  const items = await runActorSync("streamers~youtube-scraper", {
+    startUrls: [{ url: `https://www.youtube.com/@${clean}/shorts` }],
+    maxResults: limit,
+    maxResultsShorts: limit,
+    maxResultStreams: 0,
+  });
+
+  const posts: SocialPost[] = [];
+  for (const raw of items) {
+    const v = raw as Record<string, unknown>;
+    const url = typeof v.url === "string" ? v.url : "";
+    const id = String(
+      v.id ?? v.videoId ?? url.match(/(?:shorts\/|v=)([\w-]{6,})/)?.[1] ?? ""
+    );
+    if (!id) continue;
+    if (v.isLive === true || v.type === "stream") continue;
+
+    const views = toInt(v.viewCount ?? v.views);
+    console.log(
+      `[yt-sync] @${clean} ${id} viewCount=${String(v.viewCount ?? v.views)} ` +
+        `likes=${String(v.likes ?? v.likeCount)} -> views=${views}`
+    );
+
+    posts.push({
+      externalId: id,
+      platform: "YOUTUBE",
+      username: clean,
+      title:
+        (typeof v.title === "string" && v.title) ||
+        (typeof v.text === "string" && v.text) ||
+        null,
+      link: url || `https://www.youtube.com/shorts/${id}`,
+      thumbnailUrl:
+        (typeof v.thumbnailUrl === "string" && v.thumbnailUrl) ||
+        (typeof v.thumbnail === "string" && v.thumbnail) ||
+        null,
+      postedAt: parseDate(v.date ?? v.publishedAt ?? v.uploadDate),
+      views,
+      likes: toInt(v.likes ?? v.likeCount),
+      shares: 0,
+      saves: 0,
+      comments: toInt(v.commentsCount ?? v.commentCount),
+    });
+  }
+  return posts;
+}
+
+function parseDate(v: unknown): Date {
+  if (typeof v === "string" || typeof v === "number") {
+    const d = new Date(v);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date();
 }
 
 function toInt(v: unknown): number {

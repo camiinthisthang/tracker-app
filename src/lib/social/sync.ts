@@ -2,8 +2,10 @@ import { prisma } from "@/lib/prisma";
 import {
   fetchTikTokPostsViaApify,
   fetchInstagramPostsViaApify,
+  fetchYouTubeShortsViaApify,
 } from "./apify";
 import type { SocialPost } from "./types";
+import type { Platform } from "@/generated/prisma/enums";
 
 // Hashtag filtering is intentionally OFF: we track each creator's entire
 // account within the campaign window because creators don't reliably tag every
@@ -13,23 +15,98 @@ import type { SocialPost } from "./types";
 // hashtag-scoped pulls. campaign.hashtags stays stored as an optional label.
 const HASHTAG_FILTERING_ENABLED = false;
 
+type CreatorAccountRow = {
+  platform: Platform;
+  handle: string;
+  isActive: boolean;
+};
+
 type CreatorHandles = {
   handle: string;
   tiktokHandle: string | null;
   tiktokUsername: string | null;
   instagramHandle: string | null;
+  youtubeHandle: string | null;
+  accounts?: CreatorAccountRow[];
 };
 
-// Every creator is treated as multi-platform: we try TikTok and Instagram for
-// each one, regardless of the CampaignCreator.platform column (kept around for
-// historical reasons but no longer surfaced in the UI). A platform is only
-// attempted when the creator actually has a handle for it.
-function resolveTikTokHandle(c: CreatorHandles): string | null {
-  return c.tiktokHandle || c.tiktokUsername || null;
+export type SyncPlatform = "TIKTOK" | "INSTAGRAM" | "YOUTUBE";
+
+function cleanHandle(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const c = raw.trim().replace(/^@+/, "");
+  return c.length > 0 ? c : null;
 }
 
-function resolveInstagramHandle(c: CreatorHandles): string | null {
-  return c.instagramHandle || null;
+// Every creator is treated as multi-platform: we try every platform the
+// creator has at least one handle for, regardless of the
+// CampaignCreator.platform column (kept around for historical reasons but no
+// longer surfaced in the UI). Per platform there is the primary handle column
+// plus any extra CreatorAccount rows (shadow-ban replacements, secondary
+// accounts) — only active ones are scraped.
+export function resolveSyncHandles(
+  c: CreatorHandles
+): { platform: SyncPlatform; handle: string }[] {
+  const primary: Record<SyncPlatform, string | null> = {
+    TIKTOK: cleanHandle(c.tiktokHandle) ?? cleanHandle(c.tiktokUsername),
+    INSTAGRAM: cleanHandle(c.instagramHandle),
+    YOUTUBE: cleanHandle(c.youtubeHandle),
+  };
+
+  const out: { platform: SyncPlatform; handle: string }[] = [];
+  const seen = new Set<string>();
+  const push = (platform: SyncPlatform, handle: string | null) => {
+    if (!handle) return;
+    const key = `${platform}:${handle.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ platform, handle });
+  };
+
+  for (const platform of ["TIKTOK", "INSTAGRAM", "YOUTUBE"] as const) {
+    push(platform, primary[platform]);
+  }
+  for (const acct of c.accounts ?? []) {
+    if (!acct.isActive) continue;
+    if (acct.platform === "FACEBOOK") continue;
+    push(acct.platform as SyncPlatform, cleanHandle(acct.handle));
+  }
+  return out;
+}
+
+/**
+ * Every handle we've ever known for a (creator, platform) — primary column
+ * plus ALL account rows, active or not. Posts under any of these usernames are
+ * legitimate history (banned accounts keep counting); anything else is a
+ * stale-handle leftover and safe to prune.
+ */
+export function knownHandlesFor(
+  c: CreatorHandles,
+  platform: SyncPlatform
+): string[] {
+  const handles = new Set<string>();
+  const add = (h: string | null) => {
+    if (h) handles.add(h.toLowerCase());
+  };
+  if (platform === "TIKTOK") {
+    add(cleanHandle(c.tiktokHandle));
+    add(cleanHandle(c.tiktokUsername));
+  }
+  if (platform === "INSTAGRAM") add(cleanHandle(c.instagramHandle));
+  if (platform === "YOUTUBE") add(cleanHandle(c.youtubeHandle));
+  for (const acct of c.accounts ?? []) {
+    if (acct.platform === platform) add(cleanHandle(acct.handle));
+  }
+  return [...handles];
+}
+
+export function fetchForPlatform(
+  platform: SyncPlatform,
+  handle: string
+): Promise<SocialPost[]> {
+  if (platform === "TIKTOK") return fetchTikTokPostsViaApify(handle);
+  if (platform === "INSTAGRAM") return fetchInstagramPostsViaApify(handle);
+  return fetchYouTubeShortsViaApify(handle);
 }
 
 /**
@@ -43,7 +120,7 @@ export async function syncCampaign(campaignId: string) {
     include: {
       campaignCreators: {
         where: { isActive: true },
-        include: { creator: true },
+        include: { creator: { include: { accounts: true } } },
       },
     },
   });
@@ -79,29 +156,26 @@ export async function syncCampaign(campaignId: string) {
   // and the actors rate-limit internally.
   type FetchTask = {
     cc: (typeof campaign.campaignCreators)[number];
-    platform: "TIKTOK" | "INSTAGRAM";
+    platform: SyncPlatform;
     handle: string;
   };
   const tasks: FetchTask[] = [];
   for (const cc of campaign.campaignCreators) {
-    const tiktok = resolveTikTokHandle(cc.creator);
-    const instagram = resolveInstagramHandle(cc.creator);
-    if (tiktok) tasks.push({ cc, platform: "TIKTOK", handle: tiktok });
-    if (instagram) tasks.push({ cc, platform: "INSTAGRAM", handle: instagram });
-    if (!tiktok && !instagram) {
+    const handles = resolveSyncHandles(cc.creator);
+    for (const h of handles) {
+      tasks.push({ cc, platform: h.platform, handle: h.handle });
+    }
+    if (handles.length === 0) {
       skipped.push({
         creator: cc.creator.handle,
-        reason: "no TikTok or Instagram handle on profile",
+        reason: "no TikTok, Instagram, or YouTube handle on profile",
       });
     }
   }
 
   const fetches = tasks.map(async (task) => {
     try {
-      const fetched =
-        task.platform === "TIKTOK"
-          ? await fetchTikTokPostsViaApify(task.handle)
-          : await fetchInstagramPostsViaApify(task.handle);
+      const fetched = await fetchForPlatform(task.platform, task.handle);
       const inWindow = fetched.filter(
         (p) => p.postedAt >= windowStart && p.postedAt < windowEnd
       );
@@ -143,36 +217,48 @@ export async function syncCampaign(campaignId: string) {
     }
   }
 
-  // Prune stale-handle posts: if a creator's TikTok handle was previously
-  // pointed at someone else's account (e.g. used for testing) and then changed
-  // back, the posts scraped under the old handle still sit in the DB with the
-  // old `username`. Drop any rows for this (creator, platform) whose username
-  // doesn't match the handle we just successfully synced. PostMetricsSnapshot
-  // cascades on Post delete.
+  // Prune stale-handle posts: if a creator's handle was previously pointed at
+  // someone else's account (e.g. used for testing) and then changed back, the
+  // posts scraped under the old handle still sit in the DB with the old
+  // `username`. Drop any rows for this (creator, platform) whose username
+  // isn't one of the creator's known handles — primary column plus every
+  // CreatorAccount row, active or not, so a deactivated (banned) account's
+  // history survives. PostMetricsSnapshot cascades on Post delete.
   let totalPrunedStale = 0;
+  const prunedPairs = new Set<string>();
   for (const { task, success, liveExternalIds } of fetchResults) {
     if (!success) continue;
-    const cleanHandle = task.handle.trim().replace(/^@+/, "");
-    if (!cleanHandle) continue;
-    const pruned = await prisma.post.deleteMany({
-      where: {
-        creatorId: task.cc.creatorId,
-        platform: task.platform,
-        NOT: { username: { equals: cleanHandle, mode: "insensitive" } },
-      },
-    });
-    totalPrunedStale += pruned.count;
 
-    // Reconcile deletions: drop in-window posts on this (creator, platform)
-    // whose externalId no longer appears in the latest scrape (deleted from the
-    // platform). Guarded by a non-empty live set so a soft-empty scrape can't
-    // wipe real posts; window-scoped so the 60-post scrape cap can't delete
-    // older out-of-window posts.
-    if (liveExternalIds.length > 0) {
+    const pairKey = `${task.cc.creatorId}:${task.platform}`;
+    if (!prunedPairs.has(pairKey)) {
+      prunedPairs.add(pairKey);
+      const known = knownHandlesFor(task.cc.creator, task.platform);
+      if (known.length > 0) {
+        const pruned = await prisma.post.deleteMany({
+          where: {
+            creatorId: task.cc.creatorId,
+            platform: task.platform,
+            NOT: { username: { in: known, mode: "insensitive" } },
+          },
+        });
+        totalPrunedStale += pruned.count;
+      }
+    }
+
+    // Reconcile deletions: drop in-window posts on this exact account whose
+    // externalId no longer appears in the latest scrape (deleted from the
+    // platform). Scoped to this task's username so one account's scrape can't
+    // delete a sibling account's posts, guarded by a non-empty live set so a
+    // soft-empty scrape can't wipe real posts, and window-scoped so the
+    // 60-post scrape cap can't delete older out-of-window posts. Inactive
+    // accounts are never scraped, so their history is never reconciled away.
+    const handle = task.handle.trim().replace(/^@+/, "");
+    if (handle && liveExternalIds.length > 0) {
       const deleted = await prisma.post.deleteMany({
         where: {
           creatorId: task.cc.creatorId,
           platform: task.platform,
+          username: { equals: handle, mode: "insensitive" },
           postedAt: { gte: windowStart, lt: windowEnd },
           externalId: { notIn: liveExternalIds },
         },
@@ -251,6 +337,9 @@ async function upsertPost(
       shares: post.shares,
       saves: post.saves,
       comments: post.comments,
+      musicTitle: post.musicTitle ?? null,
+      musicAuthor: post.musicAuthor ?? null,
+      musicOriginal: post.musicOriginal ?? null,
     },
     update: {
       views: post.views,
@@ -260,6 +349,9 @@ async function upsertPost(
       comments: post.comments,
       title: post.title,
       thumbnailUrl: post.thumbnailUrl,
+      musicTitle: post.musicTitle ?? null,
+      musicAuthor: post.musicAuthor ?? null,
+      musicOriginal: post.musicOriginal ?? null,
     },
   });
 
