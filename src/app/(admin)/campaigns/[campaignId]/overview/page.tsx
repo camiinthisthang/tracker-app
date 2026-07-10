@@ -32,11 +32,17 @@ const VIRAL_THRESHOLD = 50_000;
 
 export default async function CampaignOverviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ campaignId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await getRequiredSession();
   const { campaignId } = await params;
+  const sp = await searchParams;
+  // Optional YouTube Shorts leg in the crosspost audit — off by default since
+  // not every campaign runs YouTube.
+  const auditYouTube = sp.ytAudit === "1";
 
   const campaign = await prisma.campaign.findFirst({
     where: { id: campaignId, ...campaignVisibilityWhere(session) },
@@ -161,31 +167,40 @@ export default async function CampaignOverviewPage({
   const crosspostRows: CrosspostAuditRow[] = activeCCs.map(
     (cc) => {
       const goalPlatform = goalPlatformFor(cc.creator);
-      const otherPlatform = goalPlatform === "INSTAGRAM" ? "TIKTOK" : "INSTAGRAM";
+      // Platforms every goal post should be crossposted to: the other of the
+      // IG/TikTok pair, plus YouTube Shorts when the toggle is on.
+      const targetPlatforms: string[] = [
+        goalPlatform === "INSTAGRAM" ? "TIKTOK" : "INSTAGRAM",
+        ...(auditYouTube ? ["YOUTUBE"] : []),
+      ];
       const creatorWeekPosts = weekPosts.filter(
         (p) => p.creatorId === cc.creatorId
       );
       const goalPosts = creatorWeekPosts.filter(
         (p) => p.platform === goalPlatform
       );
-      const otherPosts = creatorWeekPosts.filter(
-        (p) => p.platform === otherPlatform
-      );
       const gaps: CrosspostAuditRow["gaps"] = [];
       let matched = 0;
       for (const g of goalPosts) {
-        const hasMatch = otherPosts.some(
-          (o) => Math.abs(o.postedAt.getTime() - g.postedAt.getTime()) <= CROSSPOST_MATCH_MS
-        );
-        if (hasMatch) {
-          matched++;
-        } else {
-          gaps.push({
-            postedAt: g.postedAt.toISOString(),
-            sourcePlatform: goalPlatform,
-            link: g.link,
-          });
+        let fullyMatched = true;
+        for (const target of targetPlatforms) {
+          const hasMatch = creatorWeekPosts.some(
+            (o) =>
+              o.platform === target &&
+              Math.abs(o.postedAt.getTime() - g.postedAt.getTime()) <=
+                CROSSPOST_MATCH_MS
+          );
+          if (!hasMatch) {
+            fullyMatched = false;
+            gaps.push({
+              postedAt: g.postedAt.toISOString(),
+              sourcePlatform: goalPlatform,
+              missingPlatform: target,
+              link: g.link,
+            });
+          }
         }
+        if (fullyMatched) matched++;
       }
       return {
         creatorId: cc.creatorId,
@@ -360,7 +375,26 @@ export default async function CampaignOverviewPage({
 
       {/* Crosspost audit — only renders if at least one creator posted this week */}
       <div className="mt-6">
-        <CrosspostAudit rows={crosspostRows} rangeLabel="this week" />
+        <CrosspostAudit
+          rows={crosspostRows}
+          rangeLabel="this week"
+          headerRight={
+            <Link
+              href={
+                auditYouTube
+                  ? `/campaigns/${campaign.id}/overview`
+                  : `/campaigns/${campaign.id}/overview?ytAudit=1`
+              }
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                auditYouTube
+                  ? "bg-slate-800 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {auditYouTube ? "YT Shorts: on" : "Include YT Shorts"}
+            </Link>
+          }
+        />
       </div>
 
       {/* Top Posts Gallery */}

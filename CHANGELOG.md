@@ -27,6 +27,10 @@ tangent.
 
 ---
 
+## 2026-07-10 — Crosspost audit: optional YouTube Shorts leg
+- "Include YT Shorts" toggle on the campaign overview's crosspost audit (off by default — not every campaign runs YouTube). When on, each goal-platform post is also checked for a YouTube Shorts crosspost within ±24h; gaps name the missing platform ("TikTok post with no YT Shorts crosspost"); "matched" = crossposted to every checked platform.
+- Tested: `npm run build` green.
+
 ## 2026-07-10 — Creator page: campaign filter + per-campaign socials
 - Campaign filter pills on `/creators/[id]` — selecting a campaign scopes every stat (total posts/views, viral count, platform split, views chart, recent posts, weekly ring target) to that campaign.
 - When filtered, a "Socials for {campaign}" card lists exactly the accounts the daily sync scrapes for that campaign (computed with the sync's own resolver, so it can't drift), with campaign-specific badges and open-profile links.
