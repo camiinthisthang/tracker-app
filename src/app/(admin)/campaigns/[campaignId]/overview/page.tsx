@@ -107,9 +107,16 @@ export default async function CampaignOverviewPage({
     (p) => p.postedAt >= weekStart && p.postedAt < weekEnd
   );
 
+  // Overview only cares about creators still expected to post — anyone cut
+  // from the campaign (or deactivated entirely) is excluded here. Their
+  // history remains on the /progress page and in the campaign totals.
+  const activeCCs = campaign.campaignCreators.filter(
+    (cc) => cc.isActive && cc.creator.isActive
+  );
+
   // Per-creator monthlyPostGoal overrides the campaign-level weeklyPostTarget
   // when set. Per-day ring target = weekly / DAY_LABELS.length.
-  const creatorProgresses: CreatorProgress[] = campaign.campaignCreators.map(
+  const creatorProgresses: CreatorProgress[] = activeCCs.map(
     (cc) => {
       const weeklyTarget =
         cc.monthlyPostGoal != null
@@ -150,7 +157,7 @@ export default async function CampaignOverviewPage({
   // goal-platform post and look for a same-creator post on the OTHER platform
   // within ±24h. The window matches the ring's week so the two cards reconcile.
   const CROSSPOST_MATCH_MS = 24 * 60 * 60 * 1000;
-  const crosspostRows: CrosspostAuditRow[] = campaign.campaignCreators.map(
+  const crosspostRows: CrosspostAuditRow[] = activeCCs.map(
     (cc) => {
       const goalPlatform = goalPlatformFor(cc.creator);
       const otherPlatform = goalPlatform === "INSTAGRAM" ? "TIKTOK" : "INSTAGRAM";
@@ -325,11 +332,20 @@ export default async function CampaignOverviewPage({
         <CampaignViewsChart data={chartData} />
       </div>
 
-      {/* Creator Progress (preview — 3 cards + See all) */}
+      {/* Creator Progress — all active creators; cut creators live on /progress */}
       <div className="mt-6">
         <CreatorProgressSection
           progresses={creatorProgresses}
           campaignId={campaign.id}
+          previewOnly={false}
+          headerRight={
+            <Link
+              href={`/campaigns/${campaign.id}/progress`}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Weekly history
+            </Link>
+          }
         />
       </div>
 

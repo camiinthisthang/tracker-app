@@ -27,6 +27,11 @@ tangent.
 
 ---
 
+## 2026-07-10 — Campaign overview: hide cut creators, expand progress
+- Crosspost audit and Creator Progress on `/campaigns/[id]/overview` now exclude creators cut from the campaign (`CampaignCreator.isActive=false`) or deactivated entirely. Their history stays on the `/progress` page and in campaign totals.
+- Creator Progress on the overview now shows every active creator (was: 3-card preview); header link renamed to "Weekly history" pointing at the week-picker page.
+- Tested: `npm run build` green.
+
 ## 2026-07-10 — YouTube Shorts + dashboard revamp, PR 2/2: features
 - **YouTube Shorts sync**: `fetchYouTubeShortsViaApify` (streamers/youtube-scraper pointed at the channel's `/shorts` tab), wired into the campaign cron sync + per-creator manual sync; YouTube handle fields added to manager + creator handle forms; "YouTube Shorts" added to ACTIVE_PLATFORMS.
 - **Multi-account creators**: extra-accounts card on `/creators/[id]` (add / deactivate / reactivate per platform, with note). Active extra accounts are scraped alongside the primary handle; deactivated (banned) accounts keep their posts counting toward totals. Sync prune logic reworked so sibling accounts can't delete each other's posts and inactive accounts' history survives.
