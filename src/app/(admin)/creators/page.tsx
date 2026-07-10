@@ -1,5 +1,6 @@
 import { Users } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 import { getRequiredSession, AGENCY_TEAM_SLUGS } from "@/lib/auth";
 import { creatorVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
@@ -124,17 +125,21 @@ export default async function CreatorsPage() {
         />
       ) : (
         <>
-          <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            className={`mb-6 grid gap-4 sm:grid-cols-2 ${ATTRIBUTION_ENABLED ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}
+          >
             <StatCard label="Active Creators" value={activeCount} />
             <StatCard label="Total Posts" value={totalPosts.toLocaleString()} />
             <StatCard
               label="Total Views"
               value={totalViews.toLocaleString()}
             />
-            <StatCard
-              label="Total Referrals"
-              value={totalReferrals.toLocaleString()}
-            />
+            {ATTRIBUTION_ENABLED && (
+              <StatCard
+                label="Total Referrals"
+                value={totalReferrals.toLocaleString()}
+              />
+            )}
           </div>
           <CreatorsTableClient creators={tableData} />
         </>

@@ -1,5 +1,6 @@
 import { Flame, ExternalLink } from "lucide-react";
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
+import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 
 interface ViralPost {
   id: string;
@@ -57,9 +58,11 @@ export function CreatorViralVideos({ posts }: { posts: ViralPost[] }) {
                   <p className="text-xs font-semibold">
                     {post.views.toLocaleString()} views
                   </p>
-                  <p className="text-[11px] text-white/80">
-                    {post.referrals.toLocaleString()} referrals
-                  </p>
+                  {ATTRIBUTION_ENABLED && (
+                    <p className="text-[11px] text-white/80">
+                      {post.referrals.toLocaleString()} referrals
+                    </p>
+                  )}
                 </div>
                 <div className="absolute left-2 top-2 rounded-full bg-white/90 p-1 opacity-0 transition-opacity group-hover:opacity-100">
                   <ExternalLink className="h-3 w-3 text-slate-700" />

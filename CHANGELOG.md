@@ -27,6 +27,26 @@ tangent.
 
 ---
 
+## 2026-07-10 — Hide attribution/referrals UI (dub.co API not connected)
+- New `ATTRIBUTION_ENABLED = false` flag in `src/lib/constants.ts` — signups/referrals run through dub.co with no API wired, so every number was a permanent 0 cluttering the boards. One-line flip when the API lands.
+- Hidden when off: dashboard "Attributed Signups (7d)" card, shoutouts "Best converter", creator detail + creator home + creators page + campaign overview referral stat cards, Referrals columns (creators table, campaign creators table), viral-video referral overlay, hooks page referral stats/columns.
+- Ranking fallbacks: creators table, campaign creators table, and hooks leaderboard now rank by total views while attribution is off (they ranked by referrals — i.e. by zero — before, which made those leaderboards effectively random).
+- No data/plumbing removed — PostHog attribution sync and columns stay intact.
+- Tested: `npm run build` green; dashboard/creators pages click-through on local build confirmed 4-card layouts reflow cleanly.
+
+## 2026-07-10 — Sync visibility, clickable sounds + handles
+- Per-creator sync now reports YouTube in the result toast and surfaces per-platform fetch failures (previously swallowed into "0 posts" with only a server log) — diagnosing why a platform returned nothing no longer requires Vercel logs.
+- YouTube actor timeout raised 120s → 240s (streamers/youtube-scraper runs slower than the TikTok/IG actors; the old timeout could abort real runs).
+- Top Sounds This Week rows now click out to the top-viewed post using that sound.
+- Handle fields (manager + creator forms) and extra-account rows now have "Open" links that open the TikTok/IG/YouTube profile in a new tab.
+- Creator views chart subtitle now mentions YouTube Shorts.
+- Tested: `npm run build` green.
+
+## 2026-07-10 — Campaign overview: hide cut creators, expand progress
+- Crosspost audit and Creator Progress on `/campaigns/[id]/overview` now exclude creators cut from the campaign (`CampaignCreator.isActive=false`) or deactivated entirely. Their history stays on the `/progress` page and in campaign totals.
+- Creator Progress on the overview now shows every active creator (was: 3-card preview); header link renamed to "Weekly history" pointing at the week-picker page.
+- Tested: `npm run build` green.
+
 ## 2026-07-10 — YouTube Shorts + dashboard revamp, PR 2/2: features
 - **YouTube Shorts sync**: `fetchYouTubeShortsViaApify` (streamers/youtube-scraper pointed at the channel's `/shorts` tab), wired into the campaign cron sync + per-creator manual sync; YouTube handle fields added to manager + creator handle forms; "YouTube Shorts" added to ACTIVE_PLATFORMS.
 - **Multi-account creators**: extra-accounts card on `/creators/[id]` (add / deactivate / reactivate per platform, with note). Active extra accounts are scraped alongside the primary handle; deactivated (banned) accounts keep their posts counting toward totals. Sync prune logic reworked so sibling accounts can't delete each other's posts and inactive accounts' history survives.

@@ -34,3 +34,27 @@ export const PLATFORM_ICONS: Record<string, string> = {
   YOUTUBE: "youtube",
   FACEBOOK: "facebook",
 };
+
+/**
+ * Attributed signups / referrals require the attribution pipeline (links run
+ * through dub.co, whose API isn't connected), so every number is permanently
+ * 0 today. Hide them across the UI; flip to true once real data flows.
+ */
+export const ATTRIBUTION_ENABLED = false;
+
+/** Public profile URL for a handle (without @) on a platform. */
+export function platformProfileUrl(platform: string, handle: string): string {
+  const clean = handle.trim().replace(/^@+/, "");
+  switch (platform) {
+    case "TIKTOK":
+      return `https://www.tiktok.com/@${clean}`;
+    case "INSTAGRAM":
+      return `https://www.instagram.com/${clean}/`;
+    case "YOUTUBE":
+      return `https://www.youtube.com/@${clean}/shorts`;
+    case "FACEBOOK":
+      return `https://www.facebook.com/${clean}`;
+    default:
+      return "#";
+  }
+}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Music2, Camera, MonitorPlay } from "lucide-react";
+import { HandleLink } from "@/components/creators/handle-link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +73,7 @@ export function CreatorSocialHandles({
           <Label className="flex items-center gap-1.5 text-xs text-slate-600">
             <Music2 className="h-3 w-3" />
             TikTok handle
+            <HandleLink platform="TIKTOK" handle={tt} />
           </Label>
           <Input
             placeholder={fallbackHandle}
@@ -86,6 +88,7 @@ export function CreatorSocialHandles({
           <Label className="flex items-center gap-1.5 text-xs text-slate-600">
             <Camera className="h-3 w-3" />
             Instagram handle
+            <HandleLink platform="INSTAGRAM" handle={ig} />
           </Label>
           <Input
             placeholder="their.insta.handle"
@@ -97,6 +100,7 @@ export function CreatorSocialHandles({
           <Label className="flex items-center gap-1.5 text-xs text-slate-600">
             <MonitorPlay className="h-3 w-3" />
             YouTube handle
+            <HandleLink platform="YOUTUBE" handle={yt} />
           </Label>
           <Input
             placeholder="their.youtube.handle"

@@ -1,4 +1,4 @@
-import { Music2 } from "lucide-react";
+import { ExternalLink, Music2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import type { campaignVisibilityWhere } from "@/lib/visibility";
 import { getWeekWindow } from "@/lib/weeks";
@@ -20,6 +20,7 @@ export async function TopSounds({ campaignWhere, weekOffset }: Props) {
     },
     select: {
       views: true,
+      link: true,
       musicTitle: true,
       musicAuthor: true,
       musicOriginal: true,
@@ -34,6 +35,8 @@ export async function TopSounds({ campaignWhere, weekOffset }: Props) {
       original: boolean;
       uses: number;
       views: number;
+      topPostLink: string;
+      topPostViews: number;
     }
   >();
   for (const p of posts) {
@@ -45,9 +48,15 @@ export async function TopSounds({ campaignWhere, weekOffset }: Props) {
       original: p.musicOriginal === true,
       uses: 0,
       views: 0,
+      topPostLink: p.link,
+      topPostViews: -1,
     };
     entry.uses++;
     entry.views += p.views;
+    if (p.views > entry.topPostViews) {
+      entry.topPostViews = p.views;
+      entry.topPostLink = p.link;
+    }
     bySound.set(key, entry);
   }
 
@@ -74,9 +83,13 @@ export async function TopSounds({ campaignWhere, weekOffset }: Props) {
       ) : (
         <div className="mt-3 space-y-2">
           {sounds.map((s, idx) => (
-            <div
+            <a
               key={`${s.title}-${idx}`}
-              className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2"
+              href={s.topPostLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 hover:bg-slate-100"
+              title="Open the top post using this sound"
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-700">
@@ -92,10 +105,11 @@ export async function TopSounds({ campaignWhere, weekOffset }: Props) {
                   {s.uses === 1 ? "" : "s"}
                 </p>
               </div>
-              <span className="ml-4 shrink-0 text-sm font-medium text-slate-700">
+              <span className="ml-4 flex shrink-0 items-center gap-2 text-sm font-medium text-slate-700">
                 {s.views.toLocaleString()} views
+                <ExternalLink className="h-3.5 w-3.5 text-blue-500" />
               </span>
-            </div>
+            </a>
           ))}
         </div>
       )}

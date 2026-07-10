@@ -2,6 +2,7 @@ import { Sparkles, TrendingUp, ExternalLink } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 import { campaignVisibilityWhere } from "@/lib/visibility";
+import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -122,8 +123,12 @@ export default async function HooksPage() {
     })
   );
 
-  // Sort by total referrals (the success metric)
-  hookStats.sort((a, b) => b.totalReferrals - a.totalReferrals);
+  // Success metric: referrals when attribution is live, views otherwise
+  hookStats.sort((a, b) =>
+    ATTRIBUTION_ENABLED
+      ? b.totalReferrals - a.totalReferrals
+      : b.totalViews - a.totalViews
+  );
 
   const topHook = hookStats[0];
   const totalPosts = hookStats.reduce((s, h) => s + h.postCount, 0);
@@ -140,7 +145,9 @@ export default async function HooksPage() {
           creator: { select: { handle: true } },
           campaign: { select: { name: true } },
         },
-        orderBy: { referrals: "desc" },
+        orderBy: ATTRIBUTION_ENABLED
+          ? { referrals: "desc" as const }
+          : { views: "desc" as const },
         take: 5,
       })
     : [];
@@ -172,10 +179,19 @@ export default async function HooksPage() {
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
             <StatCard label="Unique hooks tracked" value={hookStats.length} />
             <StatCard label="Posts analyzed" value={totalPosts.toLocaleString()} />
-            <StatCard
-              label="Total referrals attributed"
-              value={totalReferrals.toLocaleString()}
-            />
+            {ATTRIBUTION_ENABLED ? (
+              <StatCard
+                label="Total referrals attributed"
+                value={totalReferrals.toLocaleString()}
+              />
+            ) : (
+              <StatCard
+                label="Total views"
+                value={hookStats
+                  .reduce((s, h) => s + h.totalViews, 0)
+                  .toLocaleString()}
+              />
+            )}
           </div>
 
           {/* Winner callout */}
@@ -201,18 +217,22 @@ export default async function HooksPage() {
                     {topHook.totalViews.toLocaleString()}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500">Total referrals</p>
-                  <p className="text-lg font-semibold text-emerald-600">
-                    {topHook.totalReferrals.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Conversion rate</p>
-                  <p className="text-lg font-semibold text-slate-900">
-                    {topHook.conversionRate.toFixed(2)}%
-                  </p>
-                </div>
+                {ATTRIBUTION_ENABLED && (
+                  <>
+                    <div>
+                      <p className="text-xs text-slate-500">Total referrals</p>
+                      <p className="text-lg font-semibold text-emerald-600">
+                        {topHook.totalReferrals.toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Conversion rate</p>
+                      <p className="text-lg font-semibold text-slate-900">
+                        {topHook.conversionRate.toFixed(2)}%
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
 
               {topHookPosts.length > 0 && (
@@ -241,9 +261,11 @@ export default async function HooksPage() {
                           <span className="text-slate-500">
                             {p.views.toLocaleString()} views
                           </span>
-                          <span className="font-semibold text-emerald-600">
-                            {p.referrals.toLocaleString()} refs
-                          </span>
+                          {ATTRIBUTION_ENABLED && (
+                            <span className="font-semibold text-emerald-600">
+                              {p.referrals.toLocaleString()} refs
+                            </span>
+                          )}
                           <ExternalLink className="h-3 w-3 text-slate-400" />
                         </div>
                       </a>
@@ -279,12 +301,16 @@ export default async function HooksPage() {
                   <th className="px-5 py-3 text-right text-xs font-medium text-gray-500">
                     Avg views
                   </th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-gray-500">
-                    Total referrals
-                  </th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-gray-500">
-                    Conv. rate
-                  </th>
+                  {ATTRIBUTION_ENABLED && (
+                    <>
+                      <th className="px-5 py-3 text-right text-xs font-medium text-gray-500">
+                        Total referrals
+                      </th>
+                      <th className="px-5 py-3 text-right text-xs font-medium text-gray-500">
+                        Conv. rate
+                      </th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -308,12 +334,16 @@ export default async function HooksPage() {
                     <td className="px-5 py-3 text-right text-sm text-slate-500">
                       {h.avgViews.toLocaleString()}
                     </td>
-                    <td className="px-5 py-3 text-right text-sm font-semibold text-emerald-600">
-                      {h.totalReferrals.toLocaleString()}
-                    </td>
-                    <td className="px-5 py-3 text-right text-sm text-slate-700">
-                      {h.conversionRate.toFixed(2)}%
-                    </td>
+                    {ATTRIBUTION_ENABLED && (
+                      <>
+                        <td className="px-5 py-3 text-right text-sm font-semibold text-emerald-600">
+                          {h.totalReferrals.toLocaleString()}
+                        </td>
+                        <td className="px-5 py-3 text-right text-sm text-slate-700">
+                          {h.conversionRate.toFixed(2)}%
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>

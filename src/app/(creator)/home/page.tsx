@@ -1,5 +1,6 @@
 import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 import { getRequiredSession } from "@/lib/auth";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
 import { StatCard } from "@/components/shared/stat-card";
@@ -202,11 +203,18 @@ export default async function CreatorHomePage() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        className={`grid gap-4 sm:grid-cols-2 ${ATTRIBUTION_ENABLED ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}
+      >
         <StatCard label="Total Posts" value={totalPosts.toLocaleString()} />
         <StatCard label="Total Views" value={totalViews.toLocaleString()} />
         <StatCard label="Viral Videos (50K+)" value={viralCount} />
-        <StatCard label="Total Referrals" value={totalReferrals.toLocaleString()} />
+        {ATTRIBUTION_ENABLED && (
+          <StatCard
+            label="Total Referrals"
+            value={totalReferrals.toLocaleString()}
+          />
+        )}
       </div>
 
       {/* Onboarding playbook for fresh creators */}

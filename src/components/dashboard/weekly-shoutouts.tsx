@@ -13,6 +13,7 @@ import type {
   creatorVisibilityWhere,
 } from "@/lib/visibility";
 import { getWeekWindow } from "@/lib/weeks";
+import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 
 interface Props {
   campaignWhere: ReturnType<typeof campaignVisibilityWhere>;
@@ -67,14 +68,16 @@ export async function WeeklyShoutouts({
       },
       select: { creatorId: true, views: true },
     }),
-    prisma.creatorAttribution.groupBy({
-      by: ["creatorId"],
-      where: {
-        creator: creatorWhere,
-        date: { gte: week.start, lt: week.end },
-      },
-      _sum: { signupCount: true },
-    }),
+    ATTRIBUTION_ENABLED
+      ? prisma.creatorAttribution.groupBy({
+          by: ["creatorId"],
+          where: {
+            creator: creatorWhere,
+            date: { gte: week.start, lt: week.end },
+          },
+          _sum: { signupCount: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   type Agg = {
@@ -185,17 +188,21 @@ export async function WeeklyShoutouts({
         ? `${mostEngaged.agg.engagements.toLocaleString()} interactions / ${mostEngaged.agg.views.toLocaleString()} views`
         : `Needs ${MIN_ENGAGED_VIEWS}+ views to qualify`,
     },
-    {
-      title: "Best converter",
-      icon: UserPlus,
-      creator: bestConverter?.creator ?? null,
-      stat: bestConverter
-        ? `${bestConverter.signups.toLocaleString()} signups`
-        : "",
-      detail: bestConverter
-        ? "attributed via PostHog"
-        : "No attributed signups this week",
-    },
+    ...(ATTRIBUTION_ENABLED
+      ? [
+          {
+            title: "Best converter",
+            icon: UserPlus,
+            creator: bestConverter?.creator ?? null,
+            stat: bestConverter
+              ? `${bestConverter.signups.toLocaleString()} signups`
+              : "",
+            detail: bestConverter
+              ? "attributed via PostHog"
+              : "No attributed signups this week",
+          },
+        ]
+      : []),
     {
       title: "Most consistent",
       icon: CalendarCheck,
@@ -221,7 +228,9 @@ export async function WeeklyShoutouts({
           </p>
         </div>
       </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div
+        className={`mt-3 grid gap-3 sm:grid-cols-2 ${ATTRIBUTION_ENABLED ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}
+      >
         {cards.map((card) => (
           <div
             key={card.title}

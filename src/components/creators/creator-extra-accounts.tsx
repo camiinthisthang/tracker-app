@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ACTIVE_PLATFORMS, PLATFORM_LABELS } from "@/lib/constants";
+import {
+  ACTIVE_PLATFORMS,
+  PLATFORM_LABELS,
+  platformProfileUrl,
+} from "@/lib/constants";
 
 interface Account {
   id: string;
@@ -117,7 +121,15 @@ export function CreatorExtraAccounts({ creatorId, accounts }: Props) {
             <li key={a.id} className="flex items-center gap-3 py-2.5">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-slate-800">
-                  @{a.handle}
+                  <a
+                    href={platformProfileUrl(a.platform, a.handle)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 hover:text-blue-600 hover:underline"
+                  >
+                    @{a.handle}
+                    <ExternalLink className="h-3 w-3 text-blue-500" />
+                  </a>
                   <span className="ml-2 text-xs text-slate-400">
                     {PLATFORM_LABELS[a.platform] ?? a.platform}
                   </span>

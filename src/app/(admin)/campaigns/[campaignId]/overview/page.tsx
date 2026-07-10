@@ -3,6 +3,7 @@ import Link from "next/link";
 import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
 import { Pencil } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 import { getRequiredSession } from "@/lib/auth";
 import { campaignVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
@@ -107,9 +108,16 @@ export default async function CampaignOverviewPage({
     (p) => p.postedAt >= weekStart && p.postedAt < weekEnd
   );
 
+  // Overview only cares about creators still expected to post — anyone cut
+  // from the campaign (or deactivated entirely) is excluded here. Their
+  // history remains on the /progress page and in the campaign totals.
+  const activeCCs = campaign.campaignCreators.filter(
+    (cc) => cc.isActive && cc.creator.isActive
+  );
+
   // Per-creator monthlyPostGoal overrides the campaign-level weeklyPostTarget
   // when set. Per-day ring target = weekly / DAY_LABELS.length.
-  const creatorProgresses: CreatorProgress[] = campaign.campaignCreators.map(
+  const creatorProgresses: CreatorProgress[] = activeCCs.map(
     (cc) => {
       const weeklyTarget =
         cc.monthlyPostGoal != null
@@ -150,7 +158,7 @@ export default async function CampaignOverviewPage({
   // goal-platform post and look for a same-creator post on the OTHER platform
   // within ±24h. The window matches the ring's week so the two cards reconcile.
   const CROSSPOST_MATCH_MS = 24 * 60 * 60 * 1000;
-  const crosspostRows: CrosspostAuditRow[] = campaign.campaignCreators.map(
+  const crosspostRows: CrosspostAuditRow[] = activeCCs.map(
     (cc) => {
       const goalPlatform = goalPlatformFor(cc.creator);
       const otherPlatform = goalPlatform === "INSTAGRAM" ? "TIKTOK" : "INSTAGRAM";
@@ -225,7 +233,11 @@ export default async function CampaignOverviewPage({
         totalReferrals: totalCreatorReferrals,
       };
     })
-    .sort((a, b) => b.totalReferrals - a.totalReferrals);
+    .sort((a, b) =>
+      ATTRIBUTION_ENABLED
+        ? b.totalReferrals - a.totalReferrals
+        : b.totalViews - a.totalViews
+    );
 
   return (
     <div>
@@ -251,7 +263,9 @@ export default async function CampaignOverviewPage({
         <h3 className="text-sm font-semibold text-slate-800">
           Campaign Details
         </h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div
+          className={`mt-4 grid gap-4 sm:grid-cols-2 ${ATTRIBUTION_ENABLED ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}
+        >
           <div>
             <p className="text-xs text-slate-400">Status</p>
             <div className="mt-1">
@@ -313,10 +327,12 @@ export default async function CampaignOverviewPage({
           value={campaign._count.posts.toLocaleString()}
         />
         <StatCard label="Total Views" value={totalViews.toLocaleString()} />
-        <StatCard
-          label="Total Referrals"
-          value={totalReferrals.toLocaleString()}
-        />
+        {ATTRIBUTION_ENABLED && (
+          <StatCard
+            label="Total Referrals"
+            value={totalReferrals.toLocaleString()}
+          />
+        )}
         <StatCard label="Engagement Rate" value={`${engagementRate}%`} />
       </div>
 
@@ -325,11 +341,20 @@ export default async function CampaignOverviewPage({
         <CampaignViewsChart data={chartData} />
       </div>
 
-      {/* Creator Progress (preview — 3 cards + See all) */}
+      {/* Creator Progress — all active creators; cut creators live on /progress */}
       <div className="mt-6">
         <CreatorProgressSection
           progresses={creatorProgresses}
           campaignId={campaign.id}
+          previewOnly={false}
+          headerRight={
+            <Link
+              href={`/campaigns/${campaign.id}/progress`}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Weekly history
+            </Link>
+          }
         />
       </div>
 
