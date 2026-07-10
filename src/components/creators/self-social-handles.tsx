@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Music2, Camera } from "lucide-react";
+import { Save, Music2, Camera, MonitorPlay } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,15 +11,21 @@ import { toast } from "sonner";
 interface Props {
   tiktokHandle: string | null;
   instagramHandle: string | null;
+  youtubeHandle: string | null;
 }
 
-export function SelfSocialHandles({ tiktokHandle, instagramHandle }: Props) {
+export function SelfSocialHandles({
+  tiktokHandle,
+  instagramHandle,
+  youtubeHandle,
+}: Props) {
   const router = useRouter();
   const [tt, setTt] = useState(tiktokHandle ?? "");
   const [ig, setIg] = useState(instagramHandle ?? "");
+  const [yt, setYt] = useState(youtubeHandle ?? "");
   const [saving, setSaving] = useState(false);
 
-  const missing = !tiktokHandle && !instagramHandle;
+  const missing = !tiktokHandle && !instagramHandle && !youtubeHandle;
 
   async function handleSave() {
     setSaving(true);
@@ -30,6 +36,7 @@ export function SelfSocialHandles({ tiktokHandle, instagramHandle }: Props) {
         body: JSON.stringify({
           tiktokHandle: tt.trim() || null,
           instagramHandle: ig.trim() || null,
+          youtubeHandle: yt.trim() || null,
         }),
       });
       if (!res.ok) {
@@ -59,12 +66,12 @@ export function SelfSocialHandles({ tiktokHandle, instagramHandle }: Props) {
         </h3>
         <p className="text-xs text-slate-500">
           {missing
-            ? "Add your TikTok and Instagram handles so we can start tracking your videos."
+            ? "Add your TikTok, Instagram, and YouTube handles so we can start tracking your videos."
             : "We pull stats from these accounts once a day. Update if your handle changes."}
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1">
           <Label className="flex items-center gap-1.5 text-xs text-slate-600">
             <Music2 className="h-3 w-3" />
@@ -88,6 +95,20 @@ export function SelfSocialHandles({ tiktokHandle, instagramHandle }: Props) {
             onChange={(e) => setIg(e.target.value)}
           />
           <p className="text-[10px] text-slate-400">Without the @</p>
+        </div>
+        <div className="space-y-1">
+          <Label className="flex items-center gap-1.5 text-xs text-slate-600">
+            <MonitorPlay className="h-3 w-3" />
+            YouTube handle
+          </Label>
+          <Input
+            placeholder="your.channel.name"
+            value={yt}
+            onChange={(e) => setYt(e.target.value)}
+          />
+          <p className="text-[10px] text-slate-400">
+            Your channel&apos;s @name — we track Shorts
+          </p>
         </div>
       </div>
 

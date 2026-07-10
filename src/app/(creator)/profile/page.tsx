@@ -84,6 +84,7 @@ export default async function ProfilePage() {
         <SelfSocialHandles
           tiktokHandle={creator.tiktokHandle}
           instagramHandle={creator.instagramHandle}
+          youtubeHandle={creator.youtubeHandle}
         />
       </div>
 

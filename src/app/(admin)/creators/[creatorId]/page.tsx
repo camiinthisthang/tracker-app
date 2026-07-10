@@ -9,6 +9,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
 import { InviteCreatorButton } from "@/components/creators/invite-creator-button";
 import { CreatorSocialHandles } from "@/components/creators/creator-social-handles";
+import { CreatorExtraAccounts } from "@/components/creators/creator-extra-accounts";
 import { AssignToCampaign } from "@/components/creators/assign-to-campaign";
 import { DeleteCreatorDangerZone } from "@/components/creators/delete-creator-danger-zone";
 import { DeactivateCreatorToggle } from "@/components/creators/deactivate-creator-toggle";
@@ -40,6 +41,7 @@ export default async function CreatorDetailPage({
         },
       },
       teamMember: { select: { id: true } },
+      accounts: { orderBy: [{ platform: "asc" }, { createdAt: "asc" }] },
       _count: { select: { posts: true } },
     },
   });
@@ -107,7 +109,12 @@ export default async function CreatorDetailPage({
   const hasActiveCampaign = creator.campaignCreators.some(
     (cc) => cc.campaign.isActive,
   );
-  const hasHandles = Boolean(creator.tiktokHandle || creator.instagramHandle);
+  const hasHandles = Boolean(
+    creator.tiktokHandle ||
+      creator.instagramHandle ||
+      creator.youtubeHandle ||
+      creator.accounts.some((a) => a.isActive),
+  );
 
   // Per-platform split (IG vs TikTok).
   const platformStats = platformGroups.map((g) => ({
@@ -223,7 +230,16 @@ export default async function CreatorDetailPage({
           creatorId={creator.id}
           tiktokHandle={creator.tiktokHandle}
           instagramHandle={creator.instagramHandle}
+          youtubeHandle={creator.youtubeHandle}
           fallbackHandle={creator.handle}
+        />
+      </div>
+
+      {/* Extra accounts (shadow-ban replacements, secondary accounts) */}
+      <div className="mt-4">
+        <CreatorExtraAccounts
+          creatorId={creator.id}
+          accounts={creator.accounts}
         />
       </div>
 

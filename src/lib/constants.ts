@@ -25,6 +25,7 @@ export const PLATFORM_LABELS: Record<string, string> = {
 export const ACTIVE_PLATFORMS = [
   { value: "TIKTOK", label: "TikTok" },
   { value: "INSTAGRAM", label: "Instagram" },
+  { value: "YOUTUBE", label: "YouTube Shorts" },
 ] as const;
 
 export const PLATFORM_ICONS: Record<string, string> = {

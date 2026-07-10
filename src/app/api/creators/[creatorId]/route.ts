@@ -31,6 +31,7 @@ export async function PATCH(
   const data: {
     tiktokHandle?: string | null;
     instagramHandle?: string | null;
+    youtubeHandle?: string | null;
     name?: string;
     email?: string | null;
     tier?: "TRAINING" | "BRONZE" | "SILVER" | "GOLD";
@@ -47,6 +48,12 @@ export async function PATCH(
     data.instagramHandle =
       typeof body.instagramHandle === "string"
         ? body.instagramHandle.trim().replace(/^@+/, "") || null
+        : null;
+  }
+  if ("youtubeHandle" in body) {
+    data.youtubeHandle =
+      typeof body.youtubeHandle === "string"
+        ? body.youtubeHandle.trim().replace(/^@+/, "") || null
         : null;
   }
   if ("name" in body && typeof body.name === "string") {

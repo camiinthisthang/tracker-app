@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Music2, Camera } from "lucide-react";
+import { Save, Music2, Camera, MonitorPlay } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ interface Props {
   creatorId: string;
   tiktokHandle: string | null;
   instagramHandle: string | null;
+  youtubeHandle: string | null;
   fallbackHandle: string;
 }
 
@@ -19,11 +20,13 @@ export function CreatorSocialHandles({
   creatorId,
   tiktokHandle,
   instagramHandle,
+  youtubeHandle,
   fallbackHandle,
 }: Props) {
   const router = useRouter();
   const [tt, setTt] = useState(tiktokHandle ?? "");
   const [ig, setIg] = useState(instagramHandle ?? "");
+  const [yt, setYt] = useState(youtubeHandle ?? "");
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -35,6 +38,7 @@ export function CreatorSocialHandles({
         body: JSON.stringify({
           tiktokHandle: tt.trim() || null,
           instagramHandle: ig.trim() || null,
+          youtubeHandle: yt.trim() || null,
         }),
       });
       if (!res.ok) {
@@ -59,11 +63,11 @@ export function CreatorSocialHandles({
         <p className="text-xs text-slate-500">
           Creators set these themselves on their profile. You can override
           here if they typed them wrong. The daily Apify sync uses these to
-          pull TikTok + Instagram metrics.
+          pull TikTok + Instagram + YouTube Shorts metrics.
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1">
           <Label className="flex items-center gap-1.5 text-xs text-slate-600">
             <Music2 className="h-3 w-3" />
@@ -88,6 +92,20 @@ export function CreatorSocialHandles({
             value={ig}
             onChange={(e) => setIg(e.target.value)}
           />
+        </div>
+        <div className="space-y-1">
+          <Label className="flex items-center gap-1.5 text-xs text-slate-600">
+            <MonitorPlay className="h-3 w-3" />
+            YouTube handle
+          </Label>
+          <Input
+            placeholder="their.youtube.handle"
+            value={yt}
+            onChange={(e) => setYt(e.target.value)}
+          />
+          <p className="text-[10px] text-slate-400">
+            The @name of the channel — Shorts only
+          </p>
         </div>
       </div>
 

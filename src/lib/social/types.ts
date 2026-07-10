@@ -11,6 +11,10 @@ export interface SocialPost {
   shares: number;
   saves: number;
   comments: number;
+  // TikTok-only: sound metadata from the scraper's musicMeta
+  musicTitle?: string | null;
+  musicAuthor?: string | null;
+  musicOriginal?: boolean | null;
 }
 
 export interface SocialApiClient {
