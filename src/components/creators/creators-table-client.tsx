@@ -9,6 +9,7 @@ import { FilterPills } from "@/components/creators/creator-filter-pills";
 import { TierBadge } from "@/components/creators/tier-badge";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 
 interface CreatorRow {
   id: string;
@@ -123,15 +124,19 @@ const columns: ColumnDef<CreatorRow>[] = [
       </span>
     ),
   },
-  {
-    accessorKey: "totalReferrals",
-    header: "Referrals",
-    cell: ({ row }) => (
-      <span className="text-sm font-semibold text-emerald-600">
-        {row.original.totalReferrals.toLocaleString()}
-      </span>
-    ),
-  },
+  ...(ATTRIBUTION_ENABLED
+    ? [
+        {
+          accessorKey: "totalReferrals",
+          header: "Referrals",
+          cell: ({ row }) => (
+            <span className="text-sm font-semibold text-emerald-600">
+              {row.original.totalReferrals.toLocaleString()}
+            </span>
+          ),
+        } as ColumnDef<CreatorRow>,
+      ]
+    : []),
   {
     accessorKey: "campaignCount",
     header: "Campaigns",
@@ -184,8 +189,12 @@ export function CreatorsTableClient({ creators }: CreatorsTableClientProps) {
         statusFilter === "active" ? c.isActive : !c.isActive
       );
     }
-    // Sort by referrals descending for leaderboard
-    return result.sort((a, b) => b.totalReferrals - a.totalReferrals);
+    // Leaderboard order: referrals when attribution is live, views otherwise
+    return result.sort((a, b) =>
+      ATTRIBUTION_ENABLED
+        ? b.totalReferrals - a.totalReferrals
+        : b.totalViews - a.totalViews
+    );
   }, [creators, tierFilter, statusFilter, search]);
 
   return (

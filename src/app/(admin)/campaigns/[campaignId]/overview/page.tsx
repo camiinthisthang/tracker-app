@@ -3,6 +3,7 @@ import Link from "next/link";
 import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
 import { Pencil } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 import { getRequiredSession } from "@/lib/auth";
 import { campaignVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
@@ -232,7 +233,11 @@ export default async function CampaignOverviewPage({
         totalReferrals: totalCreatorReferrals,
       };
     })
-    .sort((a, b) => b.totalReferrals - a.totalReferrals);
+    .sort((a, b) =>
+      ATTRIBUTION_ENABLED
+        ? b.totalReferrals - a.totalReferrals
+        : b.totalViews - a.totalViews
+    );
 
   return (
     <div>
@@ -258,7 +263,9 @@ export default async function CampaignOverviewPage({
         <h3 className="text-sm font-semibold text-slate-800">
           Campaign Details
         </h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div
+          className={`mt-4 grid gap-4 sm:grid-cols-2 ${ATTRIBUTION_ENABLED ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}
+        >
           <div>
             <p className="text-xs text-slate-400">Status</p>
             <div className="mt-1">
@@ -320,10 +327,12 @@ export default async function CampaignOverviewPage({
           value={campaign._count.posts.toLocaleString()}
         />
         <StatCard label="Total Views" value={totalViews.toLocaleString()} />
-        <StatCard
-          label="Total Referrals"
-          value={totalReferrals.toLocaleString()}
-        />
+        {ATTRIBUTION_ENABLED && (
+          <StatCard
+            label="Total Referrals"
+            value={totalReferrals.toLocaleString()}
+          />
+        )}
         <StatCard label="Engagement Rate" value={`${engagementRate}%`} />
       </div>
 

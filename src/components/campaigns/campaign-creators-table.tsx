@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TierBadge } from "@/components/creators/tier-badge";
 import { Flame } from "lucide-react";
+import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 
 export interface CampaignCreatorRow {
   creatorId: string;
@@ -28,7 +29,7 @@ export function CampaignCreatorsTable({
           Creators ({creators.length})
         </h3>
         <span className="text-xs text-slate-400">
-          Ranked by total referrals
+          {ATTRIBUTION_ENABLED ? "Ranked by total referrals" : "Ranked by total views"}
         </span>
       </div>
       <div className="overflow-x-auto">
@@ -59,9 +60,11 @@ export function CampaignCreatorsTable({
                   Viral
                 </span>
               </th>
-              <th className="px-5 py-3 text-right text-xs font-medium text-gray-500">
-                Referrals
-              </th>
+              {ATTRIBUTION_ENABLED && (
+                <th className="px-5 py-3 text-right text-xs font-medium text-gray-500">
+                  Referrals
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -116,9 +119,11 @@ export function CampaignCreatorsTable({
                   <td className="px-5 py-3 text-right text-sm font-semibold text-orange-600">
                     {c.viralCount}
                   </td>
-                  <td className="px-5 py-3 text-right text-sm font-semibold text-emerald-600">
-                    {c.totalReferrals.toLocaleString()}
-                  </td>
+                  {ATTRIBUTION_ENABLED && (
+                    <td className="px-5 py-3 text-right text-sm font-semibold text-emerald-600">
+                      {c.totalReferrals.toLocaleString()}
+                    </td>
+                  )}
                 </tr>
               ))
             )}

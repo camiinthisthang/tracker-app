@@ -35,6 +35,13 @@ export const PLATFORM_ICONS: Record<string, string> = {
   FACEBOOK: "facebook",
 };
 
+/**
+ * Attributed signups / referrals require the attribution pipeline (links run
+ * through dub.co, whose API isn't connected), so every number is permanently
+ * 0 today. Hide them across the UI; flip to true once real data flows.
+ */
+export const ATTRIBUTION_ENABLED = false;
+
 /** Public profile URL for a handle (without @) on a platform. */
 export function platformProfileUrl(platform: string, handle: string): string {
   const clean = handle.trim().replace(/^@+/, "");

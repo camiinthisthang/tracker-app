@@ -19,7 +19,7 @@ import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-prog
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
 import { Badge } from "@/components/ui/badge";
-import { PLATFORM_LABELS } from "@/lib/constants";
+import { PLATFORM_LABELS, ATTRIBUTION_ENABLED } from "@/lib/constants";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const VIRAL_THRESHOLD = 50_000;
@@ -244,17 +244,21 @@ export default async function CreatorDetailPage({
       </div>
 
       {/* Stats */}
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div
+        className={`mt-4 grid gap-4 sm:grid-cols-2 ${ATTRIBUTION_ENABLED ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}
+      >
         <StatCard label="Total Posts" value={creator._count.posts} />
         <StatCard
           label="Total Views"
           value={(totalViews._sum.views ?? 0).toLocaleString()}
         />
         <StatCard label="Viral Videos (50K+)" value={viralCount} />
-        <StatCard
-          label="Attributed Signups"
-          value={attributedSignups.toLocaleString()}
-        />
+        {ATTRIBUTION_ENABLED && (
+          <StatCard
+            label="Attributed Signups"
+            value={attributedSignups.toLocaleString()}
+          />
+        )}
         <StatCard
           label="Active Campaigns"
           value={

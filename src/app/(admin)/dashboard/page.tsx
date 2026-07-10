@@ -13,6 +13,7 @@ import { TopPostsWeek } from "@/components/dashboard/top-posts-week";
 import { WeeklyShoutouts } from "@/components/dashboard/weekly-shoutouts";
 import { TopSounds } from "@/components/dashboard/top-sounds";
 import { parseWeekOffset } from "@/lib/weeks";
+import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 
 function weekDelta(current: number, previous: number): string {
   if (previous === 0) {
@@ -97,19 +98,21 @@ export default async function DashboardPage({
   const prevWeeklyPosts = prevWeekAgg._count;
 
   const [attributedThisWeek, topCreatorRows] = await Promise.all([
-    prisma.creatorAttribution.aggregate({
-      where: {
-        creator: creatorVisibilityWhere(session),
-        date: { gte: sevenDaysAgo },
-      },
-      _sum: { signupCount: true },
-    }),
+    ATTRIBUTION_ENABLED
+      ? prisma.creatorAttribution.aggregate({
+          where: {
+            creator: creatorVisibilityWhere(session),
+            date: { gte: sevenDaysAgo },
+          },
+          _sum: { signupCount: true },
+        })
+      : Promise.resolve(null),
     prisma.creator.findMany({
       where: { id: { in: topCreatorViews.map((g) => g.creatorId) } },
       select: { id: true, name: true, handle: true },
     }),
   ]);
-  const signupsThisWeek = attributedThisWeek._sum.signupCount ?? 0;
+  const signupsThisWeek = attributedThisWeek?._sum.signupCount ?? 0;
 
   const creatorById = new Map(topCreatorRows.map((c) => [c.id, c]));
   const topCreators = topCreatorViews.flatMap((g) => {
@@ -141,7 +144,9 @@ export default async function DashboardPage({
       />
 
       {/* Stat Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div
+        className={`grid gap-4 sm:grid-cols-2 ${ATTRIBUTION_ENABLED ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}
+      >
         <StatCard label="Active Campaigns" value={activeCampaigns} />
         <StatCard label="Active Creators" value={totalCreators} />
         <StatCard
@@ -154,10 +159,12 @@ export default async function DashboardPage({
           value={weeklyViews.toLocaleString()}
           subtext={weekDelta(weeklyViews, prevWeeklyViews)}
         />
-        <StatCard
-          label="Attributed Signups (7d)"
-          value={signupsThisWeek.toLocaleString()}
-        />
+        {ATTRIBUTION_ENABLED && (
+          <StatCard
+            label="Attributed Signups (7d)"
+            value={signupsThisWeek.toLocaleString()}
+          />
+        )}
       </div>
 
       {/* Weekly shoutouts */}
