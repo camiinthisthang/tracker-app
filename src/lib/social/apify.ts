@@ -265,7 +265,29 @@ export async function fetchYouTubeShortsViaApify(
   return posts;
 }
 
+// YouTube sometimes reports relative dates ("2 weeks ago") instead of ISO
+// timestamps. Resolve those before falling back to Date parsing — a wrong
+// "now" here would break campaign-window filtering.
 function parseDate(v: unknown): Date {
+  if (typeof v === "string") {
+    const rel = v.match(
+      /(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago/i
+    );
+    if (rel) {
+      const unitMs: Record<string, number> = {
+        second: 1_000,
+        minute: 60_000,
+        hour: 3_600_000,
+        day: 86_400_000,
+        week: 604_800_000,
+        month: 2_629_800_000,
+        year: 31_557_600_000,
+      };
+      return new Date(
+        Date.now() - Number(rel[1]) * unitMs[rel[2].toLowerCase()]
+      );
+    }
+  }
   if (typeof v === "string" || typeof v === "number") {
     const d = new Date(v);
     if (!Number.isNaN(d.getTime())) return d;
