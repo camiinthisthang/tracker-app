@@ -70,6 +70,9 @@ export async function PATCH(
         }),
         ...(data.offPacePct !== undefined && { offPacePct: data.offPacePct }),
         ...(data.quietDays !== undefined && { quietDays: data.quietDays }),
+        ...(data.bonusCapUsd !== undefined && {
+          bonusCapUsd: data.bonusCapUsd,
+        }),
         ...(data.ugcEngineer !== undefined && {
           ugcEngineer: data.ugcEngineer,
         }),
@@ -109,6 +112,21 @@ export async function PATCH(
           },
         });
       }
+    }
+
+    // Bonus tiers are replaced wholesale — the form always sends the full
+    // list, so a missing field means "no changes" and [] means "remove all".
+    if (data.bonusTiers !== undefined) {
+      await prisma.$transaction([
+        prisma.campaignBonusTier.deleteMany({ where: { campaignId } }),
+        prisma.campaignBonusTier.createMany({
+          data: data.bonusTiers.map((t) => ({
+            campaignId,
+            viewThreshold: t.viewThreshold,
+            amountUsd: t.amountUsd,
+          })),
+        }),
+      ]);
     }
 
     return NextResponse.json(campaign);

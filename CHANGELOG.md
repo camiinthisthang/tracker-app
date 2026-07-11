@@ -27,6 +27,14 @@ tangent.
 
 ---
 
+## 2026-07-11 — Phase 4: per-campaign view-bonus tiers + monthly cap + Bonuses Earned card
+- **Schema change** (branch `claude/bonus-tiers-schema`, stacked on the pacing branch; migration `20260711233000_campaign_bonus_tiers`): new `CampaignBonusTier` table (campaignId, viewThreshold, amountUsd — cascade on campaign delete) + `Campaign.bonusCapUsd Decimal?` (null = no cap). Additive only.
+- **Engine** `src/lib/view-bonus.ts`: each post earns the highest tier its view count reaches; per-creator monthly total capped by the campaign's `bonusCapUsd`. Pure function — the future PostHog/dub sources slot in as alternate inputs per Jacqueline's "adjustable per campaign" requirement.
+- **Campaign form:** new "Creator view bonuses" section — tier rows (views reached → USD), "Load standard tiers" one-click preset (50k=$25, 100k=$100, 500k=$250, 1M=$750), monthly cap field (placeholder $2,000, empty = no cap). Wired through validation + POST (nested create) + PATCH (wholesale replace in a transaction).
+- **Creator detail:** "Bonuses earned this month" card — total accrued, per-campaign breakdown with cap progress bar (amber when capped, with pre-cap earned shown), and the triggering posts with views + tier + amount. Only renders for campaigns that have tiers; respects the campaign filter.
+- **Niche-specific tier tables stay parked** until real niches/tiers exist (per Jacqueline); per-campaign adjustability covers the niche variation for now. The existing team-level per-unit BonusRule system (creator-facing tracker) is untouched.
+- Tested: `npx next build` green. Migration additive-only, not run locally (no DATABASE_URL in container).
+
 ## 2026-07-11 — Phase 2: monthly pacing, Quiet/Off-pace/New/Shadow-ban flags, creators card layout
 - **Schema change** (branch `claude/pacing-flags-schema`, migration `20260711230000_pacing_flags`): `Campaign.monthlyPostGoal` (nullable campaign-wide total, split evenly across active creators; per-creator `CampaignCreator.monthlyPostGoal` still overrides), `Campaign.offPacePct` (default 80), `Campaign.quietDays` (default 4), `Creator.isShadowbanned` (default false). Purely additive ALTERs; applies on deploy via `prisma migrate deploy`.
 - **Pacing engine** `src/lib/pacing.ts`: cumulative monthly formula per spec — off-pace when `posts < (day of month ÷ days in month) × goal × (offPacePct/100)`. Flags: New (zero posts ever), Quiet (no post in `quietDays`), Off-pace, Shadow-banned (excluded from pacing entirely).

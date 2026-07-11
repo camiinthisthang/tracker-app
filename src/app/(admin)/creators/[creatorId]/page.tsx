@@ -23,8 +23,10 @@ import { SyncCreatorButton } from "@/components/creators/sync-creator-button";
 import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
 import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-progress";
 import { CreatorMonthlyProgress } from "@/components/creators/creator-monthly-progress";
+import { CreatorBonusCard } from "@/components/creators/creator-bonus-card";
 import { ShadowbanToggle } from "@/components/creators/shadowban-toggle";
 import { creatorFlags, effectiveMonthlyGoal } from "@/lib/pacing";
+import { computeViewBonuses } from "@/lib/view-bonus";
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +60,11 @@ export default async function CreatorDetailPage({
               monthlyPostGoal: true,
               offPacePct: true,
               quietDays: true,
+              bonusCapUsd: true,
+              bonusTiers: {
+                select: { viewThreshold: true, amountUsd: true },
+                orderBy: { viewThreshold: "asc" },
+              },
             },
           },
         },
@@ -147,7 +154,14 @@ export default async function CreatorDetailPage({
     }),
     prisma.post.findMany({
       where: { ...postWhere, postedAt: { gte: startOfMonth(now) } },
-      select: { platform: true, campaignId: true },
+      select: {
+        id: true,
+        platform: true,
+        campaignId: true,
+        views: true,
+        title: true,
+        link: true,
+      },
     }),
     prisma.campaignCreator.groupBy({
       by: ["campaignId"],
@@ -272,6 +286,23 @@ export default async function CreatorDetailPage({
     isShadowbanned: creator.isShadowbanned,
     now,
   });
+
+  // View-tier bonuses for this month, per campaign (respects the filter).
+  const bonusSummaries = computeViewBonuses(
+    monthPosts,
+    activeCCs.map((cc) => ({
+      id: cc.campaign.id,
+      name: cc.campaign.name,
+      bonusCapUsd:
+        cc.campaign.bonusCapUsd === null
+          ? null
+          : Number(cc.campaign.bonusCapUsd),
+      tiers: cc.campaign.bonusTiers.map((t) => ({
+        viewThreshold: t.viewThreshold,
+        amountUsd: Number(t.amountUsd),
+      })),
+    })),
+  );
 
   return (
     <div>
@@ -480,6 +511,13 @@ export default async function CreatorDetailPage({
           dailyTarget={dailyTarget}
         />
       </div>
+
+      {/* View-tier bonuses — only for campaigns that have tiers configured */}
+      {bonusSummaries.length > 0 && (
+        <div className="mt-4">
+          <CreatorBonusCard summaries={bonusSummaries} />
+        </div>
+      )}
 
       {/* Views over time (last 28 days) */}
       <div className="mt-4">
