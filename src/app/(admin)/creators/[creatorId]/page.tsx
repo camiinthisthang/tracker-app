@@ -1,6 +1,13 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
+import {
+  format,
+  startOfWeek,
+  addDays,
+  subDays,
+  startOfDay,
+  startOfMonth,
+} from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 import { canAccessCreator, campaignVisibilityWhere } from "@/lib/visibility";
@@ -15,6 +22,9 @@ import { DeactivateCreatorToggle } from "@/components/creators/deactivate-creato
 import { SyncCreatorButton } from "@/components/creators/sync-creator-button";
 import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
 import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-progress";
+import { CreatorMonthlyProgress } from "@/components/creators/creator-monthly-progress";
+import { ShadowbanToggle } from "@/components/creators/shadowban-toggle";
+import { creatorFlags, effectiveMonthlyGoal } from "@/lib/pacing";
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +49,17 @@ export default async function CreatorDetailPage({
     include: {
       campaignCreators: {
         include: {
-          campaign: { select: { id: true, name: true, isActive: true } },
+          campaign: {
+            select: {
+              id: true,
+              name: true,
+              isActive: true,
+              weeklyPostTarget: true,
+              monthlyPostGoal: true,
+              offPacePct: true,
+              quietDays: true,
+            },
+          },
         },
       },
       teamMember: { select: { id: true } },
@@ -84,11 +104,14 @@ export default async function CreatorDetailPage({
     platformGroups,
     postsInRange,
     weekPosts,
+    monthPosts,
+    activeCounts,
   ] = await Promise.all([
     prisma.post.aggregate({
       where: postWhere,
       _sum: { views: true },
       _count: true,
+      _max: { postedAt: true },
     }),
     prisma.creatorAttribution.aggregate({
       where: { creatorId },
@@ -121,6 +144,15 @@ export default async function CreatorDetailPage({
     prisma.post.findMany({
       where: { ...postWhere, postedAt: { gte: weekStart, lt: weekEnd } },
       select: { postedAt: true, platform: true },
+    }),
+    prisma.post.findMany({
+      where: { ...postWhere, postedAt: { gte: startOfMonth(now) } },
+      select: { platform: true, campaignId: true },
+    }),
+    prisma.campaignCreator.groupBy({
+      by: ["campaignId"],
+      where: { isActive: true, creator: { isActive: true } },
+      _count: true,
     }),
   ]);
   const attributedSignups = totalSignups._sum.signupCount ?? 0;
@@ -208,9 +240,46 @@ export default async function CreatorDetailPage({
     return { day: label, count };
   });
 
+  // Cumulative monthly pacing — mirrors the creators list page exactly.
+  const activeCountByCampaign = new Map(
+    activeCounts.map((g) => [g.campaignId, g._count]),
+  );
+  const monthlyGoal = activeCCs.reduce(
+    (sum, cc) =>
+      sum +
+      effectiveMonthlyGoal(
+        cc,
+        cc.campaign,
+        activeCountByCampaign.get(cc.campaign.id) ?? 1,
+      ),
+    0,
+  );
+  const thresholds = activeCCs.length
+    ? {
+        offPacePct: Math.min(...activeCCs.map((cc) => cc.campaign.offPacePct)),
+        quietDays: Math.max(...activeCCs.map((cc) => cc.campaign.quietDays)),
+      }
+    : { offPacePct: 80, quietDays: 4 };
+  const monthGoalPosts = monthPosts.filter(
+    (p) => p.platform === goalPlatform,
+  ).length;
+  const flags = creatorFlags({
+    postsThisMonth: monthGoalPosts,
+    postsAllTime: totalViews._count,
+    lastPostAt: totalViews._max.postedAt ?? null,
+    monthlyGoal,
+    thresholds,
+    isShadowbanned: creator.isShadowbanned,
+    now,
+  });
+
   return (
     <div>
       <PageHeader title={creator.name} description={`@${creator.handle}`}>
+        <ShadowbanToggle
+          creatorId={creator.id}
+          isShadowbanned={creator.isShadowbanned}
+        />
         <DeactivateCreatorToggle
           creatorId={creator.id}
           isActive={creator.isActive}
@@ -394,7 +463,15 @@ export default async function CreatorDetailPage({
         </div>
       )}
 
-      {/* Weekly posting cadence */}
+      {/* Monthly goal (primary pacing view) + weekly cadence */}
+      <div className="mt-4">
+        <CreatorMonthlyProgress
+          postsThisMonth={monthGoalPosts}
+          monthlyGoal={monthlyGoal}
+          flags={flags}
+          scopeLabel={campaignFilter ? campaignFilter.name : "all campaigns"}
+        />
+      </div>
       <div className="mt-4">
         <CreatorWeeklyProgress
           postsThisWeek={goalWeekPosts.length}
@@ -430,6 +507,29 @@ export default async function CreatorDetailPage({
                   <p className="text-xs text-slate-400">
                     {PLATFORM_LABELS[cc.platform]} · {cc.videosPerDay}{" "}
                     videos/day
+                    {cc.isActive &&
+                      cc.campaign.isActive &&
+                      (!campaignFilter ||
+                        campaignFilter.id === cc.campaign.id) && (
+                        <>
+                          {" "}
+                          ·{" "}
+                          {
+                            monthPosts.filter(
+                              (p) =>
+                                p.campaignId === cc.campaign.id &&
+                                p.platform === goalPlatform,
+                            ).length
+                          }
+                          /
+                          {effectiveMonthlyGoal(
+                            cc,
+                            cc.campaign,
+                            activeCountByCampaign.get(cc.campaign.id) ?? 1,
+                          )}{" "}
+                          this month
+                        </>
+                      )}
                   </p>
                 </div>
                 <Badge

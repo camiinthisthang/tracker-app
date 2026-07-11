@@ -65,6 +65,11 @@ export async function PATCH(
         ...(data.weeklyPostTarget !== undefined && {
           weeklyPostTarget: data.weeklyPostTarget,
         }),
+        ...(data.monthlyPostGoal !== undefined && {
+          monthlyPostGoal: data.monthlyPostGoal,
+        }),
+        ...(data.offPacePct !== undefined && { offPacePct: data.offPacePct }),
+        ...(data.quietDays !== undefined && { quietDays: data.quietDays }),
         ...(data.ugcEngineer !== undefined && {
           ugcEngineer: data.ugcEngineer,
         }),

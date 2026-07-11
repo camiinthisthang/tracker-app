@@ -27,6 +27,16 @@ tangent.
 
 ---
 
+## 2026-07-11 — Phase 2: monthly pacing, Quiet/Off-pace/New/Shadow-ban flags, creators card layout
+- **Schema change** (branch `claude/pacing-flags-schema`, migration `20260711230000_pacing_flags`): `Campaign.monthlyPostGoal` (nullable campaign-wide total, split evenly across active creators; per-creator `CampaignCreator.monthlyPostGoal` still overrides), `Campaign.offPacePct` (default 80), `Campaign.quietDays` (default 4), `Creator.isShadowbanned` (default false). Purely additive ALTERs; applies on deploy via `prisma migrate deploy`.
+- **Pacing engine** `src/lib/pacing.ts`: cumulative monthly formula per spec — off-pace when `posts < (day of month ÷ days in month) × goal × (offPacePct/100)`. Flags: New (zero posts ever), Quiet (no post in `quietDays`), Off-pace, Shadow-banned (excluded from pacing entirely).
+- **Creators page rebuilt as grouped card layout** (table replaced per Jacqueline): "Needs attention" section on top (off-pace/quiet/new/shadow-banned, sorted worst-first), "On track" below (sorted by views), inactive roster as a small pill list. Campaign filter pills apply to the whole page. Card hero = monthly progress bar (X/Y posts this month) + views/likes/comments.
+- **Creator detail:** new Monthly goal card (same cumulative bar + flags, respects the campaign filter) above the kept weekly Mon–Sun cadence card (weekly display retained per Jacqueline). Campaign rows now show per-campaign "X/Y this month". New "Mark shadow-banned" toggle in the header (PATCH /api/creators/[id] accepts `isShadowbanned`).
+- **Campaign form:** Monthly post goal, Off-pace threshold %, Quiet after (days) fields under Posting requirements; wired through validation + POST/PATCH APIs + edit-page initialData.
+- Cross-campaign nuance: creators on multiple campaigns get the most lenient thresholds (max quietDays, min offPacePct) so one strict campaign doesn't flag someone fine elsewhere; monthly counts use the goal platform only (no cross-post double counting), consistent with existing weekly logic.
+- Tested: `npx next build` green. Migration not run locally (no DATABASE_URL in this container) — SQL is 4 additive ALTER COLUMNs, applies on deploy.
+- Drive-by: `creators-table-client.tsx` is now unused (left in place; delete when convenient). Old table's search + tier/status filters dropped with the table per the card-layout spec — easy to re-add on cards if missed.
+
 ## 2026-07-11 — Phase 1: date-range filter, campaign switcher, dashboard graph, charts tab
 - **Date-range filter (24h / 7d / 14d / 90d / custom)** — new `src/lib/date-range.ts` + `DateRangeFilter` pill component. Scopes the dashboard stat cards, views graph, Top Posts, Top Sounds and Top Creators. Default stays 7d vs previous 7d.
 - **New stat cards:** Posts, Total Views, Total Likes, Total Comments — all tied to the range with green/red `TrendDelta` vs the previous equal-length period. Active Campaigns / Active Creators cards kept (not date-scoped).

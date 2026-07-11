@@ -40,6 +40,9 @@ export default async function EditCampaignPage({
     endDate: format(campaign.endDate, "yyyy-MM-dd"),
     hashtags: campaign.hashtags,
     weeklyPostTarget: campaign.weeklyPostTarget,
+    monthlyPostGoal: campaign.monthlyPostGoal,
+    offPacePct: campaign.offPacePct,
+    quietDays: campaign.quietDays,
     previewLinks: campaign.previewLinks,
     galleryUrls: campaign.galleryUrls,
     creators: campaign.campaignCreators.map((cc) => ({

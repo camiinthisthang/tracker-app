@@ -1,16 +1,27 @@
-import { Users } from "lucide-react";
+import Link from "next/link";
+import { Users, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { startOfMonth } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 import { getRequiredSession, AGENCY_TEAM_SLUGS } from "@/lib/auth";
-import { creatorVisibilityWhere } from "@/lib/visibility";
+import { creatorVisibilityWhere, campaignVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
-import { CreatorsTableClient } from "@/components/creators/creators-table-client";
 import { AddCreatorButton } from "@/components/creators/add-creator-button";
+import {
+  CreatorPacingCard,
+  type CreatorPacingCardData,
+} from "@/components/creators/creator-pacing-card";
+import { goalPlatformFor } from "@/lib/social/goal-counting";
+import { creatorFlags, effectiveMonthlyGoal } from "@/lib/pacing";
 
-export default async function CreatorsPage() {
+export default async function CreatorsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await getRequiredSession();
+  const sp = await searchParams;
 
   // Super admins can pick any team when adding a creator — except the agency
   // team itself, which is admins-only by intent. Hiding it from the picker
@@ -23,89 +34,165 @@ export default async function CreatorsPage() {
       })
     : [];
 
-  const creators = await prisma.creator.findMany({
-    where: creatorVisibilityWhere(session),
-    include: {
-      campaignCreators: {
-        include: {
-          campaign: { select: { id: true, name: true } },
+  const [creators, filterCampaigns] = await Promise.all([
+    prisma.creator.findMany({
+      where: creatorVisibilityWhere(session),
+      include: {
+        campaignCreators: {
+          include: {
+            campaign: {
+              select: {
+                id: true,
+                name: true,
+                isActive: true,
+                weeklyPostTarget: true,
+                monthlyPostGoal: true,
+                offPacePct: true,
+                quietDays: true,
+              },
+            },
+          },
         },
+        _count: { select: { posts: true } },
       },
-      _count: { select: { posts: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.campaign.findMany({
+      where: campaignVisibilityWhere(session),
+      select: { id: true, name: true, isActive: true },
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+    }),
+  ]);
 
-  // Get total views + referrals per creator
+  // Campaign filter applies to the whole page: pacing, flags, stats.
+  const campaignParam = Array.isArray(sp.campaign) ? sp.campaign[0] : sp.campaign;
+  const campaignFilter =
+    filterCampaigns.find((c) => c.id === campaignParam) ?? null;
+
   const creatorIds = creators.map((c) => c.id);
-  const aggregateData = creatorIds.length > 0
-    ? await prisma.post.groupBy({
-        by: ["creatorId"],
-        where: { creatorId: { in: creatorIds } },
-        _sum: { views: true, referrals: true },
-      })
-    : [];
+  const monthStart = startOfMonth(new Date());
+  const postScope = campaignFilter ? { campaignId: campaignFilter.id } : {};
 
-  // Viral count per creator (posts with 50k+ views)
-  const viralData = creatorIds.length > 0
-    ? await prisma.post.groupBy({
-        by: ["creatorId"],
-        where: { creatorId: { in: creatorIds }, views: { gte: 50000 } },
-        _count: true,
-      })
-    : [];
-
-  const viewsMap = new Map(
-    aggregateData.map((v) => [v.creatorId, v._sum.views ?? 0])
-  );
-  const referralsMap = new Map(
-    aggregateData.map((v) => [v.creatorId, v._sum.referrals ?? 0])
-  );
-  const viralMap = new Map(
-    viralData.map((v) => [v.creatorId, v._count])
-  );
-
-  // Posts in the last 30 days — recent activity, to spot who has gone quiet.
-  const since = new Date();
-  since.setDate(since.getDate() - 30);
-  const recentData =
-    creatorIds.length > 0
-      ? await prisma.post.groupBy({
+  const [aggregates, monthPosts] = creatorIds.length
+    ? await Promise.all([
+        prisma.post.groupBy({
           by: ["creatorId"],
-          where: { creatorId: { in: creatorIds }, postedAt: { gte: since } },
+          where: { creatorId: { in: creatorIds }, ...postScope },
+          _sum: { views: true, likes: true, comments: true },
           _count: true,
-        })
-      : [];
-  const recentMap = new Map(recentData.map((v) => [v.creatorId, v._count]));
+          _max: { postedAt: true },
+        }),
+        prisma.post.findMany({
+          where: {
+            creatorId: { in: creatorIds },
+            ...postScope,
+            postedAt: { gte: monthStart },
+          },
+          select: { creatorId: true, platform: true },
+        }),
+      ])
+    : [[], []];
 
-  const tableData = creators.map((creator) => ({
-    id: creator.id,
-    name: creator.name,
-    handle: creator.handle,
-    tier: creator.tier,
-    isActive: creator.isActive,
-    postCount: creator._count.posts,
-    recentPosts: recentMap.get(creator.id) ?? 0,
-    totalViews: viewsMap.get(creator.id) ?? 0,
-    totalReferrals: referralsMap.get(creator.id) ?? 0,
-    viralCount: viralMap.get(creator.id) ?? 0,
-    campaignCount: creator.campaignCreators.length,
-    campaigns: creator.campaignCreators.map((cc) => cc.campaign),
-  }));
-
-  const activeCount = creators.filter((c) => c.isActive).length;
-  const totalViews = tableData.reduce((sum, c) => sum + c.totalViews, 0);
-  const totalReferrals = tableData.reduce(
-    (sum, c) => sum + c.totalReferrals,
-    0
+  // How many active creators share each campaign — needed to split a
+  // campaign-wide monthly goal evenly.
+  const activeCounts = await prisma.campaignCreator.groupBy({
+    by: ["campaignId"],
+    where: { isActive: true, creator: { isActive: true } },
+    _count: true,
+  });
+  const activeCountByCampaign = new Map(
+    activeCounts.map((g) => [g.campaignId, g._count]),
   );
-  const totalPosts = tableData.reduce((sum, c) => sum + c.postCount, 0);
+
+  const aggByCreator = new Map(aggregates.map((a) => [a.creatorId, a]));
+  const monthPostsByCreator = new Map<string, { platform: string }[]>();
+  for (const p of monthPosts) {
+    const list = monthPostsByCreator.get(p.creatorId) ?? [];
+    list.push(p);
+    monthPostsByCreator.set(p.creatorId, list);
+  }
+
+  const now = new Date();
+  const cards: (CreatorPacingCardData & { isActive: boolean })[] = [];
+  for (const creator of creators) {
+    const relevantCCs = creator.campaignCreators.filter(
+      (cc) =>
+        cc.isActive &&
+        cc.campaign.isActive &&
+        (!campaignFilter || cc.campaign.id === campaignFilter.id),
+    );
+    // With a campaign selected, only creators on that campaign appear.
+    if (campaignFilter && relevantCCs.length === 0) continue;
+
+    const monthlyGoal = relevantCCs.reduce(
+      (sum, cc) =>
+        sum +
+        effectiveMonthlyGoal(
+          cc,
+          cc.campaign,
+          activeCountByCampaign.get(cc.campaign.id) ?? 1,
+        ),
+      0,
+    );
+    // Cross-campaign view uses the most lenient thresholds so one strict
+    // campaign doesn't flag a creator who's fine on their other campaign.
+    const thresholds = relevantCCs.length
+      ? {
+          offPacePct: Math.min(...relevantCCs.map((cc) => cc.campaign.offPacePct)),
+          quietDays: Math.max(...relevantCCs.map((cc) => cc.campaign.quietDays)),
+        }
+      : { offPacePct: 80, quietDays: 4 };
+
+    const goalPlatform = goalPlatformFor(creator);
+    const postsThisMonth = (monthPostsByCreator.get(creator.id) ?? []).filter(
+      (p) => p.platform === goalPlatform,
+    ).length;
+    const agg = aggByCreator.get(creator.id);
+
+    cards.push({
+      id: creator.id,
+      name: creator.name,
+      handle: creator.handle,
+      isActive: creator.isActive,
+      flags: creatorFlags({
+        postsThisMonth,
+        postsAllTime: agg?._count ?? 0,
+        lastPostAt: agg?._max.postedAt ?? null,
+        monthlyGoal,
+        thresholds,
+        isShadowbanned: creator.isShadowbanned,
+        now,
+      }),
+      postsThisMonth,
+      monthlyGoal,
+      views: agg?._sum.views ?? 0,
+      likes: agg?._sum.likes ?? 0,
+      comments: agg?._sum.comments ?? 0,
+      campaignNames: relevantCCs.map((cc) => cc.campaign.name),
+    });
+  }
+
+  const activeCards = cards.filter((c) => c.isActive);
+  const needsAttention = activeCards
+    .filter((c) => c.flags.length > 0)
+    .sort((a, b) => {
+      const ra = a.monthlyGoal > 0 ? a.postsThisMonth / a.monthlyGoal : 1;
+      const rb = b.monthlyGoal > 0 ? b.postsThisMonth / b.monthlyGoal : 1;
+      return ra - rb;
+    });
+  const onTrack = activeCards
+    .filter((c) => c.flags.length === 0)
+    .sort((a, b) => b.views - a.views);
+  const inactive = cards.filter((c) => !c.isActive);
+
+  const totalViews = cards.reduce((sum, c) => sum + c.views, 0);
+  const totalPosts = aggregates.reduce((sum, a) => sum + a._count, 0);
 
   return (
     <div>
       <PageHeader
         title="Creators"
-        description="Manage your creator roster and leaderboard"
+        description="Monthly pacing across your roster — who needs attention, who's on track"
       >
         <AddCreatorButton
           isSuperAdmin={session.user.isSuperAdmin}
@@ -125,23 +212,101 @@ export default async function CreatorsPage() {
         />
       ) : (
         <>
-          <div
-            className={`mb-6 grid gap-4 sm:grid-cols-2 ${ATTRIBUTION_ENABLED ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}
-          >
-            <StatCard label="Active Creators" value={activeCount} />
+          {/* Campaign filter — applies to the whole page */}
+          {filterCampaigns.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              <Link
+                href="/creators"
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  !campaignFilter
+                    ? "bg-slate-800 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                All campaigns
+              </Link>
+              {filterCampaigns.map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/creators?campaign=${c.id}`}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    campaignFilter?.id === c.id
+                      ? "bg-slate-800 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {c.name}
+                  {!c.isActive && " (ended)"}
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="Active Creators" value={activeCards.length} />
+            <StatCard label="Needs Attention" value={needsAttention.length} />
             <StatCard label="Total Posts" value={totalPosts.toLocaleString()} />
-            <StatCard
-              label="Total Views"
-              value={totalViews.toLocaleString()}
-            />
-            {ATTRIBUTION_ENABLED && (
-              <StatCard
-                label="Total Referrals"
-                value={totalReferrals.toLocaleString()}
-              />
+            <StatCard label="Total Views" value={totalViews.toLocaleString()} />
+          </div>
+
+          {/* Needs attention */}
+          {needsAttention.length > 0 && (
+            <div className="mb-8">
+              <div className="mb-3 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <h2 className="text-sm font-semibold text-slate-800">
+                  Needs attention
+                </h2>
+                <span className="text-xs text-slate-400">
+                  Off-pace, quiet, new or shadow-banned
+                </span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {needsAttention.map((c) => (
+                  <CreatorPacingCard key={c.id} creator={c} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* On track */}
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <h2 className="text-sm font-semibold text-slate-800">On track</h2>
+            </div>
+            {onTrack.length === 0 ? (
+              <p className="text-sm text-slate-400">
+                No one&apos;s fully on track yet this month.
+              </p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {onTrack.map((c) => (
+                  <CreatorPacingCard key={c.id} creator={c} />
+                ))}
+              </div>
             )}
           </div>
-          <CreatorsTableClient creators={tableData} />
+
+          {/* Inactive roster */}
+          {inactive.length > 0 && (
+            <div className="mt-8">
+              <h2 className="mb-2 text-sm font-semibold text-slate-500">
+                Inactive
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {inactive.map((c) => (
+                  <Link
+                    key={c.id}
+                    href={`/creators/${c.id}`}
+                    className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500 hover:bg-slate-200"
+                  >
+                    {c.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

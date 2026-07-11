@@ -47,6 +47,9 @@ interface CampaignFormProps {
     endDate: string;
     hashtags: string[];
     weeklyPostTarget: number;
+    monthlyPostGoal: number | null;
+    offPacePct: number;
+    quietDays: number;
     previewLinks: string[];
     galleryUrls: string[];
     creators: CreatorRow[];
@@ -77,6 +80,15 @@ export function CampaignForm({
   const [hashtags, setHashtags] = useState<string[]>(initialData?.hashtags ?? []);
   const [weeklyPostTarget, setWeeklyPostTarget] = useState(
     String(initialData?.weeklyPostTarget ?? 5)
+  );
+  const [monthlyPostGoal, setMonthlyPostGoal] = useState(
+    initialData?.monthlyPostGoal ? String(initialData.monthlyPostGoal) : ""
+  );
+  const [offPacePct, setOffPacePct] = useState(
+    String(initialData?.offPacePct ?? 80)
+  );
+  const [quietDays, setQuietDays] = useState(
+    String(initialData?.quietDays ?? 4)
   );
   const [previewLinkInput, setPreviewLinkInput] = useState("");
   const [previewLinks, setPreviewLinks] = useState<string[]>(initialData?.previewLinks ?? []);
@@ -179,6 +191,9 @@ export function CampaignForm({
           endDate,
           hashtags,
           weeklyPostTarget: parseInt(weeklyPostTarget),
+          monthlyPostGoal: monthlyPostGoal ? parseInt(monthlyPostGoal) : null,
+          offPacePct: parseInt(offPacePct) || 80,
+          quietDays: parseInt(quietDays) || 4,
           previewLinks,
           galleryUrls,
           creators: creators.map(({ id, ...rest }) => rest),
@@ -465,16 +480,67 @@ export function CampaignForm({
         <p className="mt-1 text-xs text-slate-400">
           Total number of videos required across all creators each week.
         </p>
-        <div className="mt-3 w-48">
-          <Label className="text-sm font-medium text-slate-700">
-            Weekly post target
-          </Label>
-          <Input
-            type="number"
-            min={0}
-            value={weeklyPostTarget}
-            onChange={(e) => setWeeklyPostTarget(e.target.value)}
-          />
+        <div className="mt-3 flex flex-wrap gap-4">
+          <div className="w-48">
+            <Label className="text-sm font-medium text-slate-700">
+              Weekly post target
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              value={weeklyPostTarget}
+              onChange={(e) => setWeeklyPostTarget(e.target.value)}
+            />
+          </div>
+          <div className="w-48">
+            <Label className="text-sm font-medium text-slate-700">
+              Monthly post goal
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              placeholder="e.g. 40"
+              value={monthlyPostGoal}
+              onChange={(e) => setMonthlyPostGoal(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Campaign-wide total, split evenly across creators. Per-creator
+              goals below override their share.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-4">
+          <div className="w-48">
+            <Label className="text-sm font-medium text-slate-700">
+              Off-pace threshold (%)
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={offPacePct}
+              onChange={(e) => setOffPacePct(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Flag creators below this % of the month-to-date goal.
+            </p>
+          </div>
+          <div className="w-48">
+            <Label className="text-sm font-medium text-slate-700">
+              Quiet after (days)
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              value={quietDays}
+              onChange={(e) => setQuietDays(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Days without a post before a creator is flagged Quiet — bump it
+              up while accounts re-warm.
+            </p>
+          </div>
         </div>
       </div>
 
