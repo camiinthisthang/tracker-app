@@ -27,6 +27,11 @@ tangent.
 
 ---
 
+## 2026-07-11 — Preview login: shared auth secret (fixes redirect loop + config error)
+- Preview deployments showed NextAuth's "server configuration" error because NEXTAUTH_SECRET is scoped to Production only (previews run in production mode and need a secret). Now `resolveAuthSecret()` (new `src/lib/auth-secret.ts`) falls back on non-production deployments to a secret derived from the already-set TEST_LOGIN_PASSWORD.
+- Critically, the same resolver is used by BOTH `authOptions.secret` and the middleware's `getToken({ secret })` — previously the middleware read `process.env.NEXTAUTH_SECRET` directly, so on preview the JWT signed fine but couldn't be decoded → login succeeded then bounced back to /login in a loop.
+- Tested locally simulating preview (VERCEL_ENV=preview, no NEXTAUTH_SECRET): test login lands on the rendered dashboard, no loop.
+
 ## 2026-07-11 — Preview-only test admin login
 - New env-gated login path for QA on Vercel preview deployments (Google OAuth can't allowlist ephemeral preview URLs): set `TEST_LOGIN_EMAIL` + `TEST_LOGIN_PASSWORD` in Vercel for the **Preview** environment; signing in with those credentials on any non-production deployment upserts a super-admin "Test Admin" user and logs in. Hard-disabled when `VERCEL_ENV === "production"` regardless of env vars.
 - `getRequiredSession` now admits super admins without a team membership (matches middleware, which already did) — previously a team-less super admin got a server error on every admin page.

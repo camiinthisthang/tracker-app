@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { resolveAuthSecret } from "@/lib/auth-secret";
 
 /**
  * When a user signs in with Google for the first time, try to auto-claim any
@@ -71,6 +72,9 @@ async function claimPendingAccessForEmail(userId: string, rawEmail: string) {
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
+  // Shared with the middleware's getToken() via resolveAuthSecret() so the
+  // JWT signs and verifies with the same key on both sides.
+  secret: resolveAuthSecret(),
   session: {
     strategy: "jwt",
   },
