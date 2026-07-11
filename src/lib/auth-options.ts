@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { resolveAuthSecret } from "@/lib/auth-secret";
 
 /**
  * When a user signs in with Google for the first time, try to auto-claim any
@@ -71,6 +72,9 @@ async function claimPendingAccessForEmail(userId: string, rawEmail: string) {
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
+  // Shared with the middleware's getToken() via resolveAuthSecret() so the
+  // JWT signs and verifies with the same key on both sides.
+  secret: resolveAuthSecret(),
   session: {
     strategy: "jwt",
   },
@@ -88,6 +92,43 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null;
+        }
+
+        // Preview-only test login: lets the team sign into Vercel preview
+        // deployments to QA changes before merging. Google OAuth can't
+        // allowlist ephemeral preview URLs, so this is the reliable way in.
+        // Requires BOTH env vars (set them for the Preview environment only)
+        // and is hard-disabled on production deployments regardless of env.
+        const testEmail = process.env.TEST_LOGIN_EMAIL?.toLowerCase();
+        const testPassword = process.env.TEST_LOGIN_PASSWORD;
+        if (
+          testEmail &&
+          testPassword &&
+          process.env.VERCEL_ENV !== "production" &&
+          credentials.email.toLowerCase() === testEmail &&
+          credentials.password === testPassword
+        ) {
+          const testUser = await prisma.user.upsert({
+            where: { email: testEmail },
+            update: { isSuperAdmin: true },
+            create: {
+              email: testEmail,
+              name: "Test Admin",
+              isSuperAdmin: true,
+            },
+          });
+          return {
+            id: testUser.id,
+            email: testUser.email,
+            name: testUser.name,
+            image: null,
+            teamId: "",
+            teamName: "",
+            teamSlug: "",
+            role: "ADMIN" as const,
+            creatorId: undefined,
+            isSuperAdmin: true,
+          };
         }
 
         const user = await prisma.user.findUnique({
