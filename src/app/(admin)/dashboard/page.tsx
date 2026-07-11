@@ -9,21 +9,13 @@ import {
 } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
+import { TrendDelta } from "@/components/shared/trend-delta";
 import { TopPostsWeek } from "@/components/dashboard/top-posts-week";
 import { TopPostsAllTime } from "@/components/dashboard/top-posts-alltime";
 import { WeeklyShoutouts } from "@/components/dashboard/weekly-shoutouts";
 import { TopSounds } from "@/components/dashboard/top-sounds";
 import { parseWeekOffset } from "@/lib/weeks";
 import { ATTRIBUTION_ENABLED } from "@/lib/constants";
-
-function weekDelta(current: number, previous: number): string {
-  if (previous === 0) {
-    return current > 0 ? "no data for previous week" : "—";
-  }
-  const pct = Math.round((current / previous - 1) * 100);
-  const arrow = pct > 0 ? "▲" : pct < 0 ? "▼" : "＝";
-  return `${arrow} ${pct > 0 ? "+" : ""}${pct}% vs previous week (${previous.toLocaleString()})`;
-}
 
 export default async function DashboardPage({
   searchParams,
@@ -153,12 +145,16 @@ export default async function DashboardPage({
         <StatCard
           label="Posts This Week"
           value={weeklyPosts.toLocaleString()}
-          subtext={weekDelta(weeklyPosts, prevWeeklyPosts)}
+          subtext={
+            <TrendDelta current={weeklyPosts} previous={prevWeeklyPosts} />
+          }
         />
         <StatCard
           label="Views This Week"
           value={weeklyViews.toLocaleString()}
-          subtext={weekDelta(weeklyViews, prevWeeklyViews)}
+          subtext={
+            <TrendDelta current={weeklyViews} previous={prevWeeklyViews} />
+          }
         />
         {ATTRIBUTION_ENABLED && (
           <StatCard
@@ -177,18 +173,14 @@ export default async function DashboardPage({
         />
       </div>
 
-      {/* Top posts of the week */}
-      <div className="mt-6">
+      {/* Top posts — this week and all-time, side by side */}
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
         <TopPostsWeek
           campaignWhere={campaignWhere}
           weekOffset={weekOffset}
           platform={platform}
           top={top}
         />
-      </div>
-
-      {/* All-time top posts across every campaign */}
-      <div className="mt-6">
         <TopPostsAllTime campaignWhere={campaignWhere} />
       </div>
 
@@ -233,6 +225,12 @@ export default async function DashboardPage({
                     </div>
                   </div>
                   <div className="ml-3 flex shrink-0 gap-4 text-right">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {creator.views.toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-slate-400">total views</p>
+                    </div>
                     <div>
                       <p className="text-sm font-medium text-slate-700">
                         {creator.avgViews.toLocaleString()}

@@ -1,7 +1,7 @@
 interface StatCardProps {
   label: string;
   value: string | number;
-  subtext?: string;
+  subtext?: React.ReactNode;
 }
 
 export function StatCard({ label, value, subtext }: StatCardProps) {

@@ -29,6 +29,7 @@ interface Shoutout {
   creator: CreatorLite | null;
   stat: string;
   detail: string;
+  positive?: boolean;
 }
 
 // Minimum sample sizes so one 40-view post can't win "most engaged" with a
@@ -175,6 +176,7 @@ export async function WeeklyShoutouts({
       icon: TrendingUp,
       creator: mostImproved?.agg.creator ?? null,
       stat: mostImproved ? `+${Math.round(mostImproved.pct)}% avg views` : "",
+      positive: true,
       detail: mostImproved
         ? `${Math.round(mostImproved.agg.views / mostImproved.agg.posts).toLocaleString()} vs ${Math.round(mostImproved.priorAvg).toLocaleString()} prior 4-week avg`
         : "Needs posting history to compare",
@@ -251,7 +253,11 @@ export async function WeeklyShoutouts({
                 <p className="truncate text-xs text-slate-400">
                   @{card.creator.handle}
                 </p>
-                <p className="mt-1 text-sm font-medium text-slate-700">
+                <p
+                  className={`mt-1 text-sm font-medium ${
+                    card.positive ? "text-emerald-600" : "text-slate-700"
+                  }`}
+                >
                   {card.stat}
                 </p>
                 <p className="truncate text-xs text-slate-400">{card.detail}</p>
