@@ -27,6 +27,14 @@ tangent.
 
 ---
 
+## 2026-07-11 — Phase 0 quick wins: Top Creators fix, green/red deltas, side-by-side top posts, platform cards
+- **Top Creators ranking "bug" (dashboard):** rows were ranked by total views but only displayed avg views, so the order looked wrong (a creator could rank #1 while showing a smaller number than #2). Total views is now the primary number on each row; avg views kept as secondary.
+- **Green/red percentage deltas:** new shared `TrendDelta` component (`src/components/shared/trend-delta.tsx`) — emerald for positive, red for negative, grey for flat/no-baseline. Wired into the dashboard's Posts This Week / Views This Week cards (previously plain grey text). `StatCard.subtext` now accepts a ReactNode. Weekly Shoutouts "Most improved +X%" stat is now emerald. All future percentage deltas should use this component for consistency (also keeps the dark-mode retrofit cheap).
+- **Layout:** Top Posts of the Week and All-Time Top Posts now render side by side on large screens, matching the Top Creators / Top Sounds pattern.
+- **Creator detail platform cards:** each platform card now shows engagement rate ((likes+comments+shares+saves) ÷ views) alongside views and posts; cards render for every platform the creator has a handle/account on even with zero posts — which adds the previously-missing YT Shorts card. Grid goes 3-up on large screens.
+- Tested: `npx next build` green (typecheck + compile). `prisma migrate deploy` skipped — no DATABASE_URL in this container and no schema changes in this chunk.
+- No DB/schema impact anywhere in this chunk, per plan agreed with Jacqueline.
+
 ## 2026-07-11 — Preview login: shared auth secret (fixes redirect loop + config error)
 - Preview deployments showed NextAuth's "server configuration" error because NEXTAUTH_SECRET is scoped to Production only (previews run in production mode and need a secret). Now `resolveAuthSecret()` (new `src/lib/auth-secret.ts`) falls back on non-production deployments to a secret derived from the already-set TEST_LOGIN_PASSWORD.
 - Critically, the same resolver is used by BOTH `authOptions.secret` and the middleware's `getToken({ secret })` — previously the middleware read `process.env.NEXTAUTH_SECRET` directly, so on preview the JWT signed fine but couldn't be decoded → login succeeded then bounced back to /login in a loop.
