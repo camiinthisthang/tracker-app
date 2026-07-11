@@ -145,11 +145,20 @@ const columns: ColumnDef<CreatorRow>[] = [
   {
     accessorKey: "campaignCount",
     header: "Campaigns",
-    cell: ({ row }) => (
-      <span className="text-sm text-slate-700">
-        {row.original.campaignCount}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const names = row.original.campaigns.map((c) => c.name);
+      if (names.length === 0)
+        return <span className="text-sm text-slate-300">—</span>;
+      return (
+        <span
+          className="text-sm text-slate-700"
+          title={names.join(", ")}
+        >
+          {names.slice(0, 2).join(", ")}
+          {names.length > 2 && ` +${names.length - 2}`}
+        </span>
+      );
+    },
   },
 ];
 

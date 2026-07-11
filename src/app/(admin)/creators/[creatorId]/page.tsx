@@ -194,37 +194,6 @@ export default async function CreatorDetailPage({
         />
       </PageHeader>
 
-      {/* Campaign filter — scopes stats + socials below */}
-      {creator.campaignCreators.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          <Link
-            href={`/creators/${creator.id}`}
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              !campaignFilter
-                ? "bg-slate-800 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            All campaigns
-          </Link>
-          {creator.campaignCreators.map((cc) => (
-            <Link
-              key={cc.campaign.id}
-              href={`/creators/${creator.id}?campaign=${cc.campaign.id}`}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                campaignFilter?.id === cc.campaign.id
-                  ? "bg-slate-800 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {cc.campaign.name}
-              {!cc.campaign.isActive && " (ended)"}
-              {!cc.isActive && " (cut)"}
-            </Link>
-          ))}
-        </div>
-      )}
-
       {/* Profile Card */}
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <div className="flex items-start gap-4">
@@ -301,6 +270,37 @@ export default async function CreatorDetailPage({
           }))}
         />
       </div>
+
+      {/* Campaign filter — scopes the stats below to one campaign */}
+      {creator.campaignCreators.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          <Link
+            href={`/creators/${creator.id}`}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              !campaignFilter
+                ? "bg-slate-800 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            All campaigns
+          </Link>
+          {creator.campaignCreators.map((cc) => (
+            <Link
+              key={cc.campaign.id}
+              href={`/creators/${creator.id}?campaign=${cc.campaign.id}`}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                campaignFilter?.id === cc.campaign.id
+                  ? "bg-slate-800 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {cc.campaign.name}
+              {!cc.campaign.isActive && " (ended)"}
+              {!cc.isActive && " (cut)"}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Stats */}
       <div
