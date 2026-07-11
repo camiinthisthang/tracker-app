@@ -90,6 +90,43 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Preview-only test login: lets the team sign into Vercel preview
+        // deployments to QA changes before merging. Google OAuth can't
+        // allowlist ephemeral preview URLs, so this is the reliable way in.
+        // Requires BOTH env vars (set them for the Preview environment only)
+        // and is hard-disabled on production deployments regardless of env.
+        const testEmail = process.env.TEST_LOGIN_EMAIL?.toLowerCase();
+        const testPassword = process.env.TEST_LOGIN_PASSWORD;
+        if (
+          testEmail &&
+          testPassword &&
+          process.env.VERCEL_ENV !== "production" &&
+          credentials.email.toLowerCase() === testEmail &&
+          credentials.password === testPassword
+        ) {
+          const testUser = await prisma.user.upsert({
+            where: { email: testEmail },
+            update: { isSuperAdmin: true },
+            create: {
+              email: testEmail,
+              name: "Test Admin",
+              isSuperAdmin: true,
+            },
+          });
+          return {
+            id: testUser.id,
+            email: testUser.email,
+            name: testUser.name,
+            image: null,
+            teamId: "",
+            teamName: "",
+            teamSlug: "",
+            role: "ADMIN" as const,
+            creatorId: undefined,
+            isSuperAdmin: true,
+          };
+        }
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
           include: {

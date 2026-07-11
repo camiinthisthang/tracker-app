@@ -108,7 +108,9 @@ export async function getSession() {
 
 export async function getRequiredSession() {
   const session = await getSession();
-  if (!session?.user?.teamId) {
+  // Super admins may have no team of their own (they oversee all teams) —
+  // the middleware already lets them through on the same condition.
+  if (!session?.user?.teamId && !session?.user?.isSuperAdmin) {
     throw new Error("Unauthorized");
   }
   return session;

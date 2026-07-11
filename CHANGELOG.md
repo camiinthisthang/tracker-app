@@ -27,6 +27,11 @@ tangent.
 
 ---
 
+## 2026-07-11 — Preview-only test admin login
+- New env-gated login path for QA on Vercel preview deployments (Google OAuth can't allowlist ephemeral preview URLs): set `TEST_LOGIN_EMAIL` + `TEST_LOGIN_PASSWORD` in Vercel for the **Preview** environment; signing in with those credentials on any non-production deployment upserts a super-admin "Test Admin" user and logs in. Hard-disabled when `VERCEL_ENV === "production"` regardless of env vars.
+- `getRequiredSession` now admits super admins without a team membership (matches middleware, which already did) — previously a team-less super admin got a server error on every admin page.
+- Tested: local end-to-end — correct creds land on a rendered dashboard, wrong password rejected, `npm run build` green.
+
 ## 2026-07-11 — Multi-campaign readiness: campaign columns, pills placement
 - Creator page: campaign filter pills moved from the page top to directly above the stats they scope.
 - Posts table: new Campaign column (and Campaign added to CSV export).
