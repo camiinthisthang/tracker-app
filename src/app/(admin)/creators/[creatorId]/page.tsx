@@ -111,7 +111,7 @@ export default async function CreatorDetailPage({
     prisma.post.groupBy({
       by: ["platform"],
       where: postWhere,
-      _sum: { views: true },
+      _sum: { views: true, likes: true, comments: true, shares: true, saves: true },
       _count: { _all: true },
     }),
     prisma.post.findMany({
@@ -134,11 +134,39 @@ export default async function CreatorDetailPage({
       creator.accounts.some((a) => a.isActive),
   );
 
-  // Per-platform split (IG vs TikTok).
-  const platformStats = platformGroups.map((g) => ({
-    platform: g.platform,
-    views: g._sum.views ?? 0,
-    posts: g._count._all,
+  // Per-platform split. Shows a card for every platform the creator posts on
+  // OR has a handle for, so a connected-but-quiet platform (e.g. YT Shorts)
+  // is visible at zero instead of missing.
+  const handlePlatforms = [
+    creator.tiktokHandle && "TIKTOK",
+    creator.instagramHandle && "INSTAGRAM",
+    creator.youtubeHandle && "YOUTUBE",
+    ...creator.accounts.filter((a) => a.isActive).map((a) => a.platform),
+  ].filter((p): p is string => Boolean(p));
+  const statsByPlatform = new Map(
+    platformGroups.map((g) => {
+      const views = g._sum.views ?? 0;
+      const engagements =
+        (g._sum.likes ?? 0) +
+        (g._sum.comments ?? 0) +
+        (g._sum.shares ?? 0) +
+        (g._sum.saves ?? 0);
+      return [
+        g.platform as string,
+        {
+          views,
+          posts: g._count._all,
+          engagementPct: views > 0 ? (engagements / views) * 100 : null,
+        },
+      ];
+    }),
+  );
+  const PLATFORM_ORDER = ["TIKTOK", "INSTAGRAM", "YOUTUBE", "FACEBOOK"];
+  const platformStats = PLATFORM_ORDER.filter(
+    (p) => statsByPlatform.has(p) || handlePlatforms.includes(p),
+  ).map((p) => ({
+    platform: p,
+    ...(statsByPlatform.get(p) ?? { views: 0, posts: 0, engagementPct: null }),
   }));
 
   // Views over time (last 28 days), bucketed by day.
@@ -326,16 +354,18 @@ export default async function CreatorDetailPage({
         />
       </div>
 
-      {/* Platform split (IG vs TikTok) */}
+      {/* Platform split */}
       {platformStats.length > 0 && (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {platformStats.map((s) => (
             <div
               key={s.platform}
               className="rounded-xl border border-slate-200 bg-white p-5"
             >
               <p className="text-sm font-semibold text-slate-800">
-                {PLATFORM_LABELS[s.platform] || s.platform}
+                {s.platform === "YOUTUBE"
+                  ? "YT Shorts"
+                  : PLATFORM_LABELS[s.platform] || s.platform}
               </p>
               <div className="mt-3 flex items-baseline gap-6">
                 <div>
@@ -349,6 +379,14 @@ export default async function CreatorDetailPage({
                     {s.posts.toLocaleString()}
                   </p>
                   <p className="text-xs text-slate-400">posts</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold text-slate-800">
+                    {s.engagementPct === null
+                      ? "—"
+                      : `${s.engagementPct.toFixed(1)}%`}
+                  </p>
+                  <p className="text-xs text-slate-400">engagement</p>
                 </div>
               </div>
             </div>
