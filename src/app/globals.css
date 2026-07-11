@@ -174,6 +174,65 @@
   --sidebar-ring: var(--brand-blue);
 }
 
+/* Dark mode for the app shell (admin + creator layouts add .app-surface).
+ * Instead of sprinkling dark: variants across every component, the color
+ * TOKENS the app is built from (white cards, warm slate ramp, accent tints)
+ * are re-pointed at warm-dark values — every bg-white / text-slate-800 /
+ * bg-blue-50 utility inherits automatically. Scoped to .app-surface so the
+ * public brand pages (apply, login — red surfaces with white text) are
+ * untouched by the toggle. */
+.dark .app-surface {
+  /* main canvas + cards */
+  --brand-bone: #0f0c09;
+  --color-white: #191410;
+  /* warm slate ramp, inverted around the brand ink */
+  --color-slate-50: #1e1813;
+  --color-slate-100: #272019;
+  --color-slate-200: #362d24;
+  --color-slate-300: #4a4036;
+  --color-slate-400: #8d8375;
+  --color-slate-500: #a89e90;
+  --color-slate-600: #c4bbac;
+  --color-slate-700: #d9d2c4;
+  --color-slate-800: #ede7da;
+  --color-slate-900: #f6f3ea;
+  --color-slate-950: #faf9f6;
+  /* accent tints: badge/pill backgrounds flip to deep hues so text-*-600
+   * labels stay readable */
+  --color-blue-50: #142743;
+  --color-blue-100: #1a3358;
+  --color-blue-200: #234472;
+  --color-green-50: #102b1d;
+  --color-green-100: #163a28;
+  --color-green-200: #1e4d35;
+  --color-emerald-50: #0f2c21;
+  --color-emerald-100: #143b2d;
+  --color-emerald-200: #1b4d3b;
+  --color-red-50: #361515;
+  --color-red-100: #481d1d;
+  --color-red-200: #5f2626;
+  --color-amber-50: #302307;
+  --color-amber-100: #42310b;
+  --color-amber-200: #574211;
+  --color-yellow-50: #302a07;
+  --color-yellow-200: #574a0e;
+  --color-orange-50: #351e0b;
+  --color-violet-50: #261739;
+  /* shadcn-token surfaces inside the shell (inputs, popovers, selects) */
+  --background: #0f0c09;
+  --foreground: #f4f2ed;
+  --card: #191410;
+  --card-foreground: #f4f2ed;
+  --popover: #191410;
+  --popover-foreground: #f4f2ed;
+  --secondary: #272019;
+  --secondary-foreground: #f4f2ed;
+  --muted: #272019;
+  --muted-foreground: #a89e90;
+  --border: #362d24;
+  --input: #362d24;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

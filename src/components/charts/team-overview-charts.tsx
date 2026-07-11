@@ -60,7 +60,7 @@ export function TeamOverviewCharts({
         </p>
         <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <LineChart data={lineData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-slate-200)" />
             <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} />
             <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
             <Tooltip />
@@ -84,7 +84,7 @@ export function TeamOverviewCharts({
         </p>
         <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <LineChart data={engagementData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-slate-200)" />
             <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} />
             <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
             <Tooltip />
@@ -126,7 +126,7 @@ export function TeamOverviewCharts({
               layout="vertical"
               margin={{ left: 40 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-slate-200)" />
               <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} />
               <YAxis
                 dataKey="label"
@@ -135,7 +135,7 @@ export function TeamOverviewCharts({
                 tick={{ fontSize: 11, fill: "#64748b" }}
               />
               <Tooltip />
-              <Bar dataKey="views" fill="#1e293b" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="views" fill="var(--color-slate-800)" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -151,7 +151,7 @@ export function TeamOverviewCharts({
               layout="vertical"
               margin={{ left: 40 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-slate-200)" />
               <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} />
               <YAxis
                 dataKey="label"

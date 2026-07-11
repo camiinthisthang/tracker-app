@@ -101,7 +101,7 @@ export function CampaignChartsClient({
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-slate-100)" />
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 12, fill: "#94a3b8" }}
@@ -126,7 +126,7 @@ export function CampaignChartsClient({
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-slate-100)" />
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 12, fill: "#94a3b8" }}
@@ -166,7 +166,7 @@ export function CampaignChartsClient({
             </h3>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-slate-100)" />
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 12, fill: "#94a3b8" }}

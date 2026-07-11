@@ -19,6 +19,7 @@ import {
   UserCog,
 } from "lucide-react";
 import { SidebarNavItem } from "./sidebar-nav-item";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -107,6 +108,10 @@ export function AdminSidebar() {
         {/* TODO(cami): orphan? Feedback link has no destination. Hidden
             until we have somewhere for it to point (a shared email, a form,
             etc.). */}
+        <div className="flex items-center justify-between px-3 py-1">
+          <span className="text-xs text-slate-400">Theme</span>
+          <ThemeToggle />
+        </div>
         <Separator className="my-2" />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100">
