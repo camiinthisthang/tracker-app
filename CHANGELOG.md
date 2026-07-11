@@ -27,6 +27,15 @@ tangent.
 
 ---
 
+## 2026-07-10 — Unified accounts card, audit switch, comprehension fixes
+- **Creator page:** "Social handles" + "Extra accounts" merged into one "Social accounts" card — default handles (every campaign) up top with edit form + Open links + shared extras nested under them, then one section per campaign showing its scoped accounts ("Uses the default handles only" when none), then the add-account form (with campaign picker). Campaign pills also flag "(cut)" memberships.
+- **Crosspost audit:** the YT Shorts option is now a real on/off Switch, and the card copy states that each goal post is checked against BOTH other platforms with a separate gap flagged per missing one.
+- **Posts page:** new Platform column (TikTok/Instagram/YouTube badge per row).
+- **Active vs cut:** creators-table status badge tooltip + legend explaining agency-wide Active vs per-campaign cut.
+- **Dropdown labels:** selects showed raw values ("all", "TIKTOK") — explicit labels rendered in posts campaign filter and account form selects.
+- Removed superseded components (creator-social-handles, creator-extra-accounts; creator-side self-social-handles untouched).
+- Tested: `npm run build` green; creator page click-through on local build with a two-campaign creator (scoped + shared accounts) confirmed layout.
+
 ## 2026-07-10 — Crosspost audit: optional YouTube Shorts leg
 - "Include YT Shorts" toggle on the campaign overview's crosspost audit (off by default — not every campaign runs YouTube). When on, each goal-platform post is also checked for a YouTube Shorts crosspost within ±24h; gaps name the missing platform ("TikTok post with no YT Shorts crosspost"); "matched" = crossposted to every checked platform.
 - Tested: `npm run build` green.
