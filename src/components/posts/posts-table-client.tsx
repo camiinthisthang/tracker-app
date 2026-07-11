@@ -65,6 +65,16 @@ const columns: ColumnDef<PostRow>[] = [
     enableSorting: false,
   },
   {
+    accessorKey: "platform",
+    header: "Platform",
+    cell: ({ row }) => (
+      <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+        {PLATFORM_LABELS[row.original.platform] ?? row.original.platform}
+      </span>
+    ),
+    enableSorting: false,
+  },
+  {
     accessorKey: "title",
     header: "Title",
     cell: ({ row }) => (
@@ -237,7 +247,12 @@ export function PostsTableClient({
         <div>
           <Select value={campaignFilter} onValueChange={(v) => v && setCampaignFilter(v)}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="All Campaigns" />
+              <SelectValue>
+                {campaignFilter === "all"
+                  ? "All Campaigns"
+                  : campaigns.find((c) => c.id === campaignFilter)?.name ??
+                    "All Campaigns"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Campaigns</SelectItem>

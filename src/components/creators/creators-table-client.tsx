@@ -67,6 +67,11 @@ const columns: ColumnDef<CreatorRow>[] = [
     header: "Status",
     cell: ({ row }) => (
       <Badge
+        title={
+          row.original.isActive
+            ? "Active = still works with the agency. A creator cut from one campaign stays Active here — manage per-campaign status on that campaign's page."
+            : "Deactivated agency-wide — no campaigns expect posts from them. Their history is kept."
+        }
         className={
           row.original.isActive
             ? "bg-green-50 text-green-600 hover:bg-green-50"
@@ -226,6 +231,12 @@ export function CreatorsTableClient({ creators }: CreatorsTableClientProps) {
           />
         </div>
       </div>
+      <p className="text-xs text-slate-400">
+        Status is agency-wide: Active creators may still be cut from individual
+        campaigns (that&apos;s managed on each campaign&apos;s page and shown as
+        &quot;cut&quot; on their profile). Deactivate = stop working with them
+        entirely.
+      </p>
       <DataTable columns={columns} data={filtered} />
     </div>
   );

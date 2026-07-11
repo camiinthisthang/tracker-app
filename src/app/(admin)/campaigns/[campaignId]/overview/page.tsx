@@ -26,6 +26,7 @@ import {
   type CrosspostAuditRow,
 } from "@/components/campaigns/crosspost-audit";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
+import { YtAuditToggle } from "@/components/campaigns/yt-audit-toggle";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const VIRAL_THRESHOLD = 50_000;
@@ -378,21 +379,13 @@ export default async function CampaignOverviewPage({
         <CrosspostAudit
           rows={crosspostRows}
           rangeLabel="this week"
+          targetsLabel={
+            auditYouTube
+              ? "BOTH other platforms (TikTok/Instagram and YT Shorts) — a separate gap is flagged for each missing one"
+              : "the other platform"
+          }
           headerRight={
-            <Link
-              href={
-                auditYouTube
-                  ? `/campaigns/${campaign.id}/overview`
-                  : `/campaigns/${campaign.id}/overview?ytAudit=1`
-              }
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                auditYouTube
-                  ? "bg-slate-800 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {auditYouTube ? "YT Shorts: on" : "Include YT Shorts"}
-            </Link>
+            <YtAuditToggle campaignId={campaign.id} enabled={auditYouTube} />
           }
         />
       </div>

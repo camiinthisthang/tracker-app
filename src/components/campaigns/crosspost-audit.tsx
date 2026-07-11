@@ -39,9 +39,16 @@ interface Props {
   rangeLabel: string;
   /** Optional control rendered in the header, e.g. the YT Shorts toggle. */
   headerRight?: React.ReactNode;
+  /** What we check against, e.g. "the other platform" or "both other platforms". */
+  targetsLabel?: string;
 }
 
-export function CrosspostAudit({ rows, rangeLabel, headerRight }: Props) {
+export function CrosspostAudit({
+  rows,
+  rangeLabel,
+  headerRight,
+  targetsLabel = "the other platform",
+}: Props) {
   if (rows.length === 0) {
     return null;
   }
@@ -76,7 +83,7 @@ export function CrosspostAudit({ rows, rangeLabel, headerRight }: Props) {
           </h3>
           <p className="text-xs text-slate-400">
             For each goal-platform post in {rangeLabel}, we look for a matching
-            post by the same creator on the other platform within ±24h. {summary}
+            post by the same creator on {targetsLabel} within ±24h. {summary}
           </p>
         </div>
         {headerRight}

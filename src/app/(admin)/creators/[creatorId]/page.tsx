@@ -8,8 +8,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TierBadge } from "@/components/creators/tier-badge";
 import { InviteCreatorButton } from "@/components/creators/invite-creator-button";
-import { CreatorSocialHandles } from "@/components/creators/creator-social-handles";
-import { CreatorExtraAccounts } from "@/components/creators/creator-extra-accounts";
+import { CreatorAccountsCard } from "@/components/creators/creator-accounts-card";
 import { AssignToCampaign } from "@/components/creators/assign-to-campaign";
 import { DeleteCreatorDangerZone } from "@/components/creators/delete-creator-danger-zone";
 import { DeactivateCreatorToggle } from "@/components/creators/deactivate-creator-toggle";
@@ -19,13 +18,7 @@ import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-prog
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
 import { Badge } from "@/components/ui/badge";
-import {
-  PLATFORM_LABELS,
-  ATTRIBUTION_ENABLED,
-  platformProfileUrl,
-} from "@/lib/constants";
-import { resolveSyncHandles } from "@/lib/social/sync";
-import { ExternalLink } from "lucide-react";
+import { PLATFORM_LABELS, ATTRIBUTION_ENABLED } from "@/lib/constants";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const VIRAL_THRESHOLD = 50_000;
@@ -226,6 +219,7 @@ export default async function CreatorDetailPage({
             >
               {cc.campaign.name}
               {!cc.campaign.isActive && " (ended)"}
+              {!cc.isActive && " (cut)"}
             </Link>
           ))}
         </div>
@@ -282,68 +276,31 @@ export default async function CreatorDetailPage({
 
       </div>
 
-      {/* Social handles + manual sync trigger */}
+      {/* Social accounts — defaults + per-campaign accounts, one card */}
       <div className="mt-4">
-        <CreatorSocialHandles
+        <CreatorAccountsCard
           creatorId={creator.id}
           tiktokHandle={creator.tiktokHandle}
           instagramHandle={creator.instagramHandle}
           youtubeHandle={creator.youtubeHandle}
           fallbackHandle={creator.handle}
-        />
-      </div>
-
-      {/* Extra accounts (shadow-ban replacements, secondary accounts) */}
-      <div className="mt-4">
-        <CreatorExtraAccounts
-          creatorId={creator.id}
           accounts={creator.accounts.map((a) => ({
-            ...a,
+            id: a.id,
+            platform: a.platform,
+            handle: a.handle,
+            isActive: a.isActive,
+            note: a.note,
+            campaignId: a.campaignId,
             campaignName: a.campaign?.name ?? null,
           }))}
           campaigns={creator.campaignCreators.map((cc) => ({
             id: cc.campaign.id,
             name: cc.campaign.name,
+            isActive: cc.campaign.isActive,
+            onCampaign: cc.isActive,
           }))}
         />
       </div>
-
-      {/* Which socials sync for the selected campaign — computed with the
-          exact resolver the Apify sync uses, so this list can't drift. */}
-      {campaignFilter && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-800">
-            Socials for {campaignFilter.name}
-          </h3>
-          <p className="text-xs text-slate-500">
-            The accounts the daily sync pulls for this campaign. Stats below
-            are filtered to this campaign.
-          </p>
-          <ul className="mt-3 flex flex-wrap gap-2">
-            {resolveSyncHandles(creator, campaignFilter.id).map((h) => (
-              <li key={`${h.platform}-${h.handle}`}>
-                <a
-                  href={platformProfileUrl(h.platform, h.handle)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700 hover:bg-slate-100"
-                >
-                  <span className="font-medium">
-                    {PLATFORM_LABELS[h.platform]}
-                  </span>
-                  @{h.handle}
-                  {h.scopedToCampaign && (
-                    <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">
-                      campaign-specific
-                    </span>
-                  )}
-                  <ExternalLink className="h-3 w-3 text-blue-500" />
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {/* Stats */}
       <div
