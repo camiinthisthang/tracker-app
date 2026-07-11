@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-07-11 — Multi-campaign readiness: campaign columns, pills placement
+- Creator page: campaign filter pills moved from the page top to directly above the stats they scope.
+- Posts table: new Campaign column (and Campaign added to CSV export).
+- Creators table: Campaigns column shows campaign names (first two + "+n", full list on hover) instead of a bare count.
+- Multi-campaign audit notes: per-campaign pages/sync/scoped accounts all isolate correctly; remaining gaps logged in session notes (dashboard-level campaign filter, per-campaign weekly digest recipients) for prioritization.
+- Tested: `npm run build` green.
+
 ## 2026-07-10 — Unified accounts card, audit switch, comprehension fixes
 - **Creator page:** "Social handles" + "Extra accounts" merged into one "Social accounts" card — default handles (every campaign) up top with edit form + Open links + shared extras nested under them, then one section per campaign showing its scoped accounts ("Uses the default handles only" when none), then the add-account form (with campaign picker). Campaign pills also flag "(cut)" memberships.
 - **Crosspost audit:** the YT Shorts option is now a real on/off Switch, and the card copy states that each goal post is checked against BOTH other platforms with a separate gap flagged per missing one.

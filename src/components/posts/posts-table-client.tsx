@@ -65,6 +65,16 @@ const columns: ColumnDef<PostRow>[] = [
     enableSorting: false,
   },
   {
+    accessorKey: "campaign",
+    header: "Campaign",
+    cell: ({ row }) => (
+      <span className="text-sm text-slate-600">
+        {row.original.campaign.name}
+      </span>
+    ),
+    enableSorting: false,
+  },
+  {
     accessorKey: "platform",
     header: "Platform",
     cell: ({ row }) => (
@@ -199,6 +209,7 @@ export function PostsTableClient({
     const headers = [
       "Creator",
       "Account",
+      "Campaign",
       "Title",
       "Link",
       "Platform",
@@ -212,6 +223,7 @@ export function PostsTableClient({
     const rows = filtered.map((p) => [
       p.creator.handle,
       p.username,
+      p.campaign.name,
       p.title || "",
       p.link,
       PLATFORM_LABELS[p.platform] || p.platform,
