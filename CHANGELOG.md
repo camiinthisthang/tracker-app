@@ -27,6 +27,16 @@ tangent.
 
 ---
 
+## 2026-07-11 — Phase 1: date-range filter, campaign switcher, dashboard graph, charts tab
+- **Date-range filter (24h / 7d / 14d / 90d / custom)** — new `src/lib/date-range.ts` + `DateRangeFilter` pill component. Scopes the dashboard stat cards, views graph, Top Posts, Top Sounds and Top Creators. Default stays 7d vs previous 7d.
+- **New stat cards:** Posts, Total Views, Total Likes, Total Comments — all tied to the range with green/red `TrendDelta` vs the previous equal-length period. Active Campaigns / Active Creators cards kept (not date-scoped).
+- **Campaign switcher** next to the Dashboard title (shadcn Select, "All campaigns" default). Scopes every dashboard section; when one campaign is selected the creators card counts that campaign's active creators and the Active Campaigns card + campaign list hide. All-campaigns view = the client-facing summary.
+- **Views-over-time graph** on the dashboard (area chart, respects campaign + range; hidden for windows under 3 days).
+- **Weekly Shoutouts now owns the week prev/next navigation** (moved from Top Posts). Top Posts + Top Sounds follow the global date range instead. All dashboard links thread the full filter state via new `src/lib/dashboard-url.ts`.
+- **Charts:** "View charts →" button on the dashboard carries campaign + range to `/charts`, which pre-fills both (fully adjustable there; defaults unchanged at 30d overview / 90d drill-down when arriving without params). Team overview gained an **Engagement over time** chart (likes/comments/shares). Campaign drill-down pre-selects the carried campaign. Charts removed from the sidebar nav (reachable from the dashboard); the `/charts` URL still works. "Back to dashboard" link preserves filters.
+- Dropped the dead `Attributed Signups (7d)` dashboard card (was behind the disabled ATTRIBUTION_ENABLED flag; Phase 3 rebuilds conversions per-campaign).
+- Tested: `npx next build` green (typecheck + compile). No DB/schema impact.
+
 ## 2026-07-11 — Phase 0 quick wins: Top Creators fix, green/red deltas, side-by-side top posts, platform cards
 - **Top Creators ranking "bug" (dashboard):** rows were ranked by total views but only displayed avg views, so the order looked wrong (a creator could rank #1 while showing a smaller number than #2). Total views is now the primary number on each row; avg views kept as secondary.
 - **Green/red percentage deltas:** new shared `TrendDelta` component (`src/components/shared/trend-delta.tsx`) — emerald for positive, red for negative, grey for flat/no-baseline. Wired into the dashboard's Posts This Week / Views This Week cards (previously plain grey text). `StatCard.subtext` now accepts a ReactNode. Weekly Shoutouts "Most improved +X%" stat is now emerald. All future percentage deltas should use this component for consistency (also keeps the dark-mode retrofit cheap).

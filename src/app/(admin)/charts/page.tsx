@@ -1,4 +1,5 @@
-import { BarChart3 } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, BarChart3 } from "lucide-react";
 import { startOfDay, subDays, addDays } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
@@ -8,11 +9,19 @@ import {
 } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { CampaignChartsClient } from "@/components/charts/campaign-charts-client";
 import { TeamOverviewCharts } from "@/components/charts/team-overview-charts";
+import { parseDateRange } from "@/lib/date-range";
+import { dashboardUrl } from "@/lib/dashboard-url";
 
-export default async function ChartsPage() {
+export default async function ChartsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await getRequiredSession();
+  const params = await searchParams;
 
   // Agency users see across every client team; client managers stay scoped.
   const campaignWhere = campaignVisibilityWhere(session);
@@ -24,33 +33,74 @@ export default async function ChartsPage() {
     orderBy: { name: "asc" },
   });
 
-  // Team-wide last-30-days view: line chart of daily totals + top 10 creators
-  // + top 10 hooks.
-  const chartStart = startOfDay(subDays(new Date(), 30));
+  // Arriving from the dashboard pre-fills campaign + date range; both stay
+  // fully adjustable here. With no explicit range the overview defaults to
+  // the last 30 days (and the per-campaign drill-down to 90), as before.
+  const campaignParam = Array.isArray(params.campaign)
+    ? params.campaign[0]
+    : params.campaign;
+  const selectedCampaign =
+    campaigns.find((c) => c.id === campaignParam) ?? null;
+  const hasExplicitRange = Boolean(params.range);
+  const range = hasExplicitRange ? parseDateRange(params) : null;
+
+  const overviewStart = range
+    ? startOfDay(range.start)
+    : startOfDay(subDays(new Date(), 30));
+  const overviewEnd = range ? range.end : new Date();
+  const windowLabel = range ? range.label : "Last 30 days";
+
   const recentPosts = await prisma.post.findMany({
-    where: { creator: creatorWhere, postedAt: { gte: chartStart } },
+    where: {
+      creator: creatorWhere,
+      ...(selectedCampaign ? { campaignId: selectedCampaign.id } : {}),
+      postedAt: { gte: overviewStart, lt: overviewEnd },
+    },
     select: {
       postedAt: true,
       views: true,
+      likes: true,
+      comments: true,
+      shares: true,
+      saves: true,
       hook: true,
       creator: { select: { handle: true, name: true } },
     },
   });
 
-  const viewsByDayMap = new Map<string, number>();
-  for (let i = 0; i <= 30; i++) {
-    viewsByDayMap.set(
-      startOfDay(addDays(chartStart, i)).toISOString(),
-      0
-    );
+  type OverviewDay = {
+    views: number;
+    likes: number;
+    comments: number;
+    shares: number;
+  };
+  const byDay = new Map<string, OverviewDay>();
+  for (
+    let day = overviewStart;
+    day < overviewEnd;
+    day = addDays(day, 1)
+  ) {
+    byDay.set(day.toISOString(), { views: 0, likes: 0, comments: 0, shares: 0 });
   }
   for (const p of recentPosts) {
     const k = startOfDay(p.postedAt).toISOString();
-    viewsByDayMap.set(k, (viewsByDayMap.get(k) ?? 0) + p.views);
+    const cur = byDay.get(k) ?? { views: 0, likes: 0, comments: 0, shares: 0 };
+    cur.views += p.views;
+    cur.likes += p.likes;
+    cur.comments += p.comments;
+    cur.shares += p.shares;
+    byDay.set(k, cur);
   }
-  const viewsByDay = Array.from(viewsByDayMap.entries()).map(
-    ([date, views]) => ({ date, views })
-  );
+  const viewsByDay = Array.from(byDay.entries()).map(([date, v]) => ({
+    date,
+    views: v.views,
+  }));
+  const engagementByDay = Array.from(byDay.entries()).map(([date, v]) => ({
+    date,
+    likes: v.likes,
+    comments: v.comments,
+    shares: v.shares,
+  }));
 
   const creatorViews = new Map<string, number>();
   for (const p of recentPosts) {
@@ -72,6 +122,13 @@ export default async function ChartsPage() {
     .sort((a, b) => b.views - a.views)
     .slice(0, 10);
 
+  const dashboardHref = dashboardUrl({
+    campaign: selectedCampaign?.id,
+    range: range?.key,
+    from: range?.from,
+    to: range?.to,
+  });
+
   if (campaigns.length === 0) {
     return (
       <div>
@@ -88,14 +145,20 @@ export default async function ChartsPage() {
     );
   }
 
-  // Per-campaign daily series, bucketed by each post's publish date over the
-  // last 90 days. Computed straight from the Post table (current view counts)
-  // rather than CampaignDailyMetric, whose rows are cumulative campaign-to-date
-  // snapshots keyed by sync date — reading those as "per day" is what produced
-  // the inflated posts-per-day counts.
-  const seriesStart = startOfDay(subDays(new Date(), 90));
+  // Per-campaign daily series, bucketed by each post's publish date. Computed
+  // straight from the Post table (current view counts) rather than
+  // CampaignDailyMetric, whose rows are cumulative campaign-to-date snapshots
+  // keyed by sync date — reading those as "per day" is what produced the
+  // inflated posts-per-day counts.
+  const seriesStart = range
+    ? startOfDay(range.start)
+    : startOfDay(subDays(new Date(), 90));
+  const seriesEnd = range ? range.end : new Date();
   const campaignPosts = await prisma.post.findMany({
-    where: { campaignId: { in: campaigns.map((c) => c.id) }, postedAt: { gte: seriesStart } },
+    where: {
+      campaignId: { in: campaigns.map((c) => c.id) },
+      postedAt: { gte: seriesStart, lt: seriesEnd },
+    },
     select: {
       campaignId: true,
       postedAt: true,
@@ -163,18 +226,51 @@ export default async function ChartsPage() {
       }));
   }
 
+  const preserve: Record<string, string> = {};
+  if (selectedCampaign) preserve.campaign = selectedCampaign.id;
+
   return (
     <div>
       <PageHeader
         title="Charts"
-        description="Team-wide performance + per-campaign drill-down"
-      />
+        description={
+          selectedCampaign
+            ? `${selectedCampaign.name} · ${windowLabel}`
+            : `Team-wide performance + per-campaign drill-down · ${windowLabel}`
+        }
+      >
+        <Link
+          href={dashboardHref}
+          className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to dashboard
+        </Link>
+      </PageHeader>
+
+      <div className="mb-4">
+        <DateRangeFilter
+          rangeKey={range?.key ?? ""}
+          from={range?.from}
+          to={range?.to}
+          basePath="/charts"
+          preserve={preserve}
+        />
+      </div>
+
       <TeamOverviewCharts
         viewsByDay={viewsByDay}
+        engagementByDay={engagementByDay}
         topCreators={topCreators}
         topHooks={topHooks}
+        windowLabel={windowLabel}
+        scopeLabel={selectedCampaign?.name ?? "every campaign"}
       />
-      <CampaignChartsClient campaigns={campaigns} metricsMap={metricsMap} />
+      <CampaignChartsClient
+        campaigns={campaigns}
+        metricsMap={metricsMap}
+        initialCampaignId={selectedCampaign?.id}
+      />
     </div>
   );
 }

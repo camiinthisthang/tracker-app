@@ -10,7 +10,6 @@ import {
   BookOpen,
   BookOpenCheck,
   Settings,
-  BarChart3,
   ChevronDown,
   LogOut,
   Inbox,
@@ -36,7 +35,6 @@ const navItems = [
   { href: "/posts", label: "Posts", icon: List },
   { href: "/hooks", label: "Hooks", icon: Lightbulb },
   { href: "/resources", label: "Resources", icon: BookOpen },
-  { href: "/charts", label: "Charts", icon: BarChart3 },
   { href: "/reports", label: "Reports", icon: BookOpenCheck },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

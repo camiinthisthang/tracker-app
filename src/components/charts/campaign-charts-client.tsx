@@ -40,14 +40,16 @@ interface Campaign {
 interface CampaignChartsClientProps {
   campaigns: Campaign[];
   metricsMap: Record<string, DailyMetric[]>;
+  initialCampaignId?: string;
 }
 
 export function CampaignChartsClient({
   campaigns,
   metricsMap,
+  initialCampaignId,
 }: CampaignChartsClientProps) {
   const [selectedCampaign, setSelectedCampaign] = useState(
-    campaigns[0]?.id || ""
+    initialCampaignId || campaigns[0]?.id || ""
   );
 
   const metrics = metricsMap[selectedCampaign] || [];

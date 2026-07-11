@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { format } from "date-fns";
-import { ArrowRight } from "lucide-react";
+import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
+import { ArrowRight, BarChart3 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 import {
@@ -10,12 +10,16 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TrendDelta } from "@/components/shared/trend-delta";
-import { TopPostsWeek } from "@/components/dashboard/top-posts-week";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
+import { CampaignSwitcher } from "@/components/dashboard/campaign-switcher";
+import { DashboardViewsChart } from "@/components/dashboard/dashboard-views-chart";
+import { TopPosts } from "@/components/dashboard/top-posts-week";
 import { TopPostsAllTime } from "@/components/dashboard/top-posts-alltime";
 import { WeeklyShoutouts } from "@/components/dashboard/weekly-shoutouts";
 import { TopSounds } from "@/components/dashboard/top-sounds";
 import { parseWeekOffset } from "@/lib/weeks";
-import { ATTRIBUTION_ENABLED } from "@/lib/constants";
+import { parseDateRange, rangeParams } from "@/lib/date-range";
+import { dashboardUrl, type DashboardParams } from "@/lib/dashboard-url";
 
 export default async function DashboardPage({
   searchParams,
@@ -35,77 +39,107 @@ export default async function DashboardPage({
     ? (platformRaw as string)
     : "ALL";
   const top = params.top === "10" ? 10 : 5;
-
-  // Stat cards use rolling 7-day windows: this week = last 7 days, previous
-  // week = the 7 days before that. Both sum current view counts of posts
-  // *posted* in the window.
-  const now = new Date();
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const fourteenDaysAgo = new Date(now);
-  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+  const range = parseDateRange(params);
 
   // Agency users (super admin / agency manager) see across every client team;
   // client managers stay scoped to their own team. Helpers return {} for
   // agency-wide access or { teamId } for client-scoped access.
-  const campaignWhere = campaignVisibilityWhere(session);
+  const visibilityWhere = campaignVisibilityWhere(session);
   const creatorWhere = {
     AND: [creatorVisibilityWhere(session), { isActive: true }],
   };
 
+  // Campaign switcher: default = all campaigns aggregated (the client-facing
+  // summary view); picking one scopes every section below to that campaign.
+  const switcherCampaigns = await prisma.campaign.findMany({
+    where: visibilityWhere,
+    select: { id: true, name: true, isActive: true },
+    orderBy: [{ isActive: "desc" }, { name: "asc" }],
+  });
+  const campaignParam = Array.isArray(params.campaign)
+    ? params.campaign[0]
+    : params.campaign;
+  const selectedCampaign =
+    switcherCampaigns.find((c) => c.id === campaignParam) ?? null;
+  const campaignWhere = selectedCampaign
+    ? { ...visibilityWhere, id: selectedCampaign.id }
+    : visibilityWhere;
+
+  const rangeSpanDays = Math.max(
+    1,
+    differenceInCalendarDays(range.end, range.start),
+  );
+
   const [
     activeCampaigns,
     totalCreators,
-    thisWeekAgg,
-    prevWeekAgg,
+    rangeAgg,
+    prevAgg,
     topCreatorViews,
+    chartPosts,
   ] = await Promise.all([
     prisma.campaign.count({ where: { ...campaignWhere, isActive: true } }),
-    prisma.creator.count({ where: creatorWhere }),
+    selectedCampaign
+      ? prisma.campaignCreator.count({
+          where: {
+            campaignId: selectedCampaign.id,
+            isActive: true,
+            creator: { isActive: true },
+          },
+        })
+      : prisma.creator.count({ where: creatorWhere }),
     prisma.post.aggregate({
-      where: { campaign: campaignWhere, postedAt: { gte: sevenDaysAgo } },
-      _sum: { views: true },
+      where: {
+        campaign: campaignWhere,
+        postedAt: { gte: range.start, lt: range.end },
+      },
+      _sum: { views: true, likes: true, comments: true },
       _count: true,
     }),
     prisma.post.aggregate({
       where: {
         campaign: campaignWhere,
-        postedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
+        postedAt: { gte: range.prevStart, lt: range.prevEnd },
       },
-      _sum: { views: true },
+      _sum: { views: true, likes: true, comments: true },
       _count: true,
     }),
     prisma.post.groupBy({
       by: ["creatorId"],
-      where: { campaign: campaignWhere, creator: { isActive: true } },
+      where: {
+        campaign: campaignWhere,
+        creator: { isActive: true },
+        postedAt: { gte: range.start, lt: range.end },
+      },
       _sum: { views: true, likes: true, comments: true, shares: true, saves: true },
       _count: { _all: true },
       orderBy: { _sum: { views: "desc" } },
       take: 5,
     }),
-  ]);
-
-  const weeklyViews = thisWeekAgg._sum.views ?? 0;
-  const prevWeeklyViews = prevWeekAgg._sum.views ?? 0;
-  const weeklyPosts = thisWeekAgg._count;
-  const prevWeeklyPosts = prevWeekAgg._count;
-
-  const [attributedThisWeek, topCreatorRows] = await Promise.all([
-    ATTRIBUTION_ENABLED
-      ? prisma.creatorAttribution.aggregate({
+    rangeSpanDays >= 3
+      ? prisma.post.findMany({
           where: {
-            creator: creatorVisibilityWhere(session),
-            date: { gte: sevenDaysAgo },
+            campaign: campaignWhere,
+            postedAt: { gte: range.start, lt: range.end },
           },
-          _sum: { signupCount: true },
+          select: { postedAt: true, views: true },
         })
-      : Promise.resolve(null),
-    prisma.creator.findMany({
-      where: { id: { in: topCreatorViews.map((g) => g.creatorId) } },
-      select: { id: true, name: true, handle: true },
-    }),
+      : Promise.resolve([]),
   ]);
-  const signupsThisWeek = attributedThisWeek?._sum.signupCount ?? 0;
+
+  const rangeViews = rangeAgg._sum.views ?? 0;
+  const rangeLikes = rangeAgg._sum.likes ?? 0;
+  const rangeComments = rangeAgg._sum.comments ?? 0;
+  const rangePosts = rangeAgg._count;
+  const prevViews = prevAgg._sum.views ?? 0;
+  const prevLikes = prevAgg._sum.likes ?? 0;
+  const prevComments = prevAgg._sum.comments ?? 0;
+  const prevPosts = prevAgg._count;
+
+  const topCreatorRows = await prisma.creator.findMany({
+    where: { id: { in: topCreatorViews.map((g) => g.creatorId) } },
+    select: { id: true, name: true, handle: true },
+  });
 
   const creatorById = new Map(topCreatorRows.map((c) => [c.id, c]));
   const topCreators = topCreatorViews.flatMap((g) => {
@@ -129,57 +163,176 @@ export default async function DashboardPage({
     ];
   });
 
+  // Views over time, bucketed by day across the selected range. Hidden for
+  // windows under 3 days where a daily line is meaningless.
+  const chartStart = startOfDay(range.start);
+  const dailyMap = new Map<string, number>();
+  for (let i = 0; i <= rangeSpanDays; i++) {
+    const day = startOfDay(addDays(chartStart, i));
+    if (day >= range.end) break;
+    dailyMap.set(day.toISOString(), 0);
+  }
+  for (const p of chartPosts) {
+    const d = startOfDay(p.postedAt).toISOString();
+    dailyMap.set(d, (dailyMap.get(d) ?? 0) + p.views);
+  }
+  const chartData = Array.from(dailyMap.entries()).map(([date, views]) => ({
+    date,
+    views,
+  }));
+
+  // Current URL state, threaded through every dashboard link so the filters
+  // survive each other.
+  const dp: DashboardParams = {
+    campaign: selectedCampaign?.id,
+    range: range.key,
+    from: range.from,
+    to: range.to,
+    week: weekOffset,
+    platform,
+    top,
+  };
+  const preserveForRange: Record<string, string> = {};
+  if (selectedCampaign) preserveForRange.campaign = selectedCampaign.id;
+  if (weekOffset > 0) preserveForRange.week = String(weekOffset);
+  const preserveForCampaign: Record<string, string> = {
+    ...rangeParams(range),
+  };
+  if (weekOffset > 0) preserveForCampaign.week = String(weekOffset);
+
+  const chartsHref = dashboardUrl(
+    {
+      campaign: selectedCampaign?.id,
+      range: range.key,
+      from: range.from,
+      to: range.to,
+    },
+    "/charts",
+  );
+
   return (
     <div>
       <PageHeader
         title="Dashboard"
-        description={`Welcome back, ${session.user.name || "there"}`}
-      />
-
-      {/* Stat Cards */}
-      <div
-        className={`grid gap-4 sm:grid-cols-2 ${ATTRIBUTION_ENABLED ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}
+        description={
+          selectedCampaign
+            ? `${selectedCampaign.name} campaign`
+            : `Welcome back, ${session.user.name || "there"}`
+        }
       >
-        <StatCard label="Active Campaigns" value={activeCampaigns} />
-        <StatCard label="Active Creators" value={totalCreators} />
-        <StatCard
-          label="Posts This Week"
-          value={weeklyPosts.toLocaleString()}
-          subtext={
-            <TrendDelta current={weeklyPosts} previous={prevWeeklyPosts} />
-          }
+        <CampaignSwitcher
+          campaigns={switcherCampaigns}
+          selectedId={selectedCampaign?.id}
+          basePath="/dashboard"
+          preserve={preserveForCampaign}
         />
-        <StatCard
-          label="Views This Week"
-          value={weeklyViews.toLocaleString()}
-          subtext={
-            <TrendDelta current={weeklyViews} previous={prevWeeklyViews} />
-          }
+        <Link
+          href={chartsHref}
+          className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+        >
+          <BarChart3 className="h-4 w-4" />
+          View charts
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </PageHeader>
+
+      {/* Date range — scopes the stat cards, views graph, top posts, top
+          sounds and top creators. Weekly Shoutouts keeps its own week nav. */}
+      <div className="mb-4">
+        <DateRangeFilter
+          rangeKey={range.key}
+          from={range.from}
+          to={range.to}
+          basePath="/dashboard"
+          preserve={preserveForRange}
         />
-        {ATTRIBUTION_ENABLED && (
-          <StatCard
-            label="Attributed Signups (7d)"
-            value={signupsThisWeek.toLocaleString()}
-          />
-        )}
       </div>
 
-      {/* Weekly shoutouts */}
+      {/* Stat Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label={`Posts · ${range.label}`}
+          value={rangePosts.toLocaleString()}
+          subtext={
+            <TrendDelta
+              current={rangePosts}
+              previous={prevPosts}
+              comparisonLabel={range.compareLabel}
+            />
+          }
+        />
+        <StatCard
+          label={`Total Views · ${range.label}`}
+          value={rangeViews.toLocaleString()}
+          subtext={
+            <TrendDelta
+              current={rangeViews}
+              previous={prevViews}
+              comparisonLabel={range.compareLabel}
+            />
+          }
+        />
+        <StatCard
+          label={`Total Likes · ${range.label}`}
+          value={rangeLikes.toLocaleString()}
+          subtext={
+            <TrendDelta
+              current={rangeLikes}
+              previous={prevLikes}
+              comparisonLabel={range.compareLabel}
+            />
+          }
+        />
+        <StatCard
+          label={`Total Comments · ${range.label}`}
+          value={rangeComments.toLocaleString()}
+          subtext={
+            <TrendDelta
+              current={rangeComments}
+              previous={prevComments}
+              comparisonLabel={range.compareLabel}
+            />
+          }
+        />
+        {!selectedCampaign && (
+          <StatCard label="Active Campaigns" value={activeCampaigns} />
+        )}
+        <StatCard
+          label={selectedCampaign ? "Creators on campaign" : "Active Creators"}
+          value={totalCreators}
+        />
+      </div>
+
+      {/* Views over time */}
+      {rangeSpanDays >= 3 && (
+        <div className="mt-6">
+          <DashboardViewsChart
+            data={chartData}
+            subtitle={`${selectedCampaign?.name ?? "All campaigns"} · ${range.label}`}
+          />
+        </div>
+      )}
+
+      {/* Weekly shoutouts — independent week navigation */}
       <div className="mt-6">
         <WeeklyShoutouts
           campaignWhere={campaignWhere}
           creatorWhere={creatorVisibilityWhere(session)}
           weekOffset={weekOffset}
+          params={dp}
         />
       </div>
 
-      {/* Top posts — this week and all-time, side by side */}
+      {/* Top posts — selected range and all-time, side by side */}
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
-        <TopPostsWeek
+        <TopPosts
           campaignWhere={campaignWhere}
-          weekOffset={weekOffset}
+          rangeStart={range.start}
+          rangeEnd={range.end}
+          rangeLabel={range.label}
           platform={platform}
           top={top}
+          params={dp}
         />
         <TopPostsAllTime campaignWhere={campaignWhere} />
       </div>
@@ -192,7 +345,9 @@ export default async function DashboardPage({
               <h3 className="text-sm font-semibold text-slate-800">
                 Top Creators
               </h3>
-              <p className="text-xs text-slate-400">By total views</p>
+              <p className="text-xs text-slate-400">
+                By total views · {range.label}
+              </p>
             </div>
             <Link
               href="/creators"
@@ -202,7 +357,9 @@ export default async function DashboardPage({
             </Link>
           </div>
           {topCreators.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-400">No creators yet</p>
+            <p className="mt-4 text-sm text-slate-400">
+              No posts in this period
+            </p>
           ) : (
             <div className="mt-3 space-y-2">
               {topCreators.map((creator, idx) => (
@@ -257,11 +414,16 @@ export default async function DashboardPage({
         </div>
 
         {/* Top sounds (TikTok) */}
-        <TopSounds campaignWhere={campaignWhere} weekOffset={weekOffset} />
+        <TopSounds
+          campaignWhere={campaignWhere}
+          rangeStart={range.start}
+          rangeEnd={range.end}
+          rangeLabel={range.label}
+        />
       </div>
 
       {/* Recent Campaigns */}
-      {activeCampaigns > 0 && (
+      {!selectedCampaign && activeCampaigns > 0 && (
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-800">
@@ -277,6 +439,7 @@ export default async function DashboardPage({
           <CampaignsList campaignWhere={campaignWhere} />
         </div>
       )}
+
     </div>
   );
 }
