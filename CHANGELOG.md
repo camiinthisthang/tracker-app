@@ -27,6 +27,18 @@ tangent.
 
 ---
 
+## 2026-07-10 — Crosspost audit: optional YouTube Shorts leg
+- "Include YT Shorts" toggle on the campaign overview's crosspost audit (off by default — not every campaign runs YouTube). When on, each goal-platform post is also checked for a YouTube Shorts crosspost within ±24h; gaps name the missing platform ("TikTok post with no YT Shorts crosspost"); "matched" = crossposted to every checked platform.
+- Tested: `npm run build` green.
+
+## 2026-07-10 — Creator page: campaign filter + per-campaign socials
+- Campaign filter pills on `/creators/[id]` — selecting a campaign scopes every stat (total posts/views, viral count, platform split, views chart, recent posts, weekly ring target) to that campaign.
+- When filtered, a "Socials for {campaign}" card lists exactly the accounts the daily sync scrapes for that campaign (computed with the sync's own resolver, so it can't drift), with campaign-specific badges and open-profile links.
+- Social handles card copy clarified: the base three handles are defaults for every campaign; campaign-specific handles go in Extra accounts.
+- Client report platform label: raw `YOUTUBE` → "YouTube".
+- YouTube-views audit: all view aggregations (dashboard, campaigns, creators, reports, posts) include YouTube automatically since posts share one table with no platform filter. Deliberate exceptions: weekly goal rings count only the goal platform (IG, else TikTok — crosspost double-count guard), crosspost audit is IG↔TikTok by definition, Top Sounds is TikTok-only (data limitation).
+- Tested: `npm run build` green.
+
 ## 2026-07-10 — All-time top posts, creators-tab redirect fix, campaign-scoped accounts
 - **Bug fix — creators tab opening the marketing site:** middleware treated every non-viewtrackr host (vercel.app previews/default domains) as the marketing site and rewrote `/creators` to the static landing page. Marketing rewrites now apply only on dropdeck hosts; the app is the default everywhere else. Marketing pages stay previewable at `/site/*.html` on any host.
 - **All-Time Top Posts** card on `/dashboard` under the weekly card — top 10 highest-viewed videos across all campaigns, hook + creator + campaign per row. Campaign overview's gallery relabelled "Top Posts · All-time".

@@ -6,15 +6,20 @@ import { cn } from "@/lib/utils";
 export interface CrosspostAuditGap {
   /** ISO date of the post that wasn't crossposted. */
   postedAt: string;
-  /**
-   * Platform the post was on; we're flagging the missing OTHER side. The full
-   * `Platform` enum has TIKTOK/INSTAGRAM/YOUTUBE/FACEBOOK, but in practice the
-   * crosspost audit only ever runs against IG ↔ TikTok pairs.
-   */
+  /** Platform the post was on. */
   sourcePlatform: string;
+  /** Platform the crosspost is missing on (TikTok/Instagram, or YouTube when
+   * the YT Shorts toggle is on). */
+  missingPlatform: string;
   /** Link to the original (the one that DOES exist). */
   link: string;
 }
+
+const GAP_LABELS: Record<string, string> = {
+  TIKTOK: "TikTok",
+  INSTAGRAM: "Instagram",
+  YOUTUBE: "YT Shorts",
+};
 
 export interface CrosspostAuditRow {
   creatorId: string;
@@ -32,9 +37,11 @@ interface Props {
   rows: CrosspostAuditRow[];
   /** Human label for the window, e.g. "this week", "May 25 – May 31". */
   rangeLabel: string;
+  /** Optional control rendered in the header, e.g. the YT Shorts toggle. */
+  headerRight?: React.ReactNode;
 }
 
-export function CrosspostAudit({ rows, rangeLabel }: Props) {
+export function CrosspostAudit({ rows, rangeLabel, headerRight }: Props) {
   if (rows.length === 0) {
     return null;
   }
@@ -72,6 +79,7 @@ export function CrosspostAudit({ rows, rangeLabel }: Props) {
             post by the same creator on the other platform within ±24h. {summary}
           </p>
         </div>
+        {headerRight}
       </div>
 
       <div className="mt-4 divide-y divide-slate-100">
@@ -106,7 +114,7 @@ export function CrosspostAudit({ rows, rangeLabel }: Props) {
                           {format(new Date(g.postedAt), "MMM d")} ·{" "}
                           {g.sourcePlatform === "INSTAGRAM" ? "IG post" : "TikTok post"}
                           {" "}with no{" "}
-                          {g.sourcePlatform === "INSTAGRAM" ? "TikTok" : "Instagram"}
+                          {GAP_LABELS[g.missingPlatform] ?? g.missingPlatform}
                           {" "}crosspost
                         </a>
                       </li>

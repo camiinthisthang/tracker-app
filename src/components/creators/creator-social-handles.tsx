@@ -62,9 +62,10 @@ export function CreatorSocialHandles({
           Social handles
         </h3>
         <p className="text-xs text-slate-500">
-          Creators set these themselves on their profile. You can override
-          here if they typed them wrong. The daily Apify sync uses these to
-          pull TikTok + Instagram + YouTube Shorts metrics.
+          The creator&apos;s default handles, used for every campaign.
+          Creators set these themselves on their profile; override here if
+          they typed them wrong. For a campaign-specific handle, add it under
+          Extra accounts below and scope it to that campaign.
         </p>
       </div>
 

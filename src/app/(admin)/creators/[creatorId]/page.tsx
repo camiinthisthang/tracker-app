@@ -19,18 +19,27 @@ import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-prog
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
 import { Badge } from "@/components/ui/badge";
-import { PLATFORM_LABELS, ATTRIBUTION_ENABLED } from "@/lib/constants";
+import {
+  PLATFORM_LABELS,
+  ATTRIBUTION_ENABLED,
+  platformProfileUrl,
+} from "@/lib/constants";
+import { resolveSyncHandles } from "@/lib/social/sync";
+import { ExternalLink } from "lucide-react";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const VIRAL_THRESHOLD = 50_000;
 
 export default async function CreatorDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ creatorId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await getRequiredSession();
   const { creatorId } = await params;
+  const sp = await searchParams;
 
   const creator = await prisma.creator.findUnique({
     where: { id: creatorId },
@@ -56,6 +65,18 @@ export default async function CreatorDetailPage({
   const allowed = await canAccessCreator(prisma, creator, session);
   if (!allowed) notFound();
 
+  // Campaign filter: scopes every stat below (views, posts, chart, viral,
+  // platform split) to one campaign, and drives the "socials for this
+  // campaign" card. Default = all campaigns.
+  const campaignParam = Array.isArray(sp.campaign) ? sp.campaign[0] : sp.campaign;
+  const campaignFilter =
+    creator.campaignCreators.find((cc) => cc.campaign.id === campaignParam)
+      ?.campaign ?? null;
+  const postWhere = {
+    creatorId,
+    ...(campaignFilter ? { campaignId: campaignFilter.id } : {}),
+  };
+
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 7);
@@ -72,8 +93,9 @@ export default async function CreatorDetailPage({
     weekPosts,
   ] = await Promise.all([
     prisma.post.aggregate({
-      where: { creatorId },
+      where: postWhere,
       _sum: { views: true },
+      _count: true,
     }),
     prisma.creatorAttribution.aggregate({
       where: { creatorId },
@@ -85,26 +107,26 @@ export default async function CreatorDetailPage({
       orderBy: { name: "asc" },
     }),
     prisma.post.findMany({
-      where: { creatorId },
+      where: postWhere,
       orderBy: { postedAt: "desc" },
       take: 10,
       include: { campaign: { select: { id: true, name: true } } },
     }),
     prisma.post.count({
-      where: { creatorId, views: { gte: VIRAL_THRESHOLD } },
+      where: { ...postWhere, views: { gte: VIRAL_THRESHOLD } },
     }),
     prisma.post.groupBy({
       by: ["platform"],
-      where: { creatorId },
+      where: postWhere,
       _sum: { views: true },
       _count: { _all: true },
     }),
     prisma.post.findMany({
-      where: { creatorId, postedAt: { gte: chartStart } },
+      where: { ...postWhere, postedAt: { gte: chartStart } },
       select: { postedAt: true, views: true },
     }),
     prisma.post.findMany({
-      where: { creatorId, postedAt: { gte: weekStart, lt: weekEnd } },
+      where: { ...postWhere, postedAt: { gte: weekStart, lt: weekEnd } },
       select: { postedAt: true, platform: true },
     }),
   ]);
@@ -144,7 +166,10 @@ export default async function CreatorDetailPage({
   // Ring counts use the creator's goal platform only so cross-posts on the
   // other platform don't double-count.
   const activeCCs = creator.campaignCreators.filter(
-    (cc) => cc.isActive && cc.campaign.isActive,
+    (cc) =>
+      cc.isActive &&
+      cc.campaign.isActive &&
+      (!campaignFilter || cc.campaign.id === campaignFilter.id),
   );
   const weeklyTarget = activeCCs.reduce(
     (sum, cc) => sum + cc.videosPerDay * 5,
@@ -175,6 +200,36 @@ export default async function CreatorDetailPage({
           hasHandles={hasHandles}
         />
       </PageHeader>
+
+      {/* Campaign filter — scopes stats + socials below */}
+      {creator.campaignCreators.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          <Link
+            href={`/creators/${creator.id}`}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              !campaignFilter
+                ? "bg-slate-800 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            All campaigns
+          </Link>
+          {creator.campaignCreators.map((cc) => (
+            <Link
+              key={cc.campaign.id}
+              href={`/creators/${creator.id}?campaign=${cc.campaign.id}`}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                campaignFilter?.id === cc.campaign.id
+                  ? "bg-slate-800 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {cc.campaign.name}
+              {!cc.campaign.isActive && " (ended)"}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Profile Card */}
       <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -253,11 +308,48 @@ export default async function CreatorDetailPage({
         />
       </div>
 
+      {/* Which socials sync for the selected campaign — computed with the
+          exact resolver the Apify sync uses, so this list can't drift. */}
+      {campaignFilter && (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+          <h3 className="text-sm font-semibold text-slate-800">
+            Socials for {campaignFilter.name}
+          </h3>
+          <p className="text-xs text-slate-500">
+            The accounts the daily sync pulls for this campaign. Stats below
+            are filtered to this campaign.
+          </p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {resolveSyncHandles(creator, campaignFilter.id).map((h) => (
+              <li key={`${h.platform}-${h.handle}`}>
+                <a
+                  href={platformProfileUrl(h.platform, h.handle)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700 hover:bg-slate-100"
+                >
+                  <span className="font-medium">
+                    {PLATFORM_LABELS[h.platform]}
+                  </span>
+                  @{h.handle}
+                  {h.scopedToCampaign && (
+                    <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">
+                      campaign-specific
+                    </span>
+                  )}
+                  <ExternalLink className="h-3 w-3 text-blue-500" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Stats */}
       <div
         className={`mt-4 grid gap-4 sm:grid-cols-2 ${ATTRIBUTION_ENABLED ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}
       >
-        <StatCard label="Total Posts" value={creator._count.posts} />
+        <StatCard label="Total Posts" value={totalViews._count} />
         <StatCard
           label="Total Views"
           value={(totalViews._sum.views ?? 0).toLocaleString()}

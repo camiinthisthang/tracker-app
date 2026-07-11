@@ -36,7 +36,13 @@ function pct(x: number): string {
   return `${(x * 100).toFixed(1)}%`;
 }
 function platformLabel(p: string): string {
-  return p === "TIKTOK" ? "TikTok" : p === "INSTAGRAM" ? "Instagram" : p;
+  return p === "TIKTOK"
+    ? "TikTok"
+    : p === "INSTAGRAM"
+      ? "Instagram"
+      : p === "YOUTUBE"
+        ? "YouTube"
+        : p;
 }
 
 const PRINT_CSS = `
