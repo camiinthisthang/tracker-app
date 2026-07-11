@@ -1,21 +1,25 @@
 import { ExternalLink, Music2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import type { campaignVisibilityWhere } from "@/lib/visibility";
-import { getWeekWindow } from "@/lib/weeks";
 
 interface Props {
   campaignWhere: ReturnType<typeof campaignVisibilityWhere>;
-  weekOffset: number;
+  rangeStart: Date;
+  rangeEnd: Date;
+  rangeLabel: string;
 }
 
-export async function TopSounds({ campaignWhere, weekOffset }: Props) {
-  const week = getWeekWindow(weekOffset);
-
+export async function TopSounds({
+  campaignWhere,
+  rangeStart,
+  rangeEnd,
+  rangeLabel,
+}: Props) {
   const posts = await prisma.post.findMany({
     where: {
       campaign: campaignWhere,
       platform: "TIKTOK",
-      postedAt: { gte: week.start, lt: week.end },
+      postedAt: { gte: rangeStart, lt: rangeEnd },
       musicTitle: { not: null },
     },
     select: {
@@ -66,18 +70,19 @@ export async function TopSounds({ campaignWhere, weekOffset }: Props) {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="flex items-center gap-1.5">
-        <Music2 className="h-4 w-4 text-blue-500" />
-        <h3 className="text-sm font-semibold text-slate-800">
-          Top Sounds This Week
-        </h3>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5">
+          <Music2 className="h-4 w-4 text-blue-500" />
+          <h3 className="text-sm font-semibold text-slate-800">Top Sounds</h3>
+        </div>
+        <span className="text-xs font-medium text-slate-600">{rangeLabel}</span>
       </div>
       <p className="text-xs text-slate-400">
         TikTok only — the other platforms don&apos;t expose audio data
       </p>
       {sounds.length === 0 ? (
         <p className="mt-4 text-sm text-slate-400">
-          No sound data for this week yet — it&apos;s collected on each daily
+          No sound data for this period yet — it&apos;s collected on each daily
           sync going forward
         </p>
       ) : (

@@ -1,15 +1,9 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, ExternalLink, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import type { campaignVisibilityWhere } from "@/lib/visibility";
 import { PLATFORM_LABELS } from "@/lib/constants";
-import { getWeekWindow } from "@/lib/weeks";
+import { dashboardUrl, type DashboardParams } from "@/lib/dashboard-url";
 import type { Platform } from "@/generated/prisma/enums";
 
 const PLATFORM_TABS = [
@@ -21,32 +15,27 @@ const PLATFORM_TABS = [
 
 interface Props {
   campaignWhere: ReturnType<typeof campaignVisibilityWhere>;
-  weekOffset: number;
+  rangeStart: Date;
+  rangeEnd: Date;
+  rangeLabel: string;
   platform: string;
   top: number;
+  params: DashboardParams;
 }
 
-function dashboardUrl(week: number, platform: string, top: number) {
-  const params = new URLSearchParams();
-  if (week > 0) params.set("week", String(week));
-  if (platform !== "ALL") params.set("platform", platform);
-  if (top !== 5) params.set("top", String(top));
-  const qs = params.toString();
-  return qs ? `/dashboard?${qs}` : "/dashboard";
-}
-
-export async function TopPostsWeek({
+export async function TopPosts({
   campaignWhere,
-  weekOffset,
+  rangeStart,
+  rangeEnd,
+  rangeLabel,
   platform,
   top,
+  params,
 }: Props) {
-  const week = getWeekWindow(weekOffset);
-
   const posts = await prisma.post.findMany({
     where: {
       campaign: campaignWhere,
-      postedAt: { gte: week.start, lt: week.end },
+      postedAt: { gte: rangeStart, lt: rangeEnd },
       ...(platform !== "ALL" ? { platform: platform as Platform } : {}),
     },
     include: {
@@ -61,39 +50,15 @@ export async function TopPostsWeek({
     <div className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">
-            Top Posts of the Week
-          </h3>
+          <h3 className="text-sm font-semibold text-slate-800">Top Posts</h3>
           <p className="text-xs text-slate-400">
             Ranked by views · shows the hook where we have it, so winning
             formats are easy to spot and double down on
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href={dashboardUrl(weekOffset + 1, platform, top)}
-            className="rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
-            aria-label="Previous week"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Link>
-          <span className="min-w-32 text-center text-xs font-medium text-slate-600">
-            {week.label} · {week.range}
-          </span>
-          {weekOffset > 0 ? (
-            <Link
-              href={dashboardUrl(weekOffset - 1, platform, top)}
-              className="rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
-              aria-label="Next week"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          ) : (
-            <span className="rounded-md border border-slate-100 p-1 text-slate-200">
-              <ChevronRight className="h-4 w-4" />
-            </span>
-          )}
-        </div>
+        <span className="text-xs font-medium text-slate-600">
+          {rangeLabel}
+        </span>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -101,7 +66,7 @@ export async function TopPostsWeek({
           {PLATFORM_TABS.map((tab) => (
             <Link
               key={tab.value}
-              href={dashboardUrl(weekOffset, tab.value, top)}
+              href={dashboardUrl({ ...params, platform: tab.value })}
               className={`rounded-full px-3 py-1 text-xs font-medium ${
                 platform === tab.value
                   ? "bg-slate-800 text-white"
@@ -116,7 +81,7 @@ export async function TopPostsWeek({
           {[5, 10].map((n) => (
             <Link
               key={n}
-              href={dashboardUrl(weekOffset, platform, n)}
+              href={dashboardUrl({ ...params, top: n })}
               className={`rounded-full px-3 py-1 text-xs font-medium ${
                 top === n
                   ? "bg-slate-800 text-white"
@@ -132,7 +97,7 @@ export async function TopPostsWeek({
       {posts.length === 0 ? (
         <p className="mt-4 text-sm text-slate-400">
           No posts {platform !== "ALL" ? `on ${PLATFORM_LABELS[platform]} ` : ""}
-          this week
+          in this period
         </p>
       ) : (
         <div className="mt-3 space-y-2">

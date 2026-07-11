@@ -1,6 +1,8 @@
 import Link from "next/link";
 import {
   CalendarCheck,
+  ChevronLeft,
+  ChevronRight,
   HeartHandshake,
   TrendingUp,
   Trophy,
@@ -13,12 +15,14 @@ import type {
   creatorVisibilityWhere,
 } from "@/lib/visibility";
 import { getWeekWindow } from "@/lib/weeks";
+import { dashboardUrl, type DashboardParams } from "@/lib/dashboard-url";
 import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 
 interface Props {
   campaignWhere: ReturnType<typeof campaignVisibilityWhere>;
   creatorWhere: ReturnType<typeof creatorVisibilityWhere>;
   weekOffset: number;
+  params: DashboardParams;
 }
 
 type CreatorLite = { id: string; name: string; handle: string };
@@ -41,6 +45,7 @@ export async function WeeklyShoutouts({
   campaignWhere,
   creatorWhere,
   weekOffset,
+  params,
 }: Props) {
   const week = getWeekWindow(weekOffset);
   const priorStart = subDays(week.start, 28);
@@ -220,7 +225,7 @@ export async function WeeklyShoutouts({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-slate-800">
             Weekly Shoutouts
@@ -228,6 +233,31 @@ export async function WeeklyShoutouts({
           <p className="text-xs text-slate-400">
             {week.label} · {week.range}
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href={dashboardUrl({ ...params, week: weekOffset + 1 })}
+            className="rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
+            aria-label="Previous week"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Link>
+          <span className="min-w-24 text-center text-xs font-medium text-slate-600">
+            {week.label}
+          </span>
+          {weekOffset > 0 ? (
+            <Link
+              href={dashboardUrl({ ...params, week: weekOffset - 1 })}
+              className="rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
+              aria-label="Next week"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          ) : (
+            <span className="rounded-md border border-slate-100 p-1 text-slate-200">
+              <ChevronRight className="h-4 w-4" />
+            </span>
+          )}
         </div>
       </div>
       <div
