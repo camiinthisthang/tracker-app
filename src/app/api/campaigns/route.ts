@@ -76,6 +76,13 @@ export async function POST(req: Request) {
         monthlyPostGoal: data.monthlyPostGoal ?? null,
         offPacePct: data.offPacePct,
         quietDays: data.quietDays,
+        bonusCapUsd: data.bonusCapUsd ?? null,
+        bonusTiers: {
+          create: data.bonusTiers.map((t) => ({
+            viewThreshold: t.viewThreshold,
+            amountUsd: t.amountUsd,
+          })),
+        },
         monthStartDay: data.monthStartDay,
         viralThreshold: data.viralThreshold,
         ugcEngineer: data.ugcEngineer,

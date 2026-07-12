@@ -50,6 +50,8 @@ interface CampaignFormProps {
     monthlyPostGoal: number | null;
     offPacePct: number;
     quietDays: number;
+    bonusCapUsd: number | null;
+    bonusTiers: { viewThreshold: number; amountUsd: number }[];
     monthStartDay: number;
     viralThreshold: number;
     previewLinks: string[];
@@ -91,6 +93,17 @@ export function CampaignForm({
   );
   const [quietDays, setQuietDays] = useState(
     String(initialData?.quietDays ?? 4)
+  );
+  const [bonusCapUsd, setBonusCapUsd] = useState(
+    initialData?.bonusCapUsd != null ? String(initialData.bonusCapUsd) : ""
+  );
+  const [bonusTiers, setBonusTiers] = useState<
+    { viewThreshold: string; amountUsd: string }[]
+  >(
+    (initialData?.bonusTiers ?? []).map((t) => ({
+      viewThreshold: String(t.viewThreshold),
+      amountUsd: String(t.amountUsd),
+    }))
   );
   const [monthStartDay, setMonthStartDay] = useState(
     String(initialData?.monthStartDay ?? 1)
@@ -202,6 +215,13 @@ export function CampaignForm({
           monthlyPostGoal: monthlyPostGoal ? parseInt(monthlyPostGoal) : null,
           offPacePct: parseInt(offPacePct) || 80,
           quietDays: parseInt(quietDays) || 4,
+          bonusCapUsd: bonusCapUsd ? parseFloat(bonusCapUsd) : null,
+          bonusTiers: bonusTiers
+            .filter((t) => t.viewThreshold && t.amountUsd !== "")
+            .map((t) => ({
+              viewThreshold: parseInt(t.viewThreshold),
+              amountUsd: parseFloat(t.amountUsd),
+            })),
           monthStartDay: parseInt(monthStartDay) || 1,
           viralThreshold: parseInt(viralThreshold) || 50000,
           previewLinks,
@@ -587,6 +607,128 @@ export function CampaignForm({
               stats.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Creator view bonuses */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6">
+        <h3 className="text-sm font-semibold text-slate-800">
+          Creator view bonuses
+        </h3>
+        <p className="mt-1 text-xs text-slate-400">
+          Each post earns the highest tier its view count reaches. Leave empty
+          if this campaign doesn&apos;t pay view bonuses.
+        </p>
+
+        {bonusTiers.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {bonusTiers.map((tier, i) => (
+              <div key={i} className="flex items-end gap-3">
+                <div className="w-40">
+                  {i === 0 && (
+                    <Label className="text-xs font-medium text-slate-500">
+                      Views reached
+                    </Label>
+                  )}
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="50000"
+                    value={tier.viewThreshold}
+                    onChange={(e) =>
+                      setBonusTiers((rows) =>
+                        rows.map((r, j) =>
+                          j === i ? { ...r, viewThreshold: e.target.value } : r
+                        )
+                      )
+                    }
+                  />
+                </div>
+                <div className="w-32">
+                  {i === 0 && (
+                    <Label className="text-xs font-medium text-slate-500">
+                      Bonus (USD)
+                    </Label>
+                  )}
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="25"
+                    value={tier.amountUsd}
+                    onChange={(e) =>
+                      setBonusTiers((rows) =>
+                        rows.map((r, j) =>
+                          j === i ? { ...r, amountUsd: e.target.value } : r
+                        )
+                      )
+                    }
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-slate-400 hover:text-red-600"
+                  onClick={() =>
+                    setBonusTiers((rows) => rows.filter((_, j) => j !== i))
+                  }
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-3 flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setBonusTiers((rows) => [
+                ...rows,
+                { viewThreshold: "", amountUsd: "" },
+              ])
+            }
+          >
+            Add tier
+          </Button>
+          {bonusTiers.length === 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setBonusTiers([
+                  { viewThreshold: "50000", amountUsd: "25" },
+                  { viewThreshold: "100000", amountUsd: "100" },
+                  { viewThreshold: "500000", amountUsd: "250" },
+                  { viewThreshold: "1000000", amountUsd: "750" },
+                ])
+              }
+            >
+              Load standard tiers
+            </Button>
+          )}
+        </div>
+
+        <div className="mt-4 w-48">
+          <Label className="text-sm font-medium text-slate-700">
+            Monthly bonus cap (USD)
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            placeholder="2000"
+            value={bonusCapUsd}
+            onChange={(e) => setBonusCapUsd(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            Hard cap per creator per month. Clients usually start at $2,000 —
+            leave empty for no cap.
+          </p>
         </div>
       </div>
 

@@ -196,6 +196,9 @@ model Campaign {
   offPacePct       Int       @default(80)
   // Quiet flag threshold: flagged after this many days without a post
   quietDays        Int       @default(4)
+  // Hard cap on view-tier bonuses per creator per month (null = no cap).
+  // Clients typically start at $2,000 and raise to $10,000 when successful.
+  bonusCapUsd      Decimal?  @db.Decimal(10, 2)
   // Day of month the pacing "month" starts (1–28). 1 = calendar months;
   // e.g. 15 makes periods run Jul 15 → Aug 14, matching contract cycles.
   monthStartDay    Int       @default(1)
@@ -218,9 +221,26 @@ model Campaign {
   creatorMessages   CreatorMessage[]
   hooks             Hook[]
   creatorAccounts   CreatorAccount[]
+  bonusTiers        CampaignBonusTier[]
 
   @@index([teamId])
   @@map("campaigns")
+}
+
+// Per-campaign creator view bonuses: a post earns the highest tier its view
+// count reaches (e.g. 50k→$25 … 1M→$750). Amounts are adjustable per
+// campaign, which is also how niche-specific rates will work later.
+model CampaignBonusTier {
+  id            String   @id @default(cuid())
+  campaignId    String
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  viewThreshold Int
+  amountUsd     Decimal  @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([campaignId])
+  @@map("campaign_bonus_tiers")
 }
 
 // ─── CREATORS ───────────────────────────────────────────────
