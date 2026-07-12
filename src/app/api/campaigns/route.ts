@@ -76,6 +76,7 @@ export async function POST(req: Request) {
         monthlyPostGoal: data.monthlyPostGoal ?? null,
         offPacePct: data.offPacePct,
         quietDays: data.quietDays,
+        monthStartDay: data.monthStartDay,
         ugcEngineer: data.ugcEngineer,
         previewLinks: data.previewLinks,
         galleryUrls: data.galleryUrls,

@@ -191,6 +191,9 @@ model Campaign {
   offPacePct       Int       @default(80)
   // Quiet flag threshold: flagged after this many days without a post
   quietDays        Int       @default(4)
+  // Day of month the pacing "month" starts (1–28). 1 = calendar months;
+  // e.g. 15 makes periods run Jul 15 → Aug 14, matching contract cycles.
+  monthStartDay    Int       @default(1)
   ugcEngineer      String?
   previewLinks     String[]
   galleryUrls      String[]

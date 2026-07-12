@@ -70,6 +70,9 @@ export async function PATCH(
         }),
         ...(data.offPacePct !== undefined && { offPacePct: data.offPacePct }),
         ...(data.quietDays !== undefined && { quietDays: data.quietDays }),
+        ...(data.monthStartDay !== undefined && {
+          monthStartDay: data.monthStartDay,
+        }),
         ...(data.ugcEngineer !== undefined && {
           ugcEngineer: data.ugcEngineer,
         }),

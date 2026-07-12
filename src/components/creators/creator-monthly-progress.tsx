@@ -1,4 +1,9 @@
-import { FLAG_LABELS, type CreatorFlag } from "@/lib/pacing";
+import {
+  FLAG_LABELS,
+  flagTooltip,
+  type CreatorFlag,
+  type PacingThresholds,
+} from "@/lib/pacing";
 
 const FLAG_STYLES: Record<CreatorFlag, string> = {
   off_pace: "bg-red-50 text-red-600",
@@ -12,11 +17,15 @@ export function CreatorMonthlyProgress({
   monthlyGoal,
   flags,
   scopeLabel,
+  periodLabel,
+  thresholds,
 }: {
   postsThisMonth: number;
   monthlyGoal: number;
   flags: CreatorFlag[];
   scopeLabel: string;
+  periodLabel: string;
+  thresholds: PacingThresholds;
 }) {
   const pct =
     monthlyGoal > 0 ? Math.min(100, (postsThisMonth / monthlyGoal) * 100) : 0;
@@ -32,10 +41,12 @@ export function CreatorMonthlyProgress({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-slate-800">
-            Monthly goal
+            Monthly goal · {periodLabel}
           </h3>
           <p className="text-xs text-slate-400">
-            Cumulative this calendar month · {scopeLabel}
+            Cumulative pacing month · {scopeLabel} · flags at &lt;
+            {thresholds.offPacePct}% of pace or {thresholds.quietDays}+ quiet
+            days (set per campaign)
           </p>
         </div>
         {flags.length > 0 && (
@@ -43,7 +54,8 @@ export function CreatorMonthlyProgress({
             {flags.map((f) => (
               <span
                 key={f}
-                className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${FLAG_STYLES[f]}`}
+                title={flagTooltip(f, thresholds)}
+                className={`cursor-help rounded-full px-2 py-0.5 text-[10px] font-medium ${FLAG_STYLES[f]}`}
               >
                 {FLAG_LABELS[f]}
               </span>

@@ -13,6 +13,8 @@ interface CreatorWeeklyProgressProps {
    * ourselves.
    */
   historyHref?: string;
+  /** e.g. "Mon Jul 7 – Sun Jul 13" — which week the goal covers. */
+  weekLabel?: string;
 }
 
 function ProgressRing({ count, target }: { count: number; target: number }) {
@@ -73,6 +75,7 @@ export function CreatorWeeklyProgress({
   postsPerDay,
   dailyTarget,
   historyHref,
+  weekLabel,
 }: CreatorWeeklyProgressProps) {
   const pct =
     weeklyTarget > 0 ? Math.min((postsThisWeek / weeklyTarget) * 100, 100) : 0;
@@ -96,13 +99,15 @@ export function CreatorWeeklyProgress({
           {historyHref ? (
             <Link href={historyHref} className="group block">
               {titleBlock}
-              <p className="text-xs text-slate-400">View past weeks</p>
+              <p className="text-xs text-slate-400">
+                {weekLabel ? `${weekLabel} · ` : ""}View past weeks
+              </p>
             </Link>
           ) : (
             <>
               {titleBlock}
               <p className="text-xs text-slate-400">
-                Posts you&apos;ve submitted this week
+                {weekLabel ?? "Posts you've submitted this week"}
               </p>
             </>
           )}

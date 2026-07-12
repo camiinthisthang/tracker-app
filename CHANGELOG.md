@@ -27,6 +27,13 @@ tangent.
 
 ---
 
+## 2026-07-12 — Pacing transparency: explain the flags, date the periods, adjustable month start
+- Per Jacqueline: a new campaign manager should never have to guess what a number or flag means.
+- **Adjustable pacing month**: new `Campaign.monthStartDay` (1–28, default 1 = calendar month; migration `20260712001000_month_start_day`) so a campaign's pacing month can run e.g. the 15th → 14th to match contract cycles. New "Month starts on day" field in the campaign form. `pacingPeriod()` / `commonPacingPeriod()` in `src/lib/pacing.ts` replace the hardcoded calendar month everywhere (mixed start days across campaigns fall back to calendar month in all-campaign views).
+- **Every pacing number now says its dates**: creator cards show "X / Y posts · Jul 1 – Jul 31"; the creators page header shows "Pacing month: Jul 1 – Jul 31"; the creator detail Monthly goal card titles the period; the weekly card now says exactly which week ("Mon Jul 7 – Sun Jul 13").
+- **Flags explain themselves**: hover any Off-pace/Quiet/New/Shadow-banned badge for the definition WITH the actual thresholds; the Needs-attention section has a legend (with the exact % and days when filtered to a campaign, plus a direct link to that campaign's settings); the Monthly goal card states its thresholds inline. Goal numbers have a hover explaining how the split is computed.
+- Tested: `npx next build` green. Migration additive-only.
+
 ## 2026-07-11 — Phase 2: monthly pacing, Quiet/Off-pace/New/Shadow-ban flags, creators card layout
 - **Schema change** (branch `claude/pacing-flags-schema`, migration `20260711230000_pacing_flags`): `Campaign.monthlyPostGoal` (nullable campaign-wide total, split evenly across active creators; per-creator `CampaignCreator.monthlyPostGoal` still overrides), `Campaign.offPacePct` (default 80), `Campaign.quietDays` (default 4), `Creator.isShadowbanned` (default false). Purely additive ALTERs; applies on deploy via `prisma migrate deploy`.
 - **Pacing engine** `src/lib/pacing.ts`: cumulative monthly formula per spec — off-pace when `posts < (day of month ÷ days in month) × goal × (offPacePct/100)`. Flags: New (zero posts ever), Quiet (no post in `quietDays`), Off-pace, Shadow-banned (excluded from pacing entirely).
