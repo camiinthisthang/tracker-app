@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "npx tsx prisma/seed.ts",
-    "db:reset": "npx prisma migrate reset --force && npx tsx prisma/seed.ts"
+    "db:reset": "npx prisma migrate reset --force && npx tsx prisma/seed.ts",
+    "test": "vitest run"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
@@ -65,6 +66,7 @@
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

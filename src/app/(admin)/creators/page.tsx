@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Users } from "lucide-react";
 import {
   creatorFlags,
   effectiveMonthlyGoal,
@@ -13,10 +13,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { AddCreatorButton } from "@/components/creators/add-creator-button";
-import {
-  CreatorPacingCard,
-  type CreatorPacingCardData,
-} from "@/components/creators/creator-pacing-card";
+import { type CreatorPacingCardData } from "@/components/creators/creator-pacing-card";
+import { CreatorsCardsClient } from "@/components/creators/creators-cards-client";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
 
 export default async function CreatorsPage({
@@ -272,91 +270,37 @@ export default async function CreatorsPage({
             <StatCard label="Total Views" value={totalViews.toLocaleString()} />
           </div>
 
-          {/* Needs attention */}
-          {needsAttention.length > 0 && (
-            <div className="mb-8">
-              <div className="mb-3">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  <h2 className="text-sm font-semibold text-slate-800">
-                    Needs attention
-                  </h2>
-                  <span className="text-xs text-slate-400">
-                    Pacing month: {period.label}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-slate-400">
-                  {campaignFilter ? (
-                    <>
-                      Off-pace = below {campaignFilter.offPacePct}% of the
-                      cumulative month-to-date goal · Quiet = no post in{" "}
-                      {campaignFilter.quietDays}+ days · New = no posts yet ·
-                      Shadow-banned = excluded from pacing. Adjust these in{" "}
-                      <Link
-                        href={`/campaigns/${campaignFilter.id}/edit`}
-                        className="text-blue-500 hover:underline"
-                      >
-                        {campaignFilter.name}&apos;s settings
-                      </Link>
-                      .
-                    </>
-                  ) : (
-                    <>
-                      Off-pace = behind the cumulative month-to-date goal ·
-                      Quiet = no post in several days · New = no posts yet ·
-                      Shadow-banned = excluded from pacing. Thresholds and the
-                      month start day are set per campaign (Campaigns → Edit →
-                      Posting requirements); hover any flag for exact numbers.
-                    </>
-                  )}
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {needsAttention.map((c) => (
-                  <CreatorPacingCard key={c.id} creator={c} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* On track */}
-          <div>
-            <div className="mb-3 flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <h2 className="text-sm font-semibold text-slate-800">On track</h2>
-            </div>
-            {onTrack.length === 0 ? (
-              <p className="text-sm text-slate-400">
-                No one&apos;s fully on track yet this month.
-              </p>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {onTrack.map((c) => (
-                  <CreatorPacingCard key={c.id} creator={c} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Inactive roster */}
-          {inactive.length > 0 && (
-            <div className="mt-8">
-              <h2 className="mb-2 text-sm font-semibold text-slate-500">
-                Inactive
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {inactive.map((c) => (
+          <CreatorsCardsClient
+            needsAttention={needsAttention}
+            onTrack={onTrack}
+            inactive={inactive.map((c) => ({ id: c.id, name: c.name }))}
+            periodLabel={period.label}
+            legend={
+              campaignFilter ? (
+                <>
+                  Off-pace = below {campaignFilter.offPacePct}% of the
+                  cumulative month-to-date goal · Quiet = no post in{" "}
+                  {campaignFilter.quietDays}+ days · New = no posts yet ·
+                  Shadow-banned = excluded from pacing. Adjust these in{" "}
                   <Link
-                    key={c.id}
-                    href={`/creators/${c.id}`}
-                    className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500 hover:bg-slate-200"
+                    href={`/campaigns/${campaignFilter.id}/edit`}
+                    className="text-blue-500 hover:underline"
                   >
-                    {c.name}
+                    {campaignFilter.name}&apos;s settings
                   </Link>
-                ))}
-              </div>
-            </div>
-          )}
+                  .
+                </>
+              ) : (
+                <>
+                  Off-pace = behind the cumulative month-to-date goal · Quiet =
+                  no post in several days · New = no posts yet · Shadow-banned
+                  = excluded from pacing. Thresholds and the month start day
+                  are set per campaign (Campaigns → Edit → Posting
+                  requirements); hover any flag for exact numbers.
+                </>
+              )
+            }
+          />
         </>
       )}
     </div>

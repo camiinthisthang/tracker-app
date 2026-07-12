@@ -64,7 +64,7 @@ export function AdminSidebar() {
   const { data: session } = useSession();
 
   return (
-    <aside className="fixed left-0 top-0 z-30 flex h-screen w-60 flex-col border-r border-slate-200 bg-white">
+    <aside className="fixed left-0 top-0 z-30 flex h-screen w-60 flex-col border-r border-slate-200 bg-white print:hidden">
       {/* Logo — always the product wordmark, never the client team name. */}
       <div className="flex h-14 items-center gap-2 px-4">
         <Image

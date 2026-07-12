@@ -12,6 +12,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { TrendDelta } from "@/components/shared/trend-delta";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { CampaignSwitcher } from "@/components/dashboard/campaign-switcher";
+import { ExportPdfButton } from "@/components/dashboard/export-pdf-button";
 import { DashboardViewsChart } from "@/components/dashboard/dashboard-views-chart";
 import { TopPosts } from "@/components/dashboard/top-posts-week";
 import { TopPostsAllTime } from "@/components/dashboard/top-posts-alltime";
@@ -220,25 +221,28 @@ export default async function DashboardPage({
             : `Welcome back, ${session.user.name || "there"}`
         }
       >
-        <CampaignSwitcher
-          campaigns={switcherCampaigns}
-          selectedId={selectedCampaign?.id}
-          basePath="/dashboard"
-          preserve={preserveForCampaign}
-        />
-        <Link
-          href={chartsHref}
-          className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-        >
-          <BarChart3 className="h-4 w-4" />
-          View charts
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
+        <div className="flex items-center gap-3 print:hidden">
+          <CampaignSwitcher
+            campaigns={switcherCampaigns}
+            selectedId={selectedCampaign?.id}
+            basePath="/dashboard"
+            preserve={preserveForCampaign}
+          />
+          <Link
+            href={chartsHref}
+            className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <BarChart3 className="h-4 w-4" />
+            View charts
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+          <ExportPdfButton />
+        </div>
       </PageHeader>
 
       {/* Date range — scopes the stat cards, views graph, top posts, top
           sounds and top creators. Weekly Shoutouts keeps its own week nav. */}
-      <div className="mb-4">
+      <div className="mb-4 print:hidden">
         <DateRangeFilter
           rangeKey={range.key}
           from={range.from}
