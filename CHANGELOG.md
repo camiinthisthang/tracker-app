@@ -27,6 +27,31 @@ tangent.
 
 ---
 
+## 2026-07-12 — Adjustable-everything batch: label bug fix, viral threshold, shoutout rules, chart window
+- **Fixed the weekly-post-target label bug**: the form claimed "total across all creators each week" but the code has always treated it per creator. Label now reads "Weekly target per creator" with honest help text. No behavior change — the label was wrong, not the math.
+- **Viral is now per campaign**: `Campaign.viralThreshold` (default 50,000; migration `20260712010000_adjustable_thresholds`), new field in the campaign form; creator detail's Viral Videos card uses the campaign's threshold (lowest across their campaigns in the all-campaigns view) and its label shows the actual number.
+- **Weekly Shoutouts rules are adjustable + explained**: `TeamSettings.shoutoutMinViews` (default 500) and `shoutoutMinPriorPosts` (default 3), editable in Settings; every shoutout card has a hover explaining exactly how it's won, with the live numbers.
+- **Creator views chart**: labeled window with 28d / 60d / 90d presets (preserves the campaign filter), subtitle shows exactly what's plotted.
+- Tier badges get a hover note (manually assigned; formal criteria later, per Jacqueline).
+- Tested: `npx next build` green. Migration additive-only.
+
+## 2026-07-12 — Pacing transparency: explain the flags, date the periods, adjustable month start
+- Per Jacqueline: a new campaign manager should never have to guess what a number or flag means.
+- **Adjustable pacing month**: new `Campaign.monthStartDay` (1–28, default 1 = calendar month; migration `20260712001000_month_start_day`) so a campaign's pacing month can run e.g. the 15th → 14th to match contract cycles. New "Month starts on day" field in the campaign form. `pacingPeriod()` / `commonPacingPeriod()` in `src/lib/pacing.ts` replace the hardcoded calendar month everywhere (mixed start days across campaigns fall back to calendar month in all-campaign views).
+- **Every pacing number now says its dates**: creator cards show "X / Y posts · Jul 1 – Jul 31"; the creators page header shows "Pacing month: Jul 1 – Jul 31"; the creator detail Monthly goal card titles the period; the weekly card now says exactly which week ("Mon Jul 7 – Sun Jul 13").
+- **Flags explain themselves**: hover any Off-pace/Quiet/New/Shadow-banned badge for the definition WITH the actual thresholds; the Needs-attention section has a legend (with the exact % and days when filtered to a campaign, plus a direct link to that campaign's settings); the Monthly goal card states its thresholds inline. Goal numbers have a hover explaining how the split is computed.
+- Tested: `npx next build` green. Migration additive-only.
+
+## 2026-07-11 — Phase 2: monthly pacing, Quiet/Off-pace/New/Shadow-ban flags, creators card layout
+- **Schema change** (branch `claude/pacing-flags-schema`, migration `20260711230000_pacing_flags`): `Campaign.monthlyPostGoal` (nullable campaign-wide total, split evenly across active creators; per-creator `CampaignCreator.monthlyPostGoal` still overrides), `Campaign.offPacePct` (default 80), `Campaign.quietDays` (default 4), `Creator.isShadowbanned` (default false). Purely additive ALTERs; applies on deploy via `prisma migrate deploy`.
+- **Pacing engine** `src/lib/pacing.ts`: cumulative monthly formula per spec — off-pace when `posts < (day of month ÷ days in month) × goal × (offPacePct/100)`. Flags: New (zero posts ever), Quiet (no post in `quietDays`), Off-pace, Shadow-banned (excluded from pacing entirely).
+- **Creators page rebuilt as grouped card layout** (table replaced per Jacqueline): "Needs attention" section on top (off-pace/quiet/new/shadow-banned, sorted worst-first), "On track" below (sorted by views), inactive roster as a small pill list. Campaign filter pills apply to the whole page. Card hero = monthly progress bar (X/Y posts this month) + views/likes/comments.
+- **Creator detail:** new Monthly goal card (same cumulative bar + flags, respects the campaign filter) above the kept weekly Mon–Sun cadence card (weekly display retained per Jacqueline). Campaign rows now show per-campaign "X/Y this month". New "Mark shadow-banned" toggle in the header (PATCH /api/creators/[id] accepts `isShadowbanned`).
+- **Campaign form:** Monthly post goal, Off-pace threshold %, Quiet after (days) fields under Posting requirements; wired through validation + POST/PATCH APIs + edit-page initialData.
+- Cross-campaign nuance: creators on multiple campaigns get the most lenient thresholds (max quietDays, min offPacePct) so one strict campaign doesn't flag someone fine elsewhere; monthly counts use the goal platform only (no cross-post double counting), consistent with existing weekly logic.
+- Tested: `npx next build` green. Migration not run locally (no DATABASE_URL in this container) — SQL is 4 additive ALTER COLUMNs, applies on deploy.
+- Drive-by: `creators-table-client.tsx` is now unused (left in place; delete when convenient). Old table's search + tier/status filters dropped with the table per the card-layout spec — easy to re-add on cards if missed.
+
 ## 2026-07-11 — Phase 1: date-range filter, campaign switcher, dashboard graph, charts tab
 - **Date-range filter (24h / 7d / 14d / 90d / custom)** — new `src/lib/date-range.ts` + `DateRangeFilter` pill component. Scopes the dashboard stat cards, views graph, Top Posts, Top Sounds and Top Creators. Default stays 7d vs previous 7d.
 - **New stat cards:** Posts, Total Views, Total Likes, Total Comments — all tied to the range with green/red `TrendDelta` vs the previous equal-length period. Active Campaigns / Active Creators cards kept (not date-scoped).

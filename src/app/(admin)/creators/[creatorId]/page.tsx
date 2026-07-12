@@ -15,13 +15,29 @@ import { DeactivateCreatorToggle } from "@/components/creators/deactivate-creato
 import { SyncCreatorButton } from "@/components/creators/sync-creator-button";
 import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
 import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-progress";
+import { CreatorMonthlyProgress } from "@/components/creators/creator-monthly-progress";
+import { ShadowbanToggle } from "@/components/creators/shadowban-toggle";
+import {
+  creatorFlags,
+  effectiveMonthlyGoal,
+  commonPacingPeriod,
+} from "@/lib/pacing";
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
 import { Badge } from "@/components/ui/badge";
 import { PLATFORM_LABELS, ATTRIBUTION_ENABLED } from "@/lib/constants";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
-const VIRAL_THRESHOLD = 50_000;
+const DEFAULT_VIRAL_THRESHOLD = 50_000;
+const CHART_WINDOWS = [28, 60, 90];
+
+function compactViews(n: number) {
+  return n >= 1_000_000
+    ? `${n / 1_000_000}M`
+    : n >= 1_000
+      ? `${Math.round(n / 1_000)}K`
+      : String(n);
+}
 
 export default async function CreatorDetailPage({
   params,
@@ -39,7 +55,19 @@ export default async function CreatorDetailPage({
     include: {
       campaignCreators: {
         include: {
-          campaign: { select: { id: true, name: true, isActive: true } },
+          campaign: {
+            select: {
+              id: true,
+              name: true,
+              isActive: true,
+              weeklyPostTarget: true,
+              monthlyPostGoal: true,
+              offPacePct: true,
+              quietDays: true,
+              monthStartDay: true,
+              viralThreshold: true,
+            },
+          },
         },
       },
       teamMember: { select: { id: true } },
@@ -73,7 +101,33 @@ export default async function CreatorDetailPage({
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 7);
-  const chartStart = startOfDay(subDays(now, 28));
+  const chartParam = Number(Array.isArray(sp.chart) ? sp.chart[0] : sp.chart);
+  const chartDays = CHART_WINDOWS.includes(chartParam) ? chartParam : 28;
+  const chartStart = startOfDay(subDays(now, chartDays));
+
+  // Viral = the campaign's configured threshold; across all campaigns use
+  // the lowest so nothing viral is missed.
+  const activeCampaignsHere = creator.campaignCreators
+    .filter((cc) => cc.isActive && cc.campaign.isActive)
+    .map((cc) => cc.campaign);
+  const viralThreshold =
+    campaignFilter?.viralThreshold ??
+    (activeCampaignsHere.length
+      ? Math.min(...activeCampaignsHere.map((c) => c.viralThreshold))
+      : DEFAULT_VIRAL_THRESHOLD);
+  // Pacing month per the campaign's configured start day (calendar month
+  // when viewing all campaigns with mixed start days).
+  const period = commonPacingPeriod(
+    creator.campaignCreators
+      .filter(
+        (cc) =>
+          cc.isActive &&
+          cc.campaign.isActive &&
+          (!campaignFilter || cc.campaign.id === campaignFilter.id),
+      )
+      .map((cc) => cc.campaign),
+    now,
+  );
 
   const [
     totalViews,
@@ -84,11 +138,14 @@ export default async function CreatorDetailPage({
     platformGroups,
     postsInRange,
     weekPosts,
+    monthPosts,
+    activeCounts,
   ] = await Promise.all([
     prisma.post.aggregate({
       where: postWhere,
       _sum: { views: true },
       _count: true,
+      _max: { postedAt: true },
     }),
     prisma.creatorAttribution.aggregate({
       where: { creatorId },
@@ -106,7 +163,7 @@ export default async function CreatorDetailPage({
       include: { campaign: { select: { id: true, name: true } } },
     }),
     prisma.post.count({
-      where: { ...postWhere, views: { gte: VIRAL_THRESHOLD } },
+      where: { ...postWhere, views: { gte: viralThreshold } },
     }),
     prisma.post.groupBy({
       by: ["platform"],
@@ -121,6 +178,15 @@ export default async function CreatorDetailPage({
     prisma.post.findMany({
       where: { ...postWhere, postedAt: { gte: weekStart, lt: weekEnd } },
       select: { postedAt: true, platform: true },
+    }),
+    prisma.post.findMany({
+      where: { ...postWhere, postedAt: { gte: period.start, lt: period.end } },
+      select: { platform: true, campaignId: true },
+    }),
+    prisma.campaignCreator.groupBy({
+      by: ["campaignId"],
+      where: { isActive: true, creator: { isActive: true } },
+      _count: true,
     }),
   ]);
   const attributedSignups = totalSignups._sum.signupCount ?? 0;
@@ -169,9 +235,9 @@ export default async function CreatorDetailPage({
     ...(statsByPlatform.get(p) ?? { views: 0, posts: 0, engagementPct: null }),
   }));
 
-  // Views over time (last 28 days), bucketed by day.
+  // Views over time, bucketed by day across the selected chart window.
   const dailyMap = new Map<string, number>();
-  for (let i = 0; i <= 28; i++) {
+  for (let i = 0; i <= chartDays; i++) {
     dailyMap.set(startOfDay(addDays(chartStart, i)).toISOString(), 0);
   }
   for (const p of postsInRange) {
@@ -208,9 +274,47 @@ export default async function CreatorDetailPage({
     return { day: label, count };
   });
 
+  // Cumulative monthly pacing — mirrors the creators list page exactly.
+  const activeCountByCampaign = new Map(
+    activeCounts.map((g) => [g.campaignId, g._count]),
+  );
+  const monthlyGoal = activeCCs.reduce(
+    (sum, cc) =>
+      sum +
+      effectiveMonthlyGoal(
+        cc,
+        cc.campaign,
+        activeCountByCampaign.get(cc.campaign.id) ?? 1,
+      ),
+    0,
+  );
+  const thresholds = activeCCs.length
+    ? {
+        offPacePct: Math.min(...activeCCs.map((cc) => cc.campaign.offPacePct)),
+        quietDays: Math.max(...activeCCs.map((cc) => cc.campaign.quietDays)),
+      }
+    : { offPacePct: 80, quietDays: 4 };
+  const monthGoalPosts = monthPosts.filter(
+    (p) => p.platform === goalPlatform,
+  ).length;
+  const flags = creatorFlags({
+    postsThisMonth: monthGoalPosts,
+    postsAllTime: totalViews._count,
+    lastPostAt: totalViews._max.postedAt ?? null,
+    monthlyGoal,
+    thresholds,
+    isShadowbanned: creator.isShadowbanned,
+    period,
+    now,
+  });
+
   return (
     <div>
       <PageHeader title={creator.name} description={`@${creator.handle}`}>
+        <ShadowbanToggle
+          creatorId={creator.id}
+          isShadowbanned={creator.isShadowbanned}
+        />
         <DeactivateCreatorToggle
           creatorId={creator.id}
           isActive={creator.isActive}
@@ -339,7 +443,15 @@ export default async function CreatorDetailPage({
           label="Total Views"
           value={(totalViews._sum.views ?? 0).toLocaleString()}
         />
-        <StatCard label="Viral Videos (50K+)" value={viralCount} />
+        <StatCard
+          label={`Viral Videos (${compactViews(viralThreshold)}+)`}
+          value={viralCount}
+          subtext={
+            <span title="Set per campaign under Posting requirements → Viral threshold">
+              threshold set per campaign
+            </span>
+          }
+        />
         {ATTRIBUTION_ENABLED && (
           <StatCard
             label="Attributed Signups"
@@ -394,19 +506,53 @@ export default async function CreatorDetailPage({
         </div>
       )}
 
-      {/* Weekly posting cadence */}
+      {/* Monthly goal (primary pacing view) + weekly cadence */}
+      <div className="mt-4">
+        <CreatorMonthlyProgress
+          postsThisMonth={monthGoalPosts}
+          monthlyGoal={monthlyGoal}
+          flags={flags}
+          scopeLabel={campaignFilter ? campaignFilter.name : "all campaigns"}
+          periodLabel={period.label}
+          thresholds={thresholds}
+        />
+      </div>
       <div className="mt-4">
         <CreatorWeeklyProgress
           postsThisWeek={goalWeekPosts.length}
           weeklyTarget={weeklyTarget}
           postsPerDay={postsPerDay}
           dailyTarget={dailyTarget}
+          weekLabel={`Mon ${format(weekStart, "MMM d")} – Sun ${format(addDays(weekStart, 6), "MMM d")}`}
         />
       </div>
 
-      {/* Views over time (last 28 days) */}
+      {/* Views over time — adjustable window */}
       <div className="mt-4">
-        <CreatorViewsChart data={chartData} />
+        <CreatorViewsChart
+          data={chartData}
+          subtitle={`Daily views · last ${chartDays} days · ${campaignFilter ? campaignFilter.name : "all campaigns"}`}
+          headerExtra={
+            <div className="flex gap-1.5">
+              {CHART_WINDOWS.map((d) => (
+                <Link
+                  key={d}
+                  href={`/creators/${creator.id}?${new URLSearchParams({
+                    ...(campaignFilter ? { campaign: campaignFilter.id } : {}),
+                    ...(d !== 28 ? { chart: String(d) } : {}),
+                  }).toString()}`}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    chartDays === d
+                      ? "bg-slate-800 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {d}d
+                </Link>
+              ))}
+            </div>
+          }
+        />
       </div>
 
       {/* Campaigns */}
@@ -430,6 +576,29 @@ export default async function CreatorDetailPage({
                   <p className="text-xs text-slate-400">
                     {PLATFORM_LABELS[cc.platform]} · {cc.videosPerDay}{" "}
                     videos/day
+                    {cc.isActive &&
+                      cc.campaign.isActive &&
+                      (!campaignFilter ||
+                        campaignFilter.id === cc.campaign.id) && (
+                        <>
+                          {" "}
+                          ·{" "}
+                          {
+                            monthPosts.filter(
+                              (p) =>
+                                p.campaignId === cc.campaign.id &&
+                                p.platform === goalPlatform,
+                            ).length
+                          }
+                          /
+                          {effectiveMonthlyGoal(
+                            cc,
+                            cc.campaign,
+                            activeCountByCampaign.get(cc.campaign.id) ?? 1,
+                          )}{" "}
+                          this month
+                        </>
+                      )}
                   </p>
                 </div>
                 <Badge

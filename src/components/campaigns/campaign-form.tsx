@@ -47,6 +47,11 @@ interface CampaignFormProps {
     endDate: string;
     hashtags: string[];
     weeklyPostTarget: number;
+    monthlyPostGoal: number | null;
+    offPacePct: number;
+    quietDays: number;
+    monthStartDay: number;
+    viralThreshold: number;
     previewLinks: string[];
     galleryUrls: string[];
     creators: CreatorRow[];
@@ -77,6 +82,21 @@ export function CampaignForm({
   const [hashtags, setHashtags] = useState<string[]>(initialData?.hashtags ?? []);
   const [weeklyPostTarget, setWeeklyPostTarget] = useState(
     String(initialData?.weeklyPostTarget ?? 5)
+  );
+  const [monthlyPostGoal, setMonthlyPostGoal] = useState(
+    initialData?.monthlyPostGoal ? String(initialData.monthlyPostGoal) : ""
+  );
+  const [offPacePct, setOffPacePct] = useState(
+    String(initialData?.offPacePct ?? 80)
+  );
+  const [quietDays, setQuietDays] = useState(
+    String(initialData?.quietDays ?? 4)
+  );
+  const [monthStartDay, setMonthStartDay] = useState(
+    String(initialData?.monthStartDay ?? 1)
+  );
+  const [viralThreshold, setViralThreshold] = useState(
+    String(initialData?.viralThreshold ?? 50000)
   );
   const [previewLinkInput, setPreviewLinkInput] = useState("");
   const [previewLinks, setPreviewLinks] = useState<string[]>(initialData?.previewLinks ?? []);
@@ -179,6 +199,11 @@ export function CampaignForm({
           endDate,
           hashtags,
           weeklyPostTarget: parseInt(weeklyPostTarget),
+          monthlyPostGoal: monthlyPostGoal ? parseInt(monthlyPostGoal) : null,
+          offPacePct: parseInt(offPacePct) || 80,
+          quietDays: parseInt(quietDays) || 4,
+          monthStartDay: parseInt(monthStartDay) || 1,
+          viralThreshold: parseInt(viralThreshold) || 50000,
           previewLinks,
           galleryUrls,
           creators: creators.map(({ id, ...rest }) => rest),
@@ -463,18 +488,105 @@ export function CampaignForm({
           Posting requirements
         </h3>
         <p className="mt-1 text-xs text-slate-400">
-          Total number of videos required across all creators each week.
+          Goals, pacing thresholds and what counts as viral — all per campaign.
         </p>
-        <div className="mt-3 w-48">
-          <Label className="text-sm font-medium text-slate-700">
-            Weekly post target
-          </Label>
-          <Input
-            type="number"
-            min={0}
-            value={weeklyPostTarget}
-            onChange={(e) => setWeeklyPostTarget(e.target.value)}
-          />
+        <div className="mt-3 flex flex-wrap gap-4">
+          <div className="w-48">
+            <Label className="text-sm font-medium text-slate-700">
+              Weekly target per creator
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              value={weeklyPostTarget}
+              onChange={(e) => setWeeklyPostTarget(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Videos each creator should post per week (drives the weekly
+              rings; monthly pacing uses the monthly goal).
+            </p>
+          </div>
+          <div className="w-48">
+            <Label className="text-sm font-medium text-slate-700">
+              Monthly post goal
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              placeholder="e.g. 40"
+              value={monthlyPostGoal}
+              onChange={(e) => setMonthlyPostGoal(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Campaign-wide total, split evenly across creators. Per-creator
+              goals below override their share.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-4">
+          <div className="w-48">
+            <Label className="text-sm font-medium text-slate-700">
+              Off-pace threshold (%)
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={offPacePct}
+              onChange={(e) => setOffPacePct(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Flag creators below this % of the month-to-date goal.
+            </p>
+          </div>
+          <div className="w-48">
+            <Label className="text-sm font-medium text-slate-700">
+              Quiet after (days)
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              value={quietDays}
+              onChange={(e) => setQuietDays(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Days without a post before a creator is flagged Quiet — bump it
+              up while accounts re-warm.
+            </p>
+          </div>
+          <div className="w-48">
+            <Label className="text-sm font-medium text-slate-700">
+              Month starts on day
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              max={28}
+              value={monthStartDay}
+              onChange={(e) => setMonthStartDay(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Pacing month start (1 = calendar month; 15 = runs the 15th →
+              14th, matching a contract cycle).
+            </p>
+          </div>
+          <div className="w-48">
+            <Label className="text-sm font-medium text-slate-700">
+              Viral threshold (views)
+            </Label>
+            <Input
+              type="number"
+              min={1000}
+              step={1000}
+              value={viralThreshold}
+              onChange={(e) => setViralThreshold(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Views at which a post counts as viral in this campaign&apos;s
+              stats.
+            </p>
+          </div>
         </div>
       </div>
 

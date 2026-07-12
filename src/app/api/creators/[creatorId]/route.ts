@@ -36,6 +36,7 @@ export async function PATCH(
     email?: string | null;
     tier?: "TRAINING" | "BRONZE" | "SILVER" | "GOLD";
     isActive?: boolean;
+    isShadowbanned?: boolean;
   } = {};
 
   if ("tiktokHandle" in body) {
@@ -71,6 +72,9 @@ export async function PATCH(
   }
   if ("isActive" in body && typeof body.isActive === "boolean") {
     data.isActive = body.isActive;
+  }
+  if ("isShadowbanned" in body && typeof body.isShadowbanned === "boolean") {
+    data.isShadowbanned = body.isShadowbanned;
   }
 
   const updated = await prisma.creator.update({

@@ -53,6 +53,11 @@ model TeamSettings {
   // "finish your PostHog setup" nudge later.
   posthogOnboardingSkippedAt DateTime?
 
+  // Weekly Shoutouts qualifying rules: minimum views for "Most engaged" and
+  // minimum prior-4-week posts for "Most improved", so tiny samples can't win.
+  shoutoutMinViews      Int @default(500)
+  shoutoutMinPriorPosts Int @default(3)
+
   // Scheduling link for interview invites (e.g., https://cal.com/yourname/interview)
   schedulingUrl    String?
 
@@ -183,6 +188,19 @@ model Campaign {
   isActive         Boolean   @default(true)
   hashtags         String[]
   weeklyPostTarget Int       @default(5)
+  // Campaign-wide monthly post goal (e.g. 40), split evenly across active
+  // creators unless a CampaignCreator.monthlyPostGoal overrides. Null falls
+  // back to weeklyPostTarget×4 per creator (the pre-existing behavior).
+  monthlyPostGoal  Int?
+  // Off-pace flag threshold: flagged when posts < elapsed×goal×(offPacePct/100)
+  offPacePct       Int       @default(80)
+  // Quiet flag threshold: flagged after this many days without a post
+  quietDays        Int       @default(4)
+  // Day of month the pacing "month" starts (1–28). 1 = calendar months;
+  // e.g. 15 makes periods run Jul 15 → Aug 14, matching contract cycles.
+  monthStartDay    Int       @default(1)
+  // Views at which a post counts as "viral" for this campaign's stats.
+  viralThreshold   Int       @default(50000)
   ugcEngineer      String?
   previewLinks     String[]
   galleryUrls      String[]
@@ -229,6 +247,9 @@ model Creator {
   handle    String
   tier      CreatorTier @default(TRAINING)
   isActive  Boolean     @default(true)
+  // Shadow-banned accounts are flagged separately and excluded from pacing,
+  // so a ban isn't mistaken for the creator falling behind.
+  isShadowbanned Boolean @default(false)
   email     String?
   avatarUrl String?
 
