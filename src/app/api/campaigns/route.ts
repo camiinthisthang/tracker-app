@@ -84,6 +84,7 @@ export async function POST(req: Request) {
           })),
         },
         monthStartDay: data.monthStartDay,
+        viralThreshold: data.viralThreshold,
         ugcEngineer: data.ugcEngineer,
         previewLinks: data.previewLinks,
         galleryUrls: data.galleryUrls,

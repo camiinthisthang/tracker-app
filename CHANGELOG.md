@@ -27,6 +27,14 @@ tangent.
 
 ---
 
+## 2026-07-12 — Adjustable-everything batch: label bug fix, viral threshold, shoutout rules, chart window
+- **Fixed the weekly-post-target label bug**: the form claimed "total across all creators each week" but the code has always treated it per creator. Label now reads "Weekly target per creator" with honest help text. No behavior change — the label was wrong, not the math.
+- **Viral is now per campaign**: `Campaign.viralThreshold` (default 50,000; migration `20260712010000_adjustable_thresholds`), new field in the campaign form; creator detail's Viral Videos card uses the campaign's threshold (lowest across their campaigns in the all-campaigns view) and its label shows the actual number.
+- **Weekly Shoutouts rules are adjustable + explained**: `TeamSettings.shoutoutMinViews` (default 500) and `shoutoutMinPriorPosts` (default 3), editable in Settings; every shoutout card has a hover explaining exactly how it's won, with the live numbers.
+- **Creator views chart**: labeled window with 28d / 60d / 90d presets (preserves the campaign filter), subtitle shows exactly what's plotted.
+- Tier badges get a hover note (manually assigned; formal criteria later, per Jacqueline).
+- Tested: `npx next build` green. Migration additive-only.
+
 ## 2026-07-12 — Pacing transparency: explain the flags, date the periods, adjustable month start
 - Per Jacqueline: a new campaign manager should never have to guess what a number or flag means.
 - **Adjustable pacing month**: new `Campaign.monthStartDay` (1–28, default 1 = calendar month; migration `20260712001000_month_start_day`) so a campaign's pacing month can run e.g. the 15th → 14th to match contract cycles. New "Month starts on day" field in the campaign form. `pacingPeriod()` / `commonPacingPeriod()` in `src/lib/pacing.ts` replace the hardcoded calendar month everywhere (mixed start days across campaigns fall back to calendar month in all-campaign views).

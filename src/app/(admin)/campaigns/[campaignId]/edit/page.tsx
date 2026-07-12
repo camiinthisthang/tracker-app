@@ -50,6 +50,7 @@ export default async function EditCampaignPage({
       amountUsd: Number(t.amountUsd),
     })),
     monthStartDay: campaign.monthStartDay,
+    viralThreshold: campaign.viralThreshold,
     previewLinks: campaign.previewLinks,
     galleryUrls: campaign.galleryUrls,
     creators: campaign.campaignCreators.map((cc) => ({

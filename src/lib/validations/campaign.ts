@@ -55,6 +55,7 @@ export const createCampaignSchema = z.object({
     )
     .default([]),
   monthStartDay: z.coerce.number().int().min(1).max(28).default(1),
+  viralThreshold: z.coerce.number().int().min(1000).default(50000),
   ugcEngineer: z.string().optional(),
   previewLinks: z.array(z.string()).default([]),
   galleryUrls: z.array(z.string()).default([]),
