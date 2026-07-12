@@ -27,6 +27,9 @@ tangent.
 
 ---
 
+## 2026-07-12 — Post-merge cleanup: removed dead creators table component
+- Deleted `creators-table-client.tsx` (unused since the card-layout rebuild; its `data-table` + filter-pill dependencies stay — the posts tables use them). Full build green on merged main with all four migrations in place.
+
 ## 2026-07-12 — Adjustable-everything batch: label bug fix, viral threshold, shoutout rules, chart window
 - **Fixed the weekly-post-target label bug**: the form claimed "total across all creators each week" but the code has always treated it per creator. Label now reads "Weekly target per creator" with honest help text. No behavior change — the label was wrong, not the math.
 - **Viral is now per campaign**: `Campaign.viralThreshold` (default 50,000; migration `20260712010000_adjustable_thresholds`), new field in the campaign form; creator detail's Viral Videos card uses the campaign's threshold (lowest across their campaigns in the all-campaigns view) and its label shows the actual number.
