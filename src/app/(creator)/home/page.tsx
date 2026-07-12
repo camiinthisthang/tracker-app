@@ -1,4 +1,11 @@
-import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
+import {
+  format,
+  startOfWeek,
+  addDays,
+  subDays,
+  startOfDay,
+  startOfMonth,
+} from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 import { getRequiredSession } from "@/lib/auth";
@@ -11,7 +18,9 @@ import { CreatorViralVideos } from "@/components/creators/creator-viral-videos";
 import { CreatorHooksFeed } from "@/components/creators/creator-hooks-feed";
 import { CreatorStartGuide } from "@/components/creators/creator-start-guide";
 import { BonusTracker } from "@/components/creators/bonus-tracker";
+import { CreatorBonusPotential } from "@/components/creators/creator-bonus-potential";
 import { computeCreatorBonusSummary } from "@/lib/bonus";
+import { computeViewBonuses } from "@/lib/view-bonus";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const VIRAL_THRESHOLD = 50_000;
@@ -152,6 +161,52 @@ export default async function CreatorHomePage() {
 
   const bonusSummary = await computeCreatorBonusSummary(creatorId);
 
+  // Per-campaign view-tier bonuses: potential (tier ladder) + earned so far
+  // this month, capped per campaign.
+  const monthStartForBonus = startOfMonth(new Date());
+  const [bonusCampaigns, bonusMonthPosts] = await Promise.all([
+    prisma.campaign.findMany({
+      where: {
+        id: { in: activeCCs.map((cc) => cc.campaign.id) },
+        bonusTiers: { some: {} },
+      },
+      select: {
+        id: true,
+        name: true,
+        bonusCapUsd: true,
+        bonusTiers: {
+          select: { viewThreshold: true, amountUsd: true },
+          orderBy: { viewThreshold: "asc" },
+        },
+      },
+    }),
+    prisma.post.findMany({
+      where: { creatorId, postedAt: { gte: monthStartForBonus } },
+      select: { id: true, views: true, title: true, link: true, campaignId: true },
+    }),
+  ]);
+  const viewBonusSummaries = computeViewBonuses(
+    bonusMonthPosts,
+    bonusCampaigns.map((c) => ({
+      id: c.id,
+      name: c.name,
+      bonusCapUsd: c.bonusCapUsd === null ? null : Number(c.bonusCapUsd),
+      tiers: c.bonusTiers.map((t) => ({
+        viewThreshold: t.viewThreshold,
+        amountUsd: Number(t.amountUsd),
+      })),
+    })),
+  );
+  const tiersByCampaign = Object.fromEntries(
+    bonusCampaigns.map((c) => [
+      c.id,
+      c.bonusTiers.map((t) => ({
+        viewThreshold: t.viewThreshold,
+        amountUsd: Number(t.amountUsd),
+      })),
+    ]),
+  );
+
   // Published hooks for this creator's active campaigns. Sorted newest-first
   // so a fresh viral-grab from an admin shows up at the top.
   const activeCampaignIds = activeCCs.map((cc) => cc.campaign.id);
@@ -254,6 +309,16 @@ export default async function CreatorHomePage() {
       {bonusSummary.rules.length > 0 && (
         <div className="mt-6">
           <BonusTracker summary={bonusSummary} />
+        </div>
+      )}
+
+      {/* View-tier bonus potential per campaign (only when tiers exist) */}
+      {viewBonusSummaries.length > 0 && (
+        <div className="mt-6">
+          <CreatorBonusPotential
+            summaries={viewBonusSummaries}
+            tiersByCampaign={tiersByCampaign}
+          />
         </div>
       )}
 
