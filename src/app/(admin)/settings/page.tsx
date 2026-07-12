@@ -38,6 +38,8 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState("America/New_York");
   const [schedulingUrl, setSchedulingUrl] = useState("");
   const [creatorWelcomeTemplate, setCreatorWelcomeTemplate] = useState("");
+  const [shoutoutMinViews, setShoutoutMinViews] = useState("500");
+  const [shoutoutMinPriorPosts, setShoutoutMinPriorPosts] = useState("3");
 
   useEffect(() => {
     async function load() {
@@ -49,6 +51,10 @@ export default function SettingsPage() {
           setTimezone(data.settings.timezone);
           setSchedulingUrl(data.settings.schedulingUrl || "");
           setCreatorWelcomeTemplate(data.settings.creatorWelcomeTemplate || "");
+          if (data.settings.shoutoutMinViews != null)
+            setShoutoutMinViews(String(data.settings.shoutoutMinViews));
+          if (data.settings.shoutoutMinPriorPosts != null)
+            setShoutoutMinPriorPosts(String(data.settings.shoutoutMinPriorPosts));
         }
       }
       setLoading(false);
@@ -59,11 +65,13 @@ export default function SettingsPage() {
   async function handleSave() {
     setSaving(true);
     try {
-      const body: Record<string, string> = {
+      const body: Record<string, string | number> = {
         teamName,
         timezone,
         schedulingUrl,
         creatorWelcomeTemplate,
+        shoutoutMinViews: parseInt(shoutoutMinViews) || 500,
+        shoutoutMinPriorPosts: parseInt(shoutoutMinPriorPosts) || 3,
       };
 
       const res = await fetch("/api/settings", {
@@ -132,6 +140,39 @@ export default function SettingsPage() {
               </Select>
             </div>
           </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700">
+                Weekly Shoutouts: min views to qualify
+              </Label>
+              <p className="text-xs text-slate-400">
+                &quot;Most engaged&quot; needs at least this many views for the
+                week, so one tiny post can&apos;t win with a misleading rate.
+              </p>
+              <Input
+                type="number"
+                min={0}
+                value={shoutoutMinViews}
+                onChange={(e) => setShoutoutMinViews(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700">
+                Weekly Shoutouts: min prior posts
+              </Label>
+              <p className="text-xs text-slate-400">
+                &quot;Most improved&quot; needs this many posts in the prior 4
+                weeks so there&apos;s a real baseline to improve on.
+              </p>
+              <Input
+                type="number"
+                min={0}
+                value={shoutoutMinPriorPosts}
+                onChange={(e) => setShoutoutMinPriorPosts(e.target.value)}
+              />
+            </div>
+          </div>
+
           <div className="mt-4 space-y-1.5">
             <Label className="text-sm font-medium text-slate-700">
               Interview scheduling link

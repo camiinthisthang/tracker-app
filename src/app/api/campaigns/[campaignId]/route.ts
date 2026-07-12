@@ -73,6 +73,9 @@ export async function PATCH(
         ...(data.monthStartDay !== undefined && {
           monthStartDay: data.monthStartDay,
         }),
+        ...(data.viralThreshold !== undefined && {
+          viralThreshold: data.viralThreshold,
+        }),
         ...(data.ugcEngineer !== undefined && {
           ugcEngineer: data.ugcEngineer,
         }),

@@ -44,6 +44,7 @@ export default async function EditCampaignPage({
     offPacePct: campaign.offPacePct,
     quietDays: campaign.quietDays,
     monthStartDay: campaign.monthStartDay,
+    viralThreshold: campaign.viralThreshold,
     previewLinks: campaign.previewLinks,
     galleryUrls: campaign.galleryUrls,
     creators: campaign.campaignCreators.map((cc) => ({

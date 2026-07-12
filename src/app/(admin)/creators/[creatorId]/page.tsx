@@ -28,7 +28,16 @@ import { Badge } from "@/components/ui/badge";
 import { PLATFORM_LABELS, ATTRIBUTION_ENABLED } from "@/lib/constants";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
-const VIRAL_THRESHOLD = 50_000;
+const DEFAULT_VIRAL_THRESHOLD = 50_000;
+const CHART_WINDOWS = [28, 60, 90];
+
+function compactViews(n: number) {
+  return n >= 1_000_000
+    ? `${n / 1_000_000}M`
+    : n >= 1_000
+      ? `${Math.round(n / 1_000)}K`
+      : String(n);
+}
 
 export default async function CreatorDetailPage({
   params,
@@ -56,6 +65,7 @@ export default async function CreatorDetailPage({
               offPacePct: true,
               quietDays: true,
               monthStartDay: true,
+              viralThreshold: true,
             },
           },
         },
@@ -91,7 +101,20 @@ export default async function CreatorDetailPage({
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 7);
-  const chartStart = startOfDay(subDays(now, 28));
+  const chartParam = Number(Array.isArray(sp.chart) ? sp.chart[0] : sp.chart);
+  const chartDays = CHART_WINDOWS.includes(chartParam) ? chartParam : 28;
+  const chartStart = startOfDay(subDays(now, chartDays));
+
+  // Viral = the campaign's configured threshold; across all campaigns use
+  // the lowest so nothing viral is missed.
+  const activeCampaignsHere = creator.campaignCreators
+    .filter((cc) => cc.isActive && cc.campaign.isActive)
+    .map((cc) => cc.campaign);
+  const viralThreshold =
+    campaignFilter?.viralThreshold ??
+    (activeCampaignsHere.length
+      ? Math.min(...activeCampaignsHere.map((c) => c.viralThreshold))
+      : DEFAULT_VIRAL_THRESHOLD);
   // Pacing month per the campaign's configured start day (calendar month
   // when viewing all campaigns with mixed start days).
   const period = commonPacingPeriod(
@@ -140,7 +163,7 @@ export default async function CreatorDetailPage({
       include: { campaign: { select: { id: true, name: true } } },
     }),
     prisma.post.count({
-      where: { ...postWhere, views: { gte: VIRAL_THRESHOLD } },
+      where: { ...postWhere, views: { gte: viralThreshold } },
     }),
     prisma.post.groupBy({
       by: ["platform"],
@@ -212,9 +235,9 @@ export default async function CreatorDetailPage({
     ...(statsByPlatform.get(p) ?? { views: 0, posts: 0, engagementPct: null }),
   }));
 
-  // Views over time (last 28 days), bucketed by day.
+  // Views over time, bucketed by day across the selected chart window.
   const dailyMap = new Map<string, number>();
-  for (let i = 0; i <= 28; i++) {
+  for (let i = 0; i <= chartDays; i++) {
     dailyMap.set(startOfDay(addDays(chartStart, i)).toISOString(), 0);
   }
   for (const p of postsInRange) {
@@ -420,7 +443,15 @@ export default async function CreatorDetailPage({
           label="Total Views"
           value={(totalViews._sum.views ?? 0).toLocaleString()}
         />
-        <StatCard label="Viral Videos (50K+)" value={viralCount} />
+        <StatCard
+          label={`Viral Videos (${compactViews(viralThreshold)}+)`}
+          value={viralCount}
+          subtext={
+            <span title="Set per campaign under Posting requirements → Viral threshold">
+              threshold set per campaign
+            </span>
+          }
+        />
         {ATTRIBUTION_ENABLED && (
           <StatCard
             label="Attributed Signups"
@@ -496,9 +527,32 @@ export default async function CreatorDetailPage({
         />
       </div>
 
-      {/* Views over time (last 28 days) */}
+      {/* Views over time — adjustable window */}
       <div className="mt-4">
-        <CreatorViewsChart data={chartData} />
+        <CreatorViewsChart
+          data={chartData}
+          subtitle={`Daily views · last ${chartDays} days · ${campaignFilter ? campaignFilter.name : "all campaigns"}`}
+          headerExtra={
+            <div className="flex gap-1.5">
+              {CHART_WINDOWS.map((d) => (
+                <Link
+                  key={d}
+                  href={`/creators/${creator.id}?${new URLSearchParams({
+                    ...(campaignFilter ? { campaign: campaignFilter.id } : {}),
+                    ...(d !== 28 ? { chart: String(d) } : {}),
+                  }).toString()}`}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    chartDays === d
+                      ? "bg-slate-800 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {d}d
+                </Link>
+              ))}
+            </div>
+          }
+        />
       </div>
 
       {/* Campaigns */}

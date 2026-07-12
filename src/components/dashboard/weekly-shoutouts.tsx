@@ -23,12 +23,15 @@ interface Props {
   creatorWhere: ReturnType<typeof creatorVisibilityWhere>;
   weekOffset: number;
   params: DashboardParams;
+  /** Team whose Settings hold the shoutout qualifying rules. */
+  settingsTeamId?: string | null;
 }
 
 type CreatorLite = { id: string; name: string; handle: string };
 
 interface Shoutout {
   title: string;
+  tooltip: string;
   icon: React.ComponentType<{ className?: string }>;
   creator: CreatorLite | null;
   stat: string;
@@ -36,17 +39,26 @@ interface Shoutout {
   positive?: boolean;
 }
 
-// Minimum sample sizes so one 40-view post can't win "most engaged" with a
-// misleading 20% rate.
-const MIN_ENGAGED_VIEWS = 500;
-const MIN_PRIOR_POSTS = 3;
+// Fallback minimum sample sizes so one 40-view post can't win "most engaged"
+// with a misleading 20% rate — overridable in Settings.
+const DEFAULT_MIN_ENGAGED_VIEWS = 500;
+const DEFAULT_MIN_PRIOR_POSTS = 3;
 
 export async function WeeklyShoutouts({
   campaignWhere,
   creatorWhere,
   weekOffset,
   params,
+  settingsTeamId,
 }: Props) {
+  const settings = settingsTeamId
+    ? await prisma.teamSettings.findUnique({
+        where: { teamId: settingsTeamId },
+        select: { shoutoutMinViews: true, shoutoutMinPriorPosts: true },
+      })
+    : null;
+  const minEngagedViews = settings?.shoutoutMinViews ?? DEFAULT_MIN_ENGAGED_VIEWS;
+  const minPriorPosts = settings?.shoutoutMinPriorPosts ?? DEFAULT_MIN_PRIOR_POSTS;
   const week = getWeekWindow(weekOffset);
   const priorStart = subDays(week.start, 28);
 
@@ -129,7 +141,7 @@ export async function WeeklyShoutouts({
   let mostImproved: { agg: Agg; pct: number; priorAvg: number } | null = null;
   for (const a of aggs) {
     const prior = priorByCreator.get(a.creator.id);
-    if (!prior || prior.posts < MIN_PRIOR_POSTS || prior.views === 0) continue;
+    if (!prior || prior.posts < minPriorPosts || prior.views === 0) continue;
     const priorAvg = prior.views / prior.posts;
     const weekAvg = a.views / a.posts;
     const pct = (weekAvg / priorAvg - 1) * 100;
@@ -140,7 +152,7 @@ export async function WeeklyShoutouts({
 
   let mostEngaged: { agg: Agg; rate: number } | null = null;
   for (const a of aggs) {
-    if (a.views < MIN_ENGAGED_VIEWS) continue;
+    if (a.views < minEngagedViews) continue;
     const rate = (a.engagements / a.views) * 100;
     if (!mostEngaged || rate > mostEngaged.rate) mostEngaged = { agg: a, rate };
   }
@@ -169,6 +181,7 @@ export async function WeeklyShoutouts({
   const cards: Shoutout[] = [
     {
       title: "Top performer",
+      tooltip: "Most total views on posts published this week",
       icon: Trophy,
       creator: topPerformer?.creator ?? null,
       stat: topPerformer ? `${topPerformer.views.toLocaleString()} views` : "",
@@ -178,6 +191,7 @@ export async function WeeklyShoutouts({
     },
     {
       title: "Most improved",
+      tooltip: `Biggest % gain in average views vs their prior 4-week average — needs ${minPriorPosts}+ posts in that window to qualify (adjustable in Settings)`,
       icon: TrendingUp,
       creator: mostImproved?.agg.creator ?? null,
       stat: mostImproved ? `+${Math.round(mostImproved.pct)}% avg views` : "",
@@ -188,17 +202,19 @@ export async function WeeklyShoutouts({
     },
     {
       title: "Most engaged",
+      tooltip: `Highest (likes + comments + shares + saves) ÷ views this week — needs ${minEngagedViews}+ views to qualify (adjustable in Settings)`,
       icon: HeartHandshake,
       creator: mostEngaged?.agg.creator ?? null,
       stat: mostEngaged ? `${mostEngaged.rate.toFixed(1)}% engagement` : "",
       detail: mostEngaged
         ? `${mostEngaged.agg.engagements.toLocaleString()} interactions / ${mostEngaged.agg.views.toLocaleString()} views`
-        : `Needs ${MIN_ENGAGED_VIEWS}+ views to qualify`,
+        : `Needs ${minEngagedViews}+ views to qualify`,
     },
     ...(ATTRIBUTION_ENABLED
       ? [
           {
             title: "Best converter",
+            tooltip: "Most attributed signups this week (PostHog)",
             icon: UserPlus,
             creator: bestConverter?.creator ?? null,
             stat: bestConverter
@@ -212,6 +228,7 @@ export async function WeeklyShoutouts({
       : []),
     {
       title: "Most consistent",
+      tooltip: "Posted on the most distinct days this week (ties break on post count)",
       icon: CalendarCheck,
       creator: mostConsistent?.creator ?? null,
       stat: mostConsistent
@@ -268,7 +285,10 @@ export async function WeeklyShoutouts({
             key={card.title}
             className="rounded-lg border border-slate-100 bg-slate-50 p-3"
           >
-            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+            <div
+              title={card.tooltip}
+              className="flex cursor-help items-center gap-1.5 text-xs font-medium text-slate-500"
+            >
               <card.icon className="h-3.5 w-3.5 text-blue-500" />
               {card.title}
             </div>

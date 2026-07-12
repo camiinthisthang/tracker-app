@@ -77,6 +77,7 @@ export async function POST(req: Request) {
         offPacePct: data.offPacePct,
         quietDays: data.quietDays,
         monthStartDay: data.monthStartDay,
+        viralThreshold: data.viralThreshold,
         ugcEngineer: data.ugcEngineer,
         previewLinks: data.previewLinks,
         galleryUrls: data.galleryUrls,
