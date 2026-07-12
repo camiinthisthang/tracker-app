@@ -21,7 +21,15 @@ function formatAxisValue(v: number) {
   return String(v);
 }
 
-export function CreatorViewsChart({ data }: { data: DailyPoint[] }) {
+export function CreatorViewsChart({
+  data,
+  subtitle,
+  headerExtra,
+}: {
+  data: DailyPoint[];
+  subtitle?: string;
+  headerExtra?: React.ReactNode;
+}) {
   const chartData = data.map((d) => ({
     date: format(new Date(d.date), "MMM d"),
     views: d.views,
@@ -39,12 +47,18 @@ export function CreatorViewsChart({ data }: { data: DailyPoint[] }) {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <h3 className="text-sm font-semibold text-slate-800">
-        Your Views Over Time
-      </h3>
-      <p className="text-xs text-slate-400">
-        Combined views across TikTok + Instagram + YouTube Shorts
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800">
+            Views Over Time
+          </h3>
+          <p className="text-xs text-slate-400">
+            {subtitle ??
+              "Combined views across TikTok + Instagram + YouTube Shorts"}
+          </p>
+        </div>
+        {headerExtra}
+      </div>
       <div className="mt-6 h-56">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart

@@ -22,6 +22,7 @@ export default async function EditCampaignPage({
         campaignCreators: {
           include: { creator: true },
         },
+        bonusTiers: { orderBy: { viewThreshold: "asc" } },
       },
     }),
     prisma.creator.findMany({
@@ -40,6 +41,16 @@ export default async function EditCampaignPage({
     endDate: format(campaign.endDate, "yyyy-MM-dd"),
     hashtags: campaign.hashtags,
     weeklyPostTarget: campaign.weeklyPostTarget,
+    monthlyPostGoal: campaign.monthlyPostGoal,
+    offPacePct: campaign.offPacePct,
+    quietDays: campaign.quietDays,
+    bonusCapUsd: campaign.bonusCapUsd === null ? null : Number(campaign.bonusCapUsd),
+    bonusTiers: campaign.bonusTiers.map((t) => ({
+      viewThreshold: t.viewThreshold,
+      amountUsd: Number(t.amountUsd),
+    })),
+    monthStartDay: campaign.monthStartDay,
+    viralThreshold: campaign.viralThreshold,
     previewLinks: campaign.previewLinks,
     galleryUrls: campaign.galleryUrls,
     creators: campaign.campaignCreators.map((cc) => ({

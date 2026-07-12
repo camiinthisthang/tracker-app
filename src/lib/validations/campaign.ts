@@ -29,6 +29,33 @@ export const createCampaignSchema = z.object({
   isActive: z.boolean().default(true),
   hashtags: z.array(z.string()).default([]),
   weeklyPostTarget: z.coerce.number().int().min(0).default(5),
+  // Campaign-wide monthly goal, split evenly across creators ("" = not set).
+  monthlyPostGoal: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .nullable()
+    .transform((v) => (v ? v : null)),
+  offPacePct: z.coerce.number().int().min(1).max(100).default(80),
+  quietDays: z.coerce.number().int().min(1).max(60).default(4),
+  // Per-creator monthly cap on view-tier bonuses ("" / 0 = no cap).
+  bonusCapUsd: z.coerce
+    .number()
+    .min(0)
+    .optional()
+    .nullable()
+    .transform((v) => (v ? v : null)),
+  bonusTiers: z
+    .array(
+      z.object({
+        viewThreshold: z.coerce.number().int().min(1),
+        amountUsd: z.coerce.number().min(0),
+      }),
+    )
+    .default([]),
+  monthStartDay: z.coerce.number().int().min(1).max(28).default(1),
+  viralThreshold: z.coerce.number().int().min(1000).default(50000),
   ugcEngineer: z.string().optional(),
   previewLinks: z.array(z.string()).default([]),
   galleryUrls: z.array(z.string()).default([]),

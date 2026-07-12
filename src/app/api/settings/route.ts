@@ -30,6 +30,8 @@ export async function GET() {
             hasFacebookToken: !!team.settings.facebookToken,
             schedulingUrl: team.settings.schedulingUrl || "",
             creatorWelcomeTemplate: team.settings.creatorWelcomeTemplate || "",
+            shoutoutMinViews: team.settings.shoutoutMinViews,
+            shoutoutMinPriorPosts: team.settings.shoutoutMinPriorPosts,
           }
         : null,
     });
@@ -63,6 +65,12 @@ export async function PATCH(req: Request) {
         facebookToken: body.facebookToken,
         schedulingUrl: body.schedulingUrl,
         creatorWelcomeTemplate: body.creatorWelcomeTemplate,
+        ...(Number.isInteger(body.shoutoutMinViews) && {
+          shoutoutMinViews: body.shoutoutMinViews,
+        }),
+        ...(Number.isInteger(body.shoutoutMinPriorPosts) && {
+          shoutoutMinPriorPosts: body.shoutoutMinPriorPosts,
+        }),
       },
       update: {
         ...(body.timezone !== undefined && { timezone: body.timezone }),
@@ -73,6 +81,12 @@ export async function PATCH(req: Request) {
         ...(body.schedulingUrl !== undefined && { schedulingUrl: body.schedulingUrl || null }),
         ...(body.creatorWelcomeTemplate !== undefined && {
           creatorWelcomeTemplate: body.creatorWelcomeTemplate || null,
+        }),
+        ...(Number.isInteger(body.shoutoutMinViews) && {
+          shoutoutMinViews: body.shoutoutMinViews,
+        }),
+        ...(Number.isInteger(body.shoutoutMinPriorPosts) && {
+          shoutoutMinPriorPosts: body.shoutoutMinPriorPosts,
         }),
       },
     });

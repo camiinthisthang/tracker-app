@@ -73,6 +73,18 @@ export async function POST(req: Request) {
         isActive: data.isActive,
         hashtags: data.hashtags,
         weeklyPostTarget: data.weeklyPostTarget,
+        monthlyPostGoal: data.monthlyPostGoal ?? null,
+        offPacePct: data.offPacePct,
+        quietDays: data.quietDays,
+        bonusCapUsd: data.bonusCapUsd ?? null,
+        bonusTiers: {
+          create: data.bonusTiers.map((t) => ({
+            viewThreshold: t.viewThreshold,
+            amountUsd: t.amountUsd,
+          })),
+        },
+        monthStartDay: data.monthStartDay,
+        viralThreshold: data.viralThreshold,
         ugcEngineer: data.ugcEngineer,
         previewLinks: data.previewLinks,
         galleryUrls: data.galleryUrls,

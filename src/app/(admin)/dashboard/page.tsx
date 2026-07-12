@@ -320,6 +320,7 @@ export default async function DashboardPage({
           creatorWhere={creatorVisibilityWhere(session)}
           weekOffset={weekOffset}
           params={dp}
+          settingsTeamId={session.user.teamId ?? null}
         />
       </div>
 
