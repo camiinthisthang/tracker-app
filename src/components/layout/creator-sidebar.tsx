@@ -13,6 +13,7 @@ import {
   Film,
 } from "lucide-react";
 import { SidebarNavItem } from "./sidebar-nav-item";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,6 +66,10 @@ export function CreatorSidebar() {
       <div className="border-t border-slate-200 px-3 py-3">
         {/* TODO(cami): orphan? Feedback link was a dead href="#". Removed
             until it has a real destination. */}
+        <div className="flex items-center justify-between px-3 py-1">
+          <span className="text-xs text-slate-400">Theme</span>
+          <ThemeToggle />
+        </div>
         <Separator className="my-2" />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100">

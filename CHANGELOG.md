@@ -59,6 +59,14 @@ tangent.
 - Tested: `npx next build` green. Migration not run locally (no DATABASE_URL in this container) — SQL is 4 additive ALTER COLUMNs, applies on deploy.
 - Drive-by: `creators-table-client.tsx` is now unused (left in place; delete when convenient). Old table's search + tier/status filters dropped with the table per the card-layout spec — easy to re-add on cards if missed.
 
+## 2026-07-11 — Phase 5: dark mode toggle (CSS-variable based, zero DB)
+- **Approach:** instead of sprinkling `dark:` variants across every component, the color tokens the app is built from (`--color-white` cards, the warm slate ramp, accent `-50/-100/-200` tints, shadcn surface tokens) are re-pointed at warm-dark values inside `.dark .app-surface` in `globals.css`. Every existing `bg-white` / `text-slate-800` / `bg-blue-50` utility inherits automatically — the "CSS variables from the start" retrofit-proofing Jacqueline asked for.
+- **Scoped to the app shell:** admin + creator layouts add `.app-surface`; public brand pages (apply, login — red surfaces with `text-white`) are untouched by the toggle.
+- `next-themes` ThemeProvider (class attribute, default light — prod look unchanged until someone opts in) + sun/moon toggle in both sidebars' bottom section.
+- Recharts tooltips/grids/bars swapped hardcoded hex for `var(--color-*)` so charts follow the theme.
+- Known v1 compromises: brand-red buttons keep red bg with near-black text in dark (on-brand with dropdeck ink, borderline contrast on small text); chart line/accent hexes unchanged (readable on dark).
+- Tested: `npx next build` green.
+
 ## 2026-07-11 — Phase 1: date-range filter, campaign switcher, dashboard graph, charts tab
 - **Date-range filter (24h / 7d / 14d / 90d / custom)** — new `src/lib/date-range.ts` + `DateRangeFilter` pill component. Scopes the dashboard stat cards, views graph, Top Posts, Top Sounds and Top Creators. Default stays 7d vs previous 7d.
 - **New stat cards:** Posts, Total Views, Total Likes, Total Comments — all tied to the range with green/red `TrendDelta` vs the previous equal-length period. Active Campaigns / Active Creators cards kept (not date-scoped).

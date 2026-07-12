@@ -86,12 +86,12 @@ export function CreatorViewsChart({
             />
             <Tooltip
               contentStyle={{
-                background: "white",
-                border: "1px solid #e2e8f0",
+                background: "var(--color-white)",
+                border: "1px solid var(--color-slate-200)",
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              labelStyle={{ color: "#1e293b", fontWeight: 600 }}
+              labelStyle={{ color: "var(--color-slate-800)", fontWeight: 600 }}
               formatter={(value) => [
                 `${Number(value).toLocaleString()} views`,
                 "",
