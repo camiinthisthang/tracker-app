@@ -1,5 +1,10 @@
 import Link from "next/link";
-import { FLAG_LABELS, type CreatorFlag } from "@/lib/pacing";
+import {
+  FLAG_LABELS,
+  flagTooltip,
+  type CreatorFlag,
+  type PacingThresholds,
+} from "@/lib/pacing";
 
 const FLAG_STYLES: Record<CreatorFlag, string> = {
   off_pace: "bg-red-50 text-red-600",
@@ -22,6 +27,8 @@ export interface CreatorPacingCardData {
   flags: CreatorFlag[];
   postsThisMonth: number;
   monthlyGoal: number;
+  periodLabel: string;
+  thresholds: PacingThresholds;
   views: number;
   likes: number;
   comments: number;
@@ -69,7 +76,8 @@ export function CreatorPacingCard({ creator }: { creator: CreatorPacingCardData 
             {flags.map((f) => (
               <span
                 key={f}
-                className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${FLAG_STYLES[f]}`}
+                title={flagTooltip(f, creator.thresholds)}
+                className={`cursor-help rounded-full px-2 py-0.5 text-[10px] font-medium ${FLAG_STYLES[f]}`}
               >
                 {FLAG_LABELS[f]}
               </span>
@@ -83,9 +91,12 @@ export function CreatorPacingCard({ creator }: { creator: CreatorPacingCardData 
         <div className="flex items-baseline justify-between">
           <p className="text-lg font-bold text-slate-800">
             {postsThisMonth}
-            <span className="text-sm font-medium text-slate-400">
+            <span
+              className="text-sm font-medium text-slate-400"
+              title="Goal = campaign monthly goal split across its creators (or their personal override), summed across campaigns"
+            >
               {" "}
-              / {monthlyGoal || "—"} posts this month
+              / {monthlyGoal || "—"} posts · {creator.periodLabel}
             </span>
           </p>
           {monthlyGoal > 0 && (

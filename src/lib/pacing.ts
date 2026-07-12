@@ -1,4 +1,49 @@
-import { differenceInCalendarDays, getDaysInMonth } from "date-fns";
+import { addDays, differenceInCalendarDays, format } from "date-fns";
+
+export interface PacingPeriod {
+  start: Date;
+  end: Date;
+  daysElapsed: number;
+  daysInPeriod: number;
+  /** e.g. "Jul 1 – Jul 31" or "Jun 15 – Jul 14" */
+  label: string;
+}
+
+/**
+ * The pacing "month": starts on the campaign's monthStartDay (1 = calendar
+ * month; 15 makes periods run Jul 15 → Aug 14 for contract cycles).
+ */
+export function pacingPeriod(now = new Date(), startDay = 1): PacingPeriod {
+  const day = Math.min(Math.max(1, startDay), 28);
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), day);
+  const start =
+    now >= thisMonth
+      ? thisMonth
+      : new Date(now.getFullYear(), now.getMonth() - 1, day);
+  const end = new Date(start.getFullYear(), start.getMonth() + 1, day);
+  const daysInPeriod = differenceInCalendarDays(end, start);
+  const daysElapsed = Math.min(
+    differenceInCalendarDays(now, start) + 1,
+    daysInPeriod,
+  );
+  return {
+    start,
+    end,
+    daysElapsed,
+    daysInPeriod,
+    label: `${format(start, "MMM d")} – ${format(addDays(end, -1), "MMM d")}`,
+  };
+}
+
+/** One shared period for a set of campaigns: exact when they agree on a
+ * start day, calendar month when they're mixed. */
+export function commonPacingPeriod(
+  campaigns: { monthStartDay: number }[],
+  now = new Date(),
+): PacingPeriod {
+  const days = new Set(campaigns.map((c) => c.monthStartDay));
+  return pacingPeriod(now, days.size === 1 ? [...days][0] : 1);
+}
 
 export type CreatorFlag = "new" | "quiet" | "off_pace" | "shadowbanned";
 
@@ -38,19 +83,35 @@ export function effectiveMonthlyGoal(
 }
 
 /**
- * Cumulative monthly pacing: checked against the month so far, not per-week,
+ * Cumulative monthly pacing: checked against the period so far, not per-week,
  * so a slow Saturday made up on Sunday doesn't trigger a false flag.
  */
 export function isOffPace(
   postsThisMonth: number,
   monthlyGoal: number,
   offPacePct: number,
-  now = new Date(),
+  period: PacingPeriod,
 ): boolean {
   if (monthlyGoal <= 0) return false;
   const expected =
-    (now.getDate() / getDaysInMonth(now)) * monthlyGoal * (offPacePct / 100);
+    (period.daysElapsed / period.daysInPeriod) *
+    monthlyGoal *
+    (offPacePct / 100);
   return postsThisMonth < expected;
+}
+
+/** Hover text for a flag badge, with the actual thresholds spelled out. */
+export function flagTooltip(flag: CreatorFlag, t: PacingThresholds): string {
+  switch (flag) {
+    case "off_pace":
+      return `Behind the cumulative goal — under ${t.offPacePct}% of where they should be by this point in the period (threshold adjustable per campaign)`;
+    case "quiet":
+      return `No posts in ${t.quietDays}+ days (threshold adjustable per campaign)`;
+    case "new":
+      return "On the campaign but hasn't posted yet";
+    case "shadowbanned":
+      return "Marked shadow-banned — excluded from pacing so the ban isn't read as falling behind";
+  }
 }
 
 export function creatorFlags(input: {
@@ -60,6 +121,7 @@ export function creatorFlags(input: {
   monthlyGoal: number;
   thresholds: PacingThresholds;
   isShadowbanned: boolean;
+  period: PacingPeriod;
   now?: Date;
 }): CreatorFlag[] {
   const now = input.now ?? new Date();
@@ -85,7 +147,7 @@ export function creatorFlags(input: {
       input.postsThisMonth,
       input.monthlyGoal,
       input.thresholds.offPacePct,
-      now,
+      input.period,
     )
   ) {
     flags.push("off_pace");

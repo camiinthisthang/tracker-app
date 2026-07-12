@@ -52,6 +52,7 @@ interface CampaignFormProps {
     quietDays: number;
     bonusCapUsd: number | null;
     bonusTiers: { viewThreshold: number; amountUsd: number }[];
+    monthStartDay: number;
     previewLinks: string[];
     galleryUrls: string[];
     creators: CreatorRow[];
@@ -102,6 +103,9 @@ export function CampaignForm({
       viewThreshold: String(t.viewThreshold),
       amountUsd: String(t.amountUsd),
     }))
+  );
+  const [monthStartDay, setMonthStartDay] = useState(
+    String(initialData?.monthStartDay ?? 1)
   );
   const [previewLinkInput, setPreviewLinkInput] = useState("");
   const [previewLinks, setPreviewLinks] = useState<string[]>(initialData?.previewLinks ?? []);
@@ -214,6 +218,7 @@ export function CampaignForm({
               viewThreshold: parseInt(t.viewThreshold),
               amountUsd: parseFloat(t.amountUsd),
             })),
+          monthStartDay: parseInt(monthStartDay) || 1,
           previewLinks,
           galleryUrls,
           creators: creators.map(({ id, ...rest }) => rest),
@@ -559,6 +564,22 @@ export function CampaignForm({
             <p className="mt-1 text-xs text-slate-400">
               Days without a post before a creator is flagged Quiet — bump it
               up while accounts re-warm.
+            </p>
+          </div>
+          <div className="w-48">
+            <Label className="text-sm font-medium text-slate-700">
+              Month starts on day
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              max={28}
+              value={monthStartDay}
+              onChange={(e) => setMonthStartDay(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Pacing month start (1 = calendar month; 15 = runs the 15th →
+              14th, matching a contract cycle).
             </p>
           </div>
         </div>

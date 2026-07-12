@@ -1,13 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import {
-  format,
-  startOfWeek,
-  addDays,
-  subDays,
-  startOfDay,
-  startOfMonth,
-} from "date-fns";
+import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 import { canAccessCreator, campaignVisibilityWhere } from "@/lib/visibility";
@@ -25,7 +18,11 @@ import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-prog
 import { CreatorMonthlyProgress } from "@/components/creators/creator-monthly-progress";
 import { CreatorBonusCard } from "@/components/creators/creator-bonus-card";
 import { ShadowbanToggle } from "@/components/creators/shadowban-toggle";
-import { creatorFlags, effectiveMonthlyGoal } from "@/lib/pacing";
+import {
+  creatorFlags,
+  effectiveMonthlyGoal,
+  commonPacingPeriod,
+} from "@/lib/pacing";
 import { computeViewBonuses } from "@/lib/view-bonus";
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
@@ -60,6 +57,7 @@ export default async function CreatorDetailPage({
               monthlyPostGoal: true,
               offPacePct: true,
               quietDays: true,
+              monthStartDay: true,
               bonusCapUsd: true,
               bonusTiers: {
                 select: { viewThreshold: true, amountUsd: true },
@@ -101,6 +99,19 @@ export default async function CreatorDetailPage({
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 7);
   const chartStart = startOfDay(subDays(now, 28));
+  // Pacing month per the campaign's configured start day (calendar month
+  // when viewing all campaigns with mixed start days).
+  const period = commonPacingPeriod(
+    creator.campaignCreators
+      .filter(
+        (cc) =>
+          cc.isActive &&
+          cc.campaign.isActive &&
+          (!campaignFilter || cc.campaign.id === campaignFilter.id),
+      )
+      .map((cc) => cc.campaign),
+    now,
+  );
 
   const [
     totalViews,
@@ -153,7 +164,7 @@ export default async function CreatorDetailPage({
       select: { postedAt: true, platform: true },
     }),
     prisma.post.findMany({
-      where: { ...postWhere, postedAt: { gte: startOfMonth(now) } },
+      where: { ...postWhere, postedAt: { gte: period.start, lt: period.end } },
       select: {
         id: true,
         platform: true,
@@ -284,6 +295,7 @@ export default async function CreatorDetailPage({
     monthlyGoal,
     thresholds,
     isShadowbanned: creator.isShadowbanned,
+    period,
     now,
   });
 
@@ -501,6 +513,8 @@ export default async function CreatorDetailPage({
           monthlyGoal={monthlyGoal}
           flags={flags}
           scopeLabel={campaignFilter ? campaignFilter.name : "all campaigns"}
+          periodLabel={period.label}
+          thresholds={thresholds}
         />
       </div>
       <div className="mt-4">
@@ -509,6 +523,7 @@ export default async function CreatorDetailPage({
           weeklyTarget={weeklyTarget}
           postsPerDay={postsPerDay}
           dailyTarget={dailyTarget}
+          weekLabel={`Mon ${format(weekStart, "MMM d")} – Sun ${format(addDays(weekStart, 6), "MMM d")}`}
         />
       </div>
 

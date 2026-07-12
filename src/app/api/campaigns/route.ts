@@ -83,6 +83,7 @@ export async function POST(req: Request) {
             amountUsd: t.amountUsd,
           })),
         },
+        monthStartDay: data.monthStartDay,
         ugcEngineer: data.ugcEngineer,
         previewLinks: data.previewLinks,
         galleryUrls: data.galleryUrls,

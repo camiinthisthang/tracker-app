@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { Users, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { startOfMonth } from "date-fns";
+import {
+  creatorFlags,
+  effectiveMonthlyGoal,
+  pacingPeriod,
+  commonPacingPeriod,
+} from "@/lib/pacing";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession, AGENCY_TEAM_SLUGS } from "@/lib/auth";
 import { creatorVisibilityWhere, campaignVisibilityWhere } from "@/lib/visibility";
@@ -13,7 +18,6 @@ import {
   type CreatorPacingCardData,
 } from "@/components/creators/creator-pacing-card";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
-import { creatorFlags, effectiveMonthlyGoal } from "@/lib/pacing";
 
 export default async function CreatorsPage({
   searchParams,
@@ -59,7 +63,14 @@ export default async function CreatorsPage({
     }),
     prisma.campaign.findMany({
       where: campaignVisibilityWhere(session),
-      select: { id: true, name: true, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        monthStartDay: true,
+        offPacePct: true,
+        quietDays: true,
+      },
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
     }),
   ]);
@@ -69,8 +80,18 @@ export default async function CreatorsPage({
   const campaignFilter =
     filterCampaigns.find((c) => c.id === campaignParam) ?? null;
 
+  const now = new Date();
+  // Pacing period: the selected campaign's configured month; on the
+  // all-campaigns view, exact if every active campaign agrees on a start
+  // day, calendar month otherwise.
+  const period = campaignFilter
+    ? pacingPeriod(now, campaignFilter.monthStartDay)
+    : commonPacingPeriod(
+        filterCampaigns.filter((c) => c.isActive),
+        now,
+      );
+
   const creatorIds = creators.map((c) => c.id);
-  const monthStart = startOfMonth(new Date());
   const postScope = campaignFilter ? { campaignId: campaignFilter.id } : {};
 
   const [aggregates, monthPosts] = creatorIds.length
@@ -86,7 +107,7 @@ export default async function CreatorsPage({
           where: {
             creatorId: { in: creatorIds },
             ...postScope,
-            postedAt: { gte: monthStart },
+            postedAt: { gte: period.start, lt: period.end },
           },
           select: { creatorId: true, platform: true },
         }),
@@ -112,7 +133,6 @@ export default async function CreatorsPage({
     monthPostsByCreator.set(p.creatorId, list);
   }
 
-  const now = new Date();
   const cards: (CreatorPacingCardData & { isActive: boolean })[] = [];
   for (const creator of creators) {
     const relevantCCs = creator.campaignCreators.filter(
@@ -161,10 +181,13 @@ export default async function CreatorsPage({
         monthlyGoal,
         thresholds,
         isShadowbanned: creator.isShadowbanned,
+        period,
         now,
       }),
       postsThisMonth,
       monthlyGoal,
+      periodLabel: period.label,
+      thresholds,
       views: agg?._sum.views ?? 0,
       likes: agg?._sum.likes ?? 0,
       comments: agg?._sum.comments ?? 0,
@@ -252,14 +275,41 @@ export default async function CreatorsPage({
           {/* Needs attention */}
           {needsAttention.length > 0 && (
             <div className="mb-8">
-              <div className="mb-3 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                <h2 className="text-sm font-semibold text-slate-800">
-                  Needs attention
-                </h2>
-                <span className="text-xs text-slate-400">
-                  Off-pace, quiet, new or shadow-banned
-                </span>
+              <div className="mb-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <h2 className="text-sm font-semibold text-slate-800">
+                    Needs attention
+                  </h2>
+                  <span className="text-xs text-slate-400">
+                    Pacing month: {period.label}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate-400">
+                  {campaignFilter ? (
+                    <>
+                      Off-pace = below {campaignFilter.offPacePct}% of the
+                      cumulative month-to-date goal · Quiet = no post in{" "}
+                      {campaignFilter.quietDays}+ days · New = no posts yet ·
+                      Shadow-banned = excluded from pacing. Adjust these in{" "}
+                      <Link
+                        href={`/campaigns/${campaignFilter.id}/edit`}
+                        className="text-blue-500 hover:underline"
+                      >
+                        {campaignFilter.name}&apos;s settings
+                      </Link>
+                      .
+                    </>
+                  ) : (
+                    <>
+                      Off-pace = behind the cumulative month-to-date goal ·
+                      Quiet = no post in several days · New = no posts yet ·
+                      Shadow-banned = excluded from pacing. Thresholds and the
+                      month start day are set per campaign (Campaigns → Edit →
+                      Posting requirements); hover any flag for exact numbers.
+                    </>
+                  )}
+                </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {needsAttention.map((c) => (

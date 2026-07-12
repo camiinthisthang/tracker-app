@@ -73,6 +73,9 @@ export async function PATCH(
         ...(data.bonusCapUsd !== undefined && {
           bonusCapUsd: data.bonusCapUsd,
         }),
+        ...(data.monthStartDay !== undefined && {
+          monthStartDay: data.monthStartDay,
+        }),
         ...(data.ugcEngineer !== undefined && {
           ugcEngineer: data.ugcEngineer,
         }),

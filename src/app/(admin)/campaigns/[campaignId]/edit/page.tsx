@@ -49,6 +49,7 @@ export default async function EditCampaignPage({
       viewThreshold: t.viewThreshold,
       amountUsd: Number(t.amountUsd),
     })),
+    monthStartDay: campaign.monthStartDay,
     previewLinks: campaign.previewLinks,
     galleryUrls: campaign.galleryUrls,
     creators: campaign.campaignCreators.map((cc) => ({

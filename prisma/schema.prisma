@@ -194,6 +194,9 @@ model Campaign {
   // Hard cap on view-tier bonuses per creator per month (null = no cap).
   // Clients typically start at $2,000 and raise to $10,000 when successful.
   bonusCapUsd      Decimal?  @db.Decimal(10, 2)
+  // Day of month the pacing "month" starts (1–28). 1 = calendar months;
+  // e.g. 15 makes periods run Jul 15 → Aug 14, matching contract cycles.
+  monthStartDay    Int       @default(1)
   ugcEngineer      String?
   previewLinks     String[]
   galleryUrls      String[]
