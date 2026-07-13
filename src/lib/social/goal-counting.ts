@@ -24,3 +24,16 @@ export function countsTowardGoal(
 ): boolean {
   return post.platform === goalPlatformFor(creator);
 }
+
+/**
+ * Per-creator-per-campaign variant: when the CampaignCreator has
+ * countAllPlatforms (unique content on every handle, no cross-posting),
+ * every post counts; otherwise the canonical-platform rule applies.
+ */
+export function countsTowardGoalCc(
+  post: { platform: Platform },
+  creator: { instagramHandle: string | null },
+  cc: { countAllPlatforms: boolean } | undefined
+): boolean {
+  return (cc?.countAllPlatforms ?? false) || countsTowardGoal(post, creator);
+}

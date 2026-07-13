@@ -61,6 +61,7 @@ export default async function EditCampaignPage({
       platform: cc.platform as "TIKTOK" | "INSTAGRAM" | "YOUTUBE" | "FACEBOOK",
       videosPerDay: cc.videosPerDay,
       monthlyPostGoal: cc.monthlyPostGoal,
+      countAllPlatforms: cc.countAllPlatforms,
       isActive: cc.isActive,
     })),
   };

@@ -347,6 +347,11 @@ model CampaignCreator {
   creatorId       String
   platform        Platform @default(TIKTOK)
   videosPerDay    Int      @default(1)
+  // Goal counting for THIS creator on THIS campaign: false = canonical
+  // platform only (cross-posters — avoids double-counting the same video);
+  // true = every post on every platform/handle counts (unique content per
+  // account).
+  countAllPlatforms Boolean @default(false)
   // Per-creator monthly post commitment. Drives the weekly ring target as
   // `monthlyPostGoal / 4`. Null falls back to campaign.weeklyPostTarget so
   // creators without an explicit goal still get a sensible weekly number.

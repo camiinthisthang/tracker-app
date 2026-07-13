@@ -98,19 +98,26 @@ export default async function CreatorHomePage() {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 7);
 
-  // Pull posts on the creator's goal-platform only (IG when they have an IG
-  // handle; TikTok as fallback). Cross-posts on the other platform are
-  // surfaced separately via the cross-post audit and shouldn't double-count
-  // toward the ring.
+  // Counting rule per campaign membership: all platforms when the CC says
+  // so (unique content per handle), canonical goal platform otherwise so
+  // cross-posts don't double-count toward the ring.
   const goalPlatform = goalPlatformFor(creator);
-  const weekPosts = await prisma.post.findMany({
+  const ccByCampaignId = new Map(
+    creator.campaignCreators.map((cc) => [cc.campaign.id, cc])
+  );
+  const weekPostsAll = await prisma.post.findMany({
     where: {
       creatorId,
-      platform: goalPlatform,
       postedAt: { gte: weekStart, lt: weekEnd },
     },
-    select: { postedAt: true },
+    select: { postedAt: true, platform: true, campaignId: true },
   });
+  const weekPosts = weekPostsAll.filter(
+    (p) =>
+      (p.campaignId != null &&
+        ccByCampaignId.get(p.campaignId)?.countAllPlatforms) ||
+      p.platform === goalPlatform
+  );
 
   const postsPerDay = DAY_LABELS.map((label, i) => {
     const dayStart = addDays(weekStart, i);

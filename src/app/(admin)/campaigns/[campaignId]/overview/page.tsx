@@ -132,11 +132,13 @@ export default async function CampaignOverviewPage({
           : campaign.weeklyPostTarget;
       const dailyTarget = weeklyTarget / DAY_LABELS.length;
 
-      // Ring counts: this creator's posts on the goal platform only, so
-      // cross-posts on the other platform don't double-count.
+      // Ring counts: all platforms when this CC posts unique content per
+      // handle; goal platform only otherwise so cross-posts don't double-count.
       const goalPlatform = goalPlatformFor(cc.creator);
       const creatorPosts = weekPosts.filter(
-        (p) => p.creatorId === cc.creatorId && p.platform === goalPlatform
+        (p) =>
+          p.creatorId === cc.creatorId &&
+          (cc.countAllPlatforms || p.platform === goalPlatform)
       );
 
       const postsPerDay = DAY_LABELS.map((label, i) => {

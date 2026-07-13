@@ -107,7 +107,7 @@ export default async function CreatorsPage({
             ...postScope,
             postedAt: { gte: period.start, lt: period.end },
           },
-          select: { creatorId: true, platform: true },
+          select: { creatorId: true, platform: true, campaignId: true },
         }),
       ])
     : [[], []];
@@ -124,7 +124,10 @@ export default async function CreatorsPage({
   );
 
   const aggByCreator = new Map(aggregates.map((a) => [a.creatorId, a]));
-  const monthPostsByCreator = new Map<string, { platform: string }[]>();
+  const monthPostsByCreator = new Map<
+    string,
+    { platform: string; campaignId: string | null }[]
+  >();
   for (const p of monthPosts) {
     const list = monthPostsByCreator.get(p.creatorId) ?? [];
     list.push(p);
@@ -162,8 +165,16 @@ export default async function CreatorsPage({
       : { offPacePct: 80, quietDays: 4 };
 
     const goalPlatform = goalPlatformFor(creator);
+    // Counting rule is per creator-per-campaign: all platforms when the CC
+    // says so (unique content per handle), canonical platform otherwise.
+    const ccByCampaign = new Map(
+      relevantCCs.map((cc) => [cc.campaign.id, cc]),
+    );
     const postsThisMonth = (monthPostsByCreator.get(creator.id) ?? []).filter(
-      (p) => p.platform === goalPlatform,
+      (p) =>
+        (p.campaignId != null &&
+          ccByCampaign.get(p.campaignId)?.countAllPlatforms) ||
+        p.platform === goalPlatform,
     ).length;
     const agg = aggByCreator.get(creator.id);
 
