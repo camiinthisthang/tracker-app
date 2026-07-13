@@ -108,12 +108,14 @@ export async function PATCH(
             platform: c.platform,
             videosPerDay: c.videosPerDay,
             monthlyPostGoal: c.monthlyPostGoal ?? null,
+            countAllPlatforms: c.countAllPlatforms,
             isActive: c.isActive,
           },
           update: {
             platform: c.platform,
             videosPerDay: c.videosPerDay,
             monthlyPostGoal: c.monthlyPostGoal ?? null,
+            countAllPlatforms: c.countAllPlatforms,
             isActive: c.isActive,
           },
         });

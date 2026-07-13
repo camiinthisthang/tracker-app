@@ -15,6 +15,9 @@ export const campaignCreatorSchema = z.object({
     // Treat "" / 0 from the form input as "no goal set" so the fallback to
     // campaign.weeklyPostTarget kicks in.
     .transform((v) => (v ? v : null)),
+  // Unique content on every handle → all posts count toward pacing;
+  // false = canonical platform only (cross-posters).
+  countAllPlatforms: z.boolean().default(false),
   isActive: z.boolean().default(true),
 });
 

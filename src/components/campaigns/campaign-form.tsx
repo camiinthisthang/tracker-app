@@ -140,6 +140,7 @@ export function CampaignForm({
         platform: "TIKTOK",
         videosPerDay: 1,
         monthlyPostGoal: null,
+        countAllPlatforms: false,
         isActive: true,
       },
     ]);
@@ -751,13 +752,19 @@ export function CampaignForm({
 
         {creators.length > 0 && (
           <div className="mt-4 space-y-3">
-            <div className="hidden grid-cols-[1fr_100px_120px_60px_40px] gap-3 sm:grid">
+            <div className="hidden grid-cols-[1fr_100px_120px_90px_60px_40px] gap-3 sm:grid">
               <span className="text-xs font-medium text-gray-500">Creator</span>
               <span className="text-xs font-medium text-gray-500">
                 Videos per day
               </span>
               <span className="text-xs font-medium text-gray-500">
                 Monthly goal
+              </span>
+              <span
+                className="cursor-help text-xs font-medium text-gray-500"
+                title="On = every post on every platform/handle counts toward their goal (unique content per account). Off = only their canonical platform counts, so cross-posted videos aren't double-counted."
+              >
+                All platforms
               </span>
               <span className="text-xs font-medium text-gray-500">Active</span>
               <span />
@@ -780,7 +787,7 @@ export function CampaignForm({
               return (
                 <div
                   key={creator.id}
-                  className={`grid grid-cols-1 gap-3 sm:grid-cols-[1fr_100px_120px_60px_40px] sm:items-center ${
+                  className={`grid grid-cols-1 gap-3 sm:grid-cols-[1fr_100px_120px_90px_60px_40px] sm:items-center ${
                     creator.isActive ? "" : "opacity-60"
                   }`}
                 >
@@ -853,6 +860,13 @@ export function CampaignForm({
                         raw === "" ? null : parseInt(raw) || null,
                       );
                     }}
+                  />
+                  <Switch
+                    checked={creator.countAllPlatforms}
+                    title="Count posts on every platform/handle toward this creator's goal"
+                    onCheckedChange={(v) =>
+                      updateCreator(creator.id, "countAllPlatforms", v)
+                    }
                   />
                   <Switch
                     checked={creator.isActive}

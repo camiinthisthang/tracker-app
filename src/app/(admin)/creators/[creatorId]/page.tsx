@@ -184,7 +184,7 @@ export default async function CreatorDetailPage({
     }),
     prisma.post.findMany({
       where: { ...postWhere, postedAt: { gte: weekStart, lt: weekEnd } },
-      select: { postedAt: true, platform: true },
+      select: { postedAt: true, platform: true, campaignId: true },
     }),
     prisma.post.findMany({
       where: { ...postWhere, postedAt: { gte: period.start, lt: period.end } },
@@ -292,7 +292,14 @@ export default async function CreatorDetailPage({
   );
   const dailyTarget = weeklyTarget / DAY_LABELS.length;
   const goalPlatform = goalPlatformFor(creator);
-  const goalWeekPosts = weekPosts.filter((p) => p.platform === goalPlatform);
+  const ccByCampaignId = new Map(
+    creator.campaignCreators.map((cc) => [cc.campaign.id, cc]),
+  );
+  const countsForGoal = (p: { platform: string; campaignId: string | null }) =>
+    (p.campaignId != null &&
+      ccByCampaignId.get(p.campaignId)?.countAllPlatforms) ||
+    p.platform === goalPlatform;
+  const goalWeekPosts = weekPosts.filter(countsForGoal);
   const postsPerDay = DAY_LABELS.map((label, i) => {
     const dayStart = addDays(weekStart, i);
     const dayEnd = addDays(dayStart, 1);
@@ -319,9 +326,7 @@ export default async function CreatorDetailPage({
         quietDays: Math.max(...activeCCs.map((cc) => cc.campaign.quietDays)),
       }
     : { offPacePct: 80, quietDays: 4 };
-  const monthGoalPosts = monthPosts.filter(
-    (p) => p.platform === goalPlatform,
-  ).length;
+  const monthGoalPosts = monthPosts.filter(countsForGoal).length;
   const flags = creatorFlags({
     postsThisMonth: monthGoalPosts,
     postsAllTime: totalViews._count,
@@ -637,7 +642,8 @@ export default async function CreatorDetailPage({
                             monthPosts.filter(
                               (p) =>
                                 p.campaignId === cc.campaign.id &&
-                                p.platform === goalPlatform,
+                                (cc.countAllPlatforms ||
+                                  p.platform === goalPlatform),
                             ).length
                           }
                           /
