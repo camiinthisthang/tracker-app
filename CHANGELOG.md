@@ -6,6 +6,11 @@ notable manual changes. Newest entries on top.
 Format per entry:
 
 ```
+
+## 2026-07-13 — Anyone on the agency team can add creators
+- Previously only super admins could add a creator: a non-super-admin agency-team member defaulted to the agency (DropDeck) team, which is blocked for creators, so it errored. Now agency-wide users (super admins + any agency-team member, via `hasAgencyWideAccess`) get the client-team picker and can add a creator under any client. Client managers still add to their own team only. POST /api/creators + /creators page + AddCreatorButton (prop renamed isSuperAdmin → canPickTeam).
+- Tested: `npm test` 24/24, `npx next build` green. No schema/DB change.
+
 ## YYYY-MM-DD HH:MM — task #N: short title
 - What changed (file paths, behavior)
 - What was tested (build pass, manual click-through, smoke test)
