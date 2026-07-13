@@ -188,9 +188,9 @@ model Campaign {
   isActive         Boolean   @default(true)
   hashtags         String[]
   weeklyPostTarget Int       @default(5)
-  // Campaign-wide monthly post goal (e.g. 40), split evenly across active
-  // creators unless a CampaignCreator.monthlyPostGoal overrides. Null falls
-  // back to weeklyPostTarget×4 per creator (the pre-existing behavior).
+  // Per-creator monthly post goal (e.g. 40 → each creator, ~10/week), unless
+  // a CampaignCreator.monthlyPostGoal overrides. Null falls back to
+  // weeklyPostTarget×4 per creator (the pre-existing behavior).
   monthlyPostGoal  Int?
   // Off-pace flag threshold: flagged when posts < elapsed×goal×(offPacePct/100)
   offPacePct       Int       @default(80)

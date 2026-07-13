@@ -541,8 +541,8 @@ export function CampaignForm({
               onChange={(e) => setMonthlyPostGoal(e.target.value)}
             />
             <p className="mt-1 text-xs text-slate-400">
-              Campaign-wide total, split evenly across creators. Per-creator
-              goals below override their share.
+              Posts EACH creator should hit per month (e.g. 40 → 10/week). Set
+              a per-creator override on the roster rows below.
             </p>
           </div>
         </div>
