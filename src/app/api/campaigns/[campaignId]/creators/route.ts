@@ -75,7 +75,13 @@ export async function PATCH(
     contractedTiktok?: number | null;
     contractedInstagram?: number | null;
     monthlyRate?: number | null;
+    useDefaultHandles?: boolean;
+    countAllPlatforms?: boolean;
   } = {};
+  if (typeof body?.useDefaultHandles === "boolean")
+    data.useDefaultHandles = body.useDefaultHandles;
+  if (typeof body?.countAllPlatforms === "boolean")
+    data.countAllPlatforms = body.countAllPlatforms;
   for (const key of ["contractedTiktok", "contractedInstagram"] as const) {
     if (!(key in body)) continue;
     const raw = body[key];

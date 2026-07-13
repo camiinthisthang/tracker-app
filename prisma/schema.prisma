@@ -352,6 +352,10 @@ model CampaignCreator {
   // true = every post on every platform/handle counts (unique content per
   // account).
   countAllPlatforms Boolean @default(false)
+  // Canvas UGC model: creators make fresh handles per campaign, so their
+  // profile-level default handles are NOT synced for a campaign unless this
+  // is on. Off = only this campaign's own accounts are tracked.
+  useDefaultHandles Boolean @default(false)
   // Per-creator monthly post commitment. Drives the weekly ring target as
   // `monthlyPostGoal / 4`. Null falls back to campaign.weeklyPostTarget so
   // creators without an explicit goal still get a sensible weekly number.
