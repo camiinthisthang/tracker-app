@@ -8,6 +8,14 @@ export interface CampaignCreatorRow {
   creatorName: string;
   creatorHandle: string;
   tier: string;
+  /** Still active on THIS campaign (false = cut). */
+  onCampaign: boolean;
+  /** Active on the roster at all (false = deactivated agency-wide). */
+  creatorActive: boolean;
+  creatorShadowbanned: boolean;
+  /** Number of this creator's handles currently flagged shadow-banned. */
+  shadowbannedHandles: number;
+  countAllPlatforms: boolean;
   videosPerDay: number;
   postCount: number;
   totalViews: number;
@@ -38,6 +46,9 @@ export function CampaignCreatorsTable({
             <tr className="border-b border-slate-100 text-left">
               <th className="px-5 py-3 text-xs font-medium text-gray-500">
                 Creator
+              </th>
+              <th className="px-5 py-3 text-xs font-medium text-gray-500">
+                Status
               </th>
               <th className="px-5 py-3 text-xs font-medium text-gray-500">
                 Tier
@@ -71,7 +82,7 @@ export function CampaignCreatorsTable({
             {creators.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="px-5 py-6 text-center text-sm text-slate-400"
                 >
                   No creators assigned yet
@@ -100,6 +111,57 @@ export function CampaignCreatorsTable({
                         </p>
                       </div>
                     </Link>
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {!c.creatorActive ? (
+                        <span
+                          title="Deactivated from the whole roster — history kept, syncing stopped"
+                          className="cursor-help rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                        >
+                          Deactivated
+                        </span>
+                      ) : !c.onCampaign ? (
+                        <span
+                          title="Cut from this campaign — still active elsewhere, posts/history kept"
+                          className="cursor-help rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700"
+                        >
+                          Cut
+                        </span>
+                      ) : (
+                        <span
+                          title="Active on this campaign"
+                          className="cursor-help rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-600"
+                        >
+                          Active
+                        </span>
+                      )}
+                      {c.creatorShadowbanned && (
+                        <span
+                          title="Whole creator marked shadow-banned — excluded from pacing"
+                          className="cursor-help rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-600"
+                        >
+                          SB
+                        </span>
+                      )}
+                      {c.shadowbannedHandles > 0 && (
+                        <span
+                          title={`${c.shadowbannedHandles} of their handles flagged shadow-banned — pacing continues on their other handles`}
+                          className="cursor-help rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-600"
+                        >
+                          {c.shadowbannedHandles} SB handle
+                          {c.shadowbannedHandles === 1 ? "" : "s"}
+                        </span>
+                      )}
+                      {c.countAllPlatforms && (
+                        <span
+                          title="Every post on every platform/handle counts toward their goal (unique content per account)"
+                          className="cursor-help rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-600"
+                        >
+                          All platforms
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-3">
                     <TierBadge tier={c.tier} />

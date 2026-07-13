@@ -29,7 +29,6 @@ import { goalPlatformFor } from "@/lib/social/goal-counting";
 import { YtAuditToggle } from "@/components/campaigns/yt-audit-toggle";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
-const VIRAL_THRESHOLD = 50_000;
 
 export default async function CampaignOverviewPage({
   params,
@@ -49,7 +48,13 @@ export default async function CampaignOverviewPage({
     where: { id: campaignId, ...campaignVisibilityWhere(session) },
     include: {
       campaignCreators: {
-        include: { creator: true },
+        include: {
+          creator: {
+            include: {
+              accounts: { where: { isActive: true, isShadowbanned: true } },
+            },
+          },
+        },
       },
       _count: { select: { posts: true, tasks: true } },
     },
@@ -234,7 +239,7 @@ export default async function CampaignOverviewPage({
         0
       );
       const viralCount = creatorPosts.filter(
-        (p) => p.views >= VIRAL_THRESHOLD
+        (p) => p.views >= campaign.viralThreshold
       ).length;
 
       return {
@@ -242,6 +247,11 @@ export default async function CampaignOverviewPage({
         creatorName: cc.creator.name,
         creatorHandle: cc.creator.handle,
         tier: cc.creator.tier,
+        onCampaign: cc.isActive,
+        creatorActive: cc.creator.isActive,
+        creatorShadowbanned: cc.creator.isShadowbanned,
+        shadowbannedHandles: cc.creator.accounts.length,
+        countAllPlatforms: cc.countAllPlatforms,
         videosPerDay: cc.videosPerDay,
         postCount,
         totalViews: totalCreatorViews,
