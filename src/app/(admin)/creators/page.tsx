@@ -7,7 +7,11 @@ import {
   commonPacingPeriod,
 } from "@/lib/pacing";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession, AGENCY_TEAM_SLUGS } from "@/lib/auth";
+import {
+  getRequiredSession,
+  AGENCY_TEAM_SLUGS,
+  hasAgencyWideAccess,
+} from "@/lib/auth";
 import { creatorVisibilityWhere, campaignVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -28,7 +32,11 @@ export default async function CreatorsPage({
   // Super admins can pick any team when adding a creator — except the agency
   // team itself, which is admins-only by intent. Hiding it from the picker
   // stops the recurring mistake of adding creators to DropDeck.
-  const teams = session.user.isSuperAdmin
+  // Agency-wide users (super admins + agency-team members) pick which client
+  // to add a creator under; the agency team itself is excluded (creators
+  // there break visibility). Client managers add to their own team only.
+  const canPickTeam = hasAgencyWideAccess(session);
+  const teams = canPickTeam
     ? await prisma.team.findMany({
         where: { slug: { notIn: AGENCY_TEAM_SLUGS } },
         select: { id: true, name: true },
@@ -227,12 +235,12 @@ export default async function CreatorsPage({
         description="Monthly pacing across your roster — who needs attention, who's on track"
       >
         <AddCreatorButton
-          isSuperAdmin={session.user.isSuperAdmin}
+          canPickTeam={canPickTeam}
           teams={teams}
-          // Super admins must pick a client every time — defaulting to their
-          // own team is what put creators onto the agency team. Non-super
-          // admins are locked to their own team server-side anyway.
-          defaultTeamId={session.user.isSuperAdmin ? "" : session.user.teamId}
+          // Team pickers must choose a client every time — defaulting to their
+          // own team is what put creators onto the agency team. Client managers
+          // are locked to their own team server-side anyway.
+          defaultTeamId={canPickTeam ? "" : session.user.teamId}
         />
       </PageHeader>
 

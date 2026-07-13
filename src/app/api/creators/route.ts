@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { getRequiredSession, isAgencyTeamSlug } from "@/lib/auth";
+import {
+  getRequiredSession,
+  isAgencyTeamSlug,
+  hasAgencyWideAccess,
+} from "@/lib/auth";
 import { creatorVisibilityWhere } from "@/lib/visibility";
 import { createCreatorSchema } from "@/lib/validations/creator";
 import { sendCreatorInvite } from "@/lib/email/creator-invite";
@@ -60,10 +64,11 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = createCreatorSchema.parse(body);
 
-    // Only super admins can create a creator for a different team.
-    // Everyone else is locked to their own team.
+    // Agency-wide users (super admins + any DropDeck agency-team member) can
+    // create a creator under any client team by passing teamId. Client
+    // managers are locked to their own team.
     const teamId =
-      session.user.isSuperAdmin && data.teamId
+      hasAgencyWideAccess(session) && data.teamId
         ? data.teamId
         : session.user.teamId;
 
