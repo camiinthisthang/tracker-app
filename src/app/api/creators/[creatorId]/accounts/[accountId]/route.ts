@@ -30,8 +30,14 @@ export async function PATCH(
   }
 
   const body = await req.json().catch(() => null);
-  const data: { isActive?: boolean; note?: string | null } = {};
+  const data: {
+    isActive?: boolean;
+    isShadowbanned?: boolean;
+    note?: string | null;
+  } = {};
   if (typeof body?.isActive === "boolean") data.isActive = body.isActive;
+  if (typeof body?.isShadowbanned === "boolean")
+    data.isShadowbanned = body.isShadowbanned;
   if ("note" in (body ?? {})) {
     data.note = typeof body.note === "string" ? body.note.trim() || null : null;
   }

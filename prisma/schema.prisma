@@ -323,6 +323,9 @@ model CreatorAccount {
   platform  Platform
   handle    String
   isActive  Boolean  @default(true)
+  // THIS handle is shadow-banned — a note on the handle, not the creator.
+  // The whole-creator flag (Creator.isShadowbanned) is the rare full case.
+  isShadowbanned Boolean @default(false)
   // Free-form context, e.g. "replacement — main banned 2026-07"
   note      String?
   // Scope this account to a single campaign (creators on multiple campaigns

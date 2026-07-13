@@ -153,13 +153,16 @@ export async function fetchInstagramPostsViaApify(
     const id = String(p.id ?? p.shortCode ?? "");
     if (!id) continue;
 
-    // Reels expose a play/view count under one of several keys depending on
-    // the actor version (videoViewCount → videoPlayCount → igPlayCount). Feed
-    // posts don't expose views at all, so we fall back to 0. We log the raw
-    // candidates so we can diagnose under-reported counts (e.g. Claire's
-    // #poncho Reels showing single-digit views) against what IG actually shows.
-    const views = toInt(
-      p.videoViewCount ?? p.videoPlayCount ?? p.igPlayCount
+    // Reels expose a play/view count under several keys depending on the
+    // actor version (videoViewCount / videoPlayCount / igPlayCount), and the
+    // actor often returns a stale-or-partial videoViewCount ALONGSIDE the
+    // real igPlayCount — `??` never falls through on a present-but-low
+    // number (Annie's 672 vs the real 5,308; Claire's single-digit Reels).
+    // Take the highest candidate instead. Feed posts expose none → 0.
+    const views = Math.max(
+      toInt(p.videoViewCount),
+      toInt(p.videoPlayCount),
+      toInt(p.igPlayCount)
     );
     console.log(
       `[ig-sync] @${clean} ${id} type=${p.type ?? p.productType ?? "?"} ` +

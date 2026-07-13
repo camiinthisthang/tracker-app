@@ -25,10 +25,12 @@ export default async function EditCampaignPage({
         bonusTiers: { orderBy: { viewThreshold: "asc" } },
       },
     }),
+    // All creators, not just active — cut/deactivated creators already on
+    // the campaign must still resolve to a name instead of a raw id.
     prisma.creator.findMany({
-      where: { ...creatorVisibilityWhere(session), isActive: true },
-      select: { id: true, name: true, handle: true },
-      orderBy: { name: "asc" },
+      where: creatorVisibilityWhere(session),
+      select: { id: true, name: true, handle: true, isActive: true },
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
     }),
   ]);
 
