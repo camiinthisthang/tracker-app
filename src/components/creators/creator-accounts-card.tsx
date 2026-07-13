@@ -2,11 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Music2, Camera, MonitorPlay, Plus } from "lucide-react";
+import {
+  Save,
+  Music2,
+  Camera,
+  MonitorPlay,
+  Plus,
+  ChevronDown,
+  ExternalLink,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -16,8 +24,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { HandleLink } from "@/components/creators/handle-link";
-import { ACTIVE_PLATFORMS, PLATFORM_LABELS, platformProfileUrl } from "@/lib/constants";
-import { ExternalLink } from "lucide-react";
+import { ACTIVE_PLATFORMS, platformProfileUrl } from "@/lib/constants";
 
 interface Account {
   id: string;
@@ -35,6 +42,7 @@ interface CampaignRef {
   name: string;
   isActive: boolean;
   onCampaign: boolean; // false = creator was cut from this campaign
+  useDefaultHandles: boolean; // track the creator's profile handles here too
 }
 
 interface Props {
@@ -48,10 +56,10 @@ interface Props {
 }
 
 /**
- * One card for everything account-related: the default handles (tracked for
- * every campaign), plus extra accounts grouped by the campaign they belong
- * to, with the add form inline. Replaces the separate "Social handles" and
- * "Extra accounts" cards so the account→campaign mapping reads top to bottom.
+ * Accounts are campaign-first: creators spin up fresh handles per campaign, so
+ * each campaign lists its own accounts, and the creator's profile "default
+ * handles" are an opt-in exception (collapsed, off unless a campaign toggles
+ * "also track default handle"). Ended/cut campaigns collapse under Show more.
  */
 export function CreatorAccountsCard({
   creatorId,
@@ -68,12 +76,19 @@ export function CreatorAccountsCard({
   const [yt, setYt] = useState(youtubeHandle ?? "");
   const [savingHandles, setSavingHandles] = useState(false);
 
+  const activeCampaigns = campaigns.filter((c) => c.isActive && c.onCampaign);
+  const endedCampaigns = campaigns.filter((c) => !c.isActive || !c.onCampaign);
+
   const [platform, setPlatform] = useState<string>("TIKTOK");
   const [handle, setHandle] = useState("");
   const [note, setNote] = useState("");
-  const [campaignId, setCampaignId] = useState<string>("all");
+  const [campaignId, setCampaignId] = useState<string>(
+    activeCampaigns[0]?.id ?? "all"
+  );
   const [adding, setAdding] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [showDefaults, setShowDefaults] = useState(false);
+  const [showEnded, setShowEnded] = useState(false);
 
   async function saveHandles() {
     setSavingHandles(true);
@@ -91,7 +106,7 @@ export function CreatorAccountsCard({
         toast.error("Could not save handles");
         return;
       }
-      toast.success("Handles saved");
+      toast.success("Default handles saved");
       router.refresh();
     } catch {
       toast.error("Something went wrong");
@@ -150,7 +165,7 @@ export function CreatorAccountsCard({
       toast.success(
         account.isShadowbanned
           ? "Shadow-ban flag cleared for this handle"
-          : "Handle marked shadow-banned — just a note on this handle, pacing continues on their other handles"
+          : "Handle marked shadow-banned — just a note on this handle; add their replacement handle below"
       );
       router.refresh();
     } catch {
@@ -188,11 +203,38 @@ export function CreatorAccountsCard({
     }
   }
 
+  async function toggleDefaultHandles(campaign: CampaignRef) {
+    setTogglingId(campaign.id);
+    try {
+      const res = await fetch(
+        `/api/campaigns/${campaign.id}/creators`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            creatorId,
+            useDefaultHandles: !campaign.useDefaultHandles,
+          }),
+        }
+      );
+      if (!res.ok) {
+        toast.error("Could not update");
+        return;
+      }
+      toast.success(
+        campaign.useDefaultHandles
+          ? `Stopped tracking default handles on ${campaign.name}`
+          : `Now also tracking their default handles on ${campaign.name}`
+      );
+      router.refresh();
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   const sharedExtras = accounts.filter((a) => !a.campaignId);
-  const byCampaign = campaigns.map((c) => ({
-    campaign: c,
-    accounts: accounts.filter((a) => a.campaignId === c.id),
-  }));
 
   function AccountRow({ a }: { a: Account }) {
     return (
@@ -209,28 +251,31 @@ export function CreatorAccountsCard({
               <ExternalLink className="h-3 w-3 text-blue-500" />
             </a>
             <span className="ml-2 text-xs text-slate-400">
-              {PLATFORM_LABELS[a.platform] ?? a.platform}
+              {ACTIVE_PLATFORMS.find((p) => p.value === a.platform)?.label ??
+                a.platform}
             </span>
           </p>
-          {a.note && <p className="truncate text-xs text-slate-400">{a.note}</p>}
+          {a.note && (
+            <p className="truncate text-xs text-slate-400">{a.note}</p>
+          )}
         </div>
         {a.isShadowbanned && (
-          <Badge
-            title="This handle is shadow-banned — a note on the handle only; the creator's pacing continues on their other handles"
-            className="cursor-help bg-violet-50 text-violet-600"
+          <span
+            title="This handle is shadow-banned — a note on the handle only; pacing continues on their other handles"
+            className="cursor-help rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600"
           >
             Shadow-banned
-          </Badge>
+          </span>
         )}
-        <Badge
-          className={
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
             a.isActive
               ? "bg-green-50 text-green-600"
               : "bg-slate-100 text-slate-500"
-          }
+          }`}
         >
           {a.isActive ? "Syncing" : "Inactive"}
-        </Badge>
+        </span>
         <Button
           type="button"
           size="sm"
@@ -255,6 +300,49 @@ export function CreatorAccountsCard({
     );
   }
 
+  function CampaignSection({ c }: { c: CampaignRef }) {
+    const campAccounts = accounts.filter((a) => a.campaignId === c.id);
+    return (
+      <div className="rounded-lg border border-slate-100 p-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {c.name}
+            {!c.isActive && " · ended"}
+            {c.isActive && !c.onCampaign && (
+              <span className="ml-2 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium normal-case text-amber-700">
+                cut from campaign
+              </span>
+            )}
+          </p>
+          <label
+            className="flex cursor-pointer items-center gap-1.5 text-[11px] text-slate-500"
+            title="Off (default): only this campaign's own accounts are tracked. On: also sync the creator's profile default handles for this campaign."
+          >
+            <Switch
+              checked={c.useDefaultHandles}
+              disabled={togglingId === c.id}
+              onCheckedChange={() => toggleDefaultHandles(c)}
+            />
+            Also track default handle
+          </label>
+        </div>
+        {campAccounts.length > 0 ? (
+          <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100">
+            {campAccounts.map((a) => (
+              <AccountRow key={a.id} a={a} />
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-slate-400">
+            {c.useDefaultHandles
+              ? "No campaign-specific accounts — tracking their default handles."
+              : "No accounts yet — add the handle(s) they're using for this campaign below."}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="mb-4">
@@ -262,116 +350,28 @@ export function CreatorAccountsCard({
           Social accounts
         </h3>
         <p className="text-xs text-slate-500">
-          Default handles are tracked for <span className="font-medium">every</span>{" "}
-          campaign. Below them, each campaign lists its own extra accounts —
-          e.g. a different handle for one campaign, or a replacement after a
-          shadow ban. Deactivating an account stops syncing it without losing
-          its history.
+          Tracked per campaign — creators use fresh handles for each campaign,
+          so add the account(s) they&apos;re running under each one. Deactivating
+          an account stops syncing it without losing its history.
         </p>
       </div>
 
-      {/* Defaults — every campaign */}
-      <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-4">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Default handles — every campaign
-        </p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="space-y-1">
-            <Label className="flex items-center gap-1.5 text-xs text-slate-600">
-              <Music2 className="h-3 w-3" />
-              TikTok
-              <HandleLink platform="TIKTOK" handle={tt} />
-            </Label>
-            <Input
-              placeholder={fallbackHandle}
-              value={tt}
-              onChange={(e) => setTt(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="flex items-center gap-1.5 text-xs text-slate-600">
-              <Camera className="h-3 w-3" />
-              Instagram
-              <HandleLink platform="INSTAGRAM" handle={ig} />
-            </Label>
-            <Input
-              placeholder="their.insta.handle"
-              value={ig}
-              onChange={(e) => setIg(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="flex items-center gap-1.5 text-xs text-slate-600">
-              <MonitorPlay className="h-3 w-3" />
-              YouTube (Shorts)
-              <HandleLink platform="YOUTUBE" handle={yt} />
-            </Label>
-            <Input
-              placeholder="their.channel.name"
-              value={yt}
-              onChange={(e) => setYt(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <p className="text-[10px] text-slate-400">
-            Without the @ — creators can also set these on their own profile
+      {/* Active campaigns — the primary view */}
+      <div className="space-y-3">
+        {activeCampaigns.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-slate-200 p-4 text-xs text-slate-400">
+            Not on any active campaign. Assign this creator to a campaign to
+            start tracking their accounts.
           </p>
-          <Button
-            type="button"
-            size="sm"
-            onClick={saveHandles}
-            disabled={savingHandles}
-            className="bg-slate-900 text-white hover:bg-slate-800"
-          >
-            <Save className="mr-2 h-3.5 w-3.5" />
-            {savingHandles ? "Saving..." : "Save handles"}
-          </Button>
-        </div>
-        {sharedExtras.length > 0 && (
-          <ul className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-100 bg-white">
-            {sharedExtras.map((a) => (
-              <AccountRow key={a.id} a={a} />
-            ))}
-          </ul>
+        ) : (
+          activeCampaigns.map((c) => <CampaignSection key={c.id} c={c} />)
         )}
       </div>
 
-      {/* Per-campaign accounts */}
-      <div className="mt-3 space-y-3">
-        {byCampaign.map(({ campaign, accounts: campAccounts }) => (
-          <div
-            key={campaign.id}
-            className="rounded-lg border border-slate-100 p-4"
-          >
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {campaign.name}
-              {!campaign.isActive && " · ended"}
-              {!campaign.onCampaign && (
-                <span className="ml-2 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium normal-case text-amber-700">
-                  cut from campaign
-                </span>
-              )}
-            </p>
-            {campAccounts.length > 0 ? (
-              <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100">
-                {campAccounts.map((a) => (
-                  <AccountRow key={a.id} a={a} />
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-slate-400">
-                Uses the default handles only
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Add an extra account */}
+      {/* Add an account (defaults to a campaign, not all-campaigns) */}
       <div className="mt-3 rounded-lg border border-dashed border-slate-200 p-4">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Add an extra account
+          Add an account
         </p>
         <div className="flex flex-wrap items-end gap-2">
           <div className="w-36">
@@ -397,7 +397,7 @@ export function CreatorAccountsCard({
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
           />
-          <div className="w-44">
+          <div className="w-52">
             <Select
               value={campaignId}
               onValueChange={(v) => v && setCampaignId(v)}
@@ -405,20 +405,20 @@ export function CreatorAccountsCard({
               <SelectTrigger>
                 <SelectValue>
                   {campaignId === "all"
-                    ? "All campaigns"
-                    : campaigns.find((c) => c.id === campaignId)?.name ??
-                      "All campaigns"}
+                    ? "All campaigns (rare)"
+                    : activeCampaigns.find((c) => c.id === campaignId)?.name ??
+                      "Pick a campaign"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All campaigns</SelectItem>
-                {campaigns
-                  .filter((c) => c.onCampaign)
-                  .map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
+                {activeCampaigns.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="all">
+                  All campaigns (shared — rare)
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -439,6 +439,116 @@ export function CreatorAccountsCard({
             {adding ? "Adding..." : "Add account"}
           </Button>
         </div>
+      </div>
+
+      {/* Ended / cut campaigns — collapsed */}
+      {endedCampaigns.length > 0 && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setShowEnded((v) => !v)}
+            className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
+          >
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${showEnded ? "rotate-180" : ""}`}
+            />
+            {showEnded ? "Hide" : "Show"} ended / cut campaigns (
+            {endedCampaigns.length})
+          </button>
+          {showEnded && (
+            <div className="mt-2 space-y-3">
+              {endedCampaigns.map((c) => (
+                <CampaignSection key={c.id} c={c} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Default handles — advanced, collapsed */}
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        <button
+          type="button"
+          onClick={() => setShowDefaults((v) => !v)}
+          className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
+        >
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform ${showDefaults ? "rotate-180" : ""}`}
+          />
+          Default profile handles (advanced)
+        </button>
+        {showDefaults && (
+          <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50/60 p-4">
+            <p className="mb-3 text-[11px] text-slate-500">
+              A creator&apos;s profile handles. These are <b>not</b> tracked on a
+              campaign unless that campaign&apos;s &quot;Also track default
+              handle&quot; toggle is on — most Canvas UGC creators use fresh
+              per-campaign handles instead.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <Music2 className="h-3 w-3" />
+                  TikTok
+                  <HandleLink platform="TIKTOK" handle={tt} />
+                </Label>
+                <Input
+                  placeholder={fallbackHandle}
+                  value={tt}
+                  onChange={(e) => setTt(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <Camera className="h-3 w-3" />
+                  Instagram
+                  <HandleLink platform="INSTAGRAM" handle={ig} />
+                </Label>
+                <Input
+                  placeholder="their.insta.handle"
+                  value={ig}
+                  onChange={(e) => setIg(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <MonitorPlay className="h-3 w-3" />
+                  YouTube (Shorts)
+                  <HandleLink platform="YOUTUBE" handle={yt} />
+                </Label>
+                <Input
+                  placeholder="their.channel.name"
+                  value={yt}
+                  onChange={(e) => setYt(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-end">
+              <Button
+                type="button"
+                size="sm"
+                onClick={saveHandles}
+                disabled={savingHandles}
+                className="bg-slate-900 text-white hover:bg-slate-800"
+              >
+                <Save className="mr-2 h-3.5 w-3.5" />
+                {savingHandles ? "Saving..." : "Save handles"}
+              </Button>
+            </div>
+            {sharedExtras.length > 0 && (
+              <div className="mt-3">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  Shared extra accounts (all campaigns)
+                </p>
+                <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-white">
+                  {sharedExtras.map((a) => (
+                    <AccountRow key={a.id} a={a} />
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

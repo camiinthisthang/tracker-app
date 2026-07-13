@@ -57,7 +57,11 @@ export type SyncHandle = {
 // when syncing their campaign.
 export function resolveSyncHandles(
   c: CreatorHandles,
-  forCampaignId?: string | null
+  forCampaignId?: string | null,
+  // Canvas UGC: profile default handles are only synced when the campaign
+  // membership opts in. Defaults to true for the manual per-creator sync
+  // (no campaign context) so a profile-only creator still syncs.
+  includeDefaults = true
 ): SyncHandle[] {
   const primary: Record<SyncPlatform, string | null> = {
     TIKTOK: cleanHandle(c.tiktokHandle) ?? cleanHandle(c.tiktokUsername),
@@ -91,8 +95,10 @@ export function resolveSyncHandles(
       scope !== null
     );
   }
-  for (const platform of ["TIKTOK", "INSTAGRAM", "YOUTUBE"] as const) {
-    push(platform, primary[platform], false);
+  if (includeDefaults) {
+    for (const platform of ["TIKTOK", "INSTAGRAM", "YOUTUBE"] as const) {
+      push(platform, primary[platform], false);
+    }
   }
   return out;
 }
@@ -185,7 +191,13 @@ export async function syncCampaign(campaignId: string) {
   };
   const tasks: FetchTask[] = [];
   for (const cc of campaign.campaignCreators) {
-    const handles = resolveSyncHandles(cc.creator, campaignId);
+    // Only fall back to the creator's profile default handles when this
+    // membership opts in — otherwise track just this campaign's own accounts.
+    const handles = resolveSyncHandles(
+      cc.creator,
+      campaignId,
+      cc.useDefaultHandles
+    );
     for (const h of handles) {
       tasks.push({
         cc,

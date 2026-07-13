@@ -358,10 +358,6 @@ export default async function CreatorDetailPage({
   return (
     <div>
       <PageHeader title={creator.name} description={`@${creator.handle}`}>
-        <ShadowbanToggle
-          creatorId={creator.id}
-          isShadowbanned={creator.isShadowbanned}
-        />
         <DeactivateCreatorToggle
           creatorId={creator.id}
           isActive={creator.isActive}
@@ -447,6 +443,7 @@ export default async function CreatorDetailPage({
             name: cc.campaign.name,
             isActive: cc.campaign.isActive,
             onCampaign: cc.isActive,
+            useDefaultHandles: cc.useDefaultHandles,
           }))}
         />
       </div>
@@ -745,6 +742,26 @@ export default async function CreatorDetailPage({
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Rare: exclude the whole creator from pacing. Usually you want
+          per-handle "Mark SB" in Social accounts instead — creators keep
+          posting on replacement handles. */}
+      <div className="mt-6 flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
+        <div>
+          <p className="text-sm font-medium text-slate-700">
+            Whole-creator shadow-ban
+          </p>
+          <p className="text-xs text-slate-400">
+            Rare — excludes them from pacing entirely. For a single banned
+            handle use &quot;Mark SB&quot; in Social accounts so pacing
+            continues on their other handles.
+          </p>
+        </div>
+        <ShadowbanToggle
+          creatorId={creator.id}
+          isShadowbanned={creator.isShadowbanned}
+        />
       </div>
 
       {session.user.isSuperAdmin && (
