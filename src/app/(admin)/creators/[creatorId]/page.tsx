@@ -272,8 +272,22 @@ export default async function CreatorDetailPage({
       cc.campaign.isActive &&
       (!campaignFilter || cc.campaign.id === campaignFilter.id),
   );
+  // Weekly target derives from the same goal source as monthly pacing
+  // (campaign goal split / per-creator override), so the two cards agree
+  // and both adjust from the campaign form.
+  const activeCountByCampaign = new Map(
+    activeCounts.map((g) => [g.campaignId, g._count]),
+  );
   const weeklyTarget = activeCCs.reduce(
-    (sum, cc) => sum + cc.videosPerDay * 5,
+    (sum, cc) =>
+      sum +
+      Math.ceil(
+        effectiveMonthlyGoal(
+          cc,
+          cc.campaign,
+          activeCountByCampaign.get(cc.campaign.id) ?? 1,
+        ) / 4,
+      ),
     0,
   );
   const dailyTarget = weeklyTarget / DAY_LABELS.length;
@@ -289,9 +303,6 @@ export default async function CreatorDetailPage({
   });
 
   // Cumulative monthly pacing — mirrors the creators list page exactly.
-  const activeCountByCampaign = new Map(
-    activeCounts.map((g) => [g.campaignId, g._count]),
-  );
   const monthlyGoal = activeCCs.reduce(
     (sum, cc) =>
       sum +
@@ -421,6 +432,7 @@ export default async function CreatorDetailPage({
             platform: a.platform,
             handle: a.handle,
             isActive: a.isActive,
+            isShadowbanned: a.isShadowbanned,
             note: a.note,
             campaignId: a.campaignId,
             campaignName: a.campaign?.name ?? null,

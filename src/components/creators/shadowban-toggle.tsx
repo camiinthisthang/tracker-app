@@ -51,6 +51,7 @@ export function ShadowbanToggle({
       size="sm"
       onClick={toggle}
       disabled={saving}
+      title="Rare, whole-creator flag: excludes them from pacing entirely. For a single banned handle, use Mark SB on that handle in Social accounts instead — pacing then continues on their other handles."
       className={
         isShadowbanned
           ? "border-violet-200 bg-violet-50 text-violet-600"

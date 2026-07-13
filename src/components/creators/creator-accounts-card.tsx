@@ -24,6 +24,7 @@ interface Account {
   platform: string;
   handle: string;
   isActive: boolean;
+  isShadowbanned: boolean;
   note: string | null;
   campaignId: string | null;
   campaignName: string | null;
@@ -131,6 +132,34 @@ export function CreatorAccountsCard({
     }
   }
 
+  async function toggleShadowban(account: Account) {
+    setTogglingId(account.id);
+    try {
+      const res = await fetch(
+        `/api/creators/${creatorId}/accounts/${account.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isShadowbanned: !account.isShadowbanned }),
+        }
+      );
+      if (!res.ok) {
+        toast.error("Could not update account");
+        return;
+      }
+      toast.success(
+        account.isShadowbanned
+          ? "Shadow-ban flag cleared for this handle"
+          : "Handle marked shadow-banned — just a note on this handle, pacing continues on their other handles"
+      );
+      router.refresh();
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   async function toggleAccount(account: Account) {
     setTogglingId(account.id);
     try {
@@ -185,6 +214,14 @@ export function CreatorAccountsCard({
           </p>
           {a.note && <p className="truncate text-xs text-slate-400">{a.note}</p>}
         </div>
+        {a.isShadowbanned && (
+          <Badge
+            title="This handle is shadow-banned — a note on the handle only; the creator's pacing continues on their other handles"
+            className="cursor-help bg-violet-50 text-violet-600"
+          >
+            Shadow-banned
+          </Badge>
+        )}
         <Badge
           className={
             a.isActive
@@ -194,6 +231,17 @@ export function CreatorAccountsCard({
         >
           {a.isActive ? "Syncing" : "Inactive"}
         </Badge>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={togglingId === a.id}
+          title="Flag or clear a shadow-ban on this handle only"
+          onClick={() => toggleShadowban(a)}
+          className={a.isShadowbanned ? "text-violet-600" : "text-slate-500"}
+        >
+          {a.isShadowbanned ? "Clear SB" : "Mark SB"}
+        </Button>
         <Button
           type="button"
           size="sm"

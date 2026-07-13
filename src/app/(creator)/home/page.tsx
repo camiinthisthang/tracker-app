@@ -21,6 +21,7 @@ import { BonusTracker } from "@/components/creators/bonus-tracker";
 import { CreatorBonusPotential } from "@/components/creators/creator-bonus-potential";
 import { computeCreatorBonusSummary } from "@/lib/bonus";
 import { computeViewBonuses } from "@/lib/view-bonus";
+import { effectiveMonthlyGoal } from "@/lib/pacing";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const VIRAL_THRESHOLD = 50_000;
@@ -45,7 +46,17 @@ export default async function CreatorHomePage() {
     where: { id: creatorId },
     include: {
       campaignCreators: {
-        include: { campaign: { select: { id: true, name: true, isActive: true } } },
+        include: {
+          campaign: {
+            select: {
+              id: true,
+              name: true,
+              isActive: true,
+              weeklyPostTarget: true,
+              monthlyPostGoal: true,
+            },
+          },
+        },
       },
     },
   });
@@ -54,18 +65,32 @@ export default async function CreatorHomePage() {
     return <p>Creator not found</p>;
   }
 
-  // Weekly goal: sum across all active campaigns. Each CC contributes either
-  // `monthlyPostGoal / 4` when an explicit per-creator goal is set, or the
-  // legacy `videosPerDay × 5` baseline as a fallback for older rows. Either
-  // way the number is the same regardless of weekend support — the goal is
-  // weekly, just spread across 7 day rings.
+  // Weekly goal: same source as the admin pages — the campaign's monthly
+  // goal split across its active creators (or this creator's override),
+  // divided into weeks. Adjusts from the campaign form.
   const activeCCs = creator.campaignCreators.filter(
     (cc) => cc.isActive && cc.campaign.isActive
   );
-  const weeklyTarget = activeCCs.reduce((sum, cc) => {
-    const fromGoal = cc.monthlyPostGoal != null ? cc.monthlyPostGoal / 4 : null;
-    return sum + (fromGoal ?? cc.videosPerDay * 5);
-  }, 0);
+  const activeCounts = await prisma.campaignCreator.groupBy({
+    by: ["campaignId"],
+    where: { isActive: true, creator: { isActive: true } },
+    _count: true,
+  });
+  const activeCountByCampaign = new Map(
+    activeCounts.map((g) => [g.campaignId, g._count])
+  );
+  const weeklyTarget = activeCCs.reduce(
+    (sum, cc) =>
+      sum +
+      Math.ceil(
+        effectiveMonthlyGoal(
+          cc,
+          cc.campaign,
+          activeCountByCampaign.get(cc.campaign.id) ?? 1
+        ) / 4
+      ),
+    0
+  );
   const dailyTarget = weeklyTarget / DAY_LABELS.length;
 
   // Posts this week (Mon–Sun)

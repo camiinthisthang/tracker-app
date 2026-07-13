@@ -26,6 +26,8 @@ interface AvailableCreator {
   id: string;
   name: string;
   handle: string;
+  /** Absent = active (the create flow only passes active creators). */
+  isActive?: boolean;
 }
 
 interface AvailableTeam {
@@ -767,8 +769,10 @@ export function CampaignForm({
                   .filter((c) => c.id !== creator.id && c.creatorId)
                   .map((c) => c.creatorId),
               );
+              // Deactivated creators resolve for display but can't be newly
+              // added to a campaign.
               const selectableCreators = availableCreators.filter(
-                (ac) => !pickedIds.has(ac.id),
+                (ac) => !pickedIds.has(ac.id) && ac.isActive !== false,
               );
               const selected = availableCreators.find(
                 (ac) => ac.id === creator.creatorId,
@@ -795,7 +799,16 @@ export function CampaignForm({
                                 Cut
                               </span>
                             )}
+                            {selected.isActive === false && (
+                              <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                Deactivated
+                              </span>
+                            )}
                             {selected.name} · @{selected.handle}
+                          </span>
+                        ) : creator.creatorId ? (
+                          <span className="text-slate-400">
+                            Former creator (removed from roster)
                           </span>
                         ) : undefined}
                       </SelectValue>
