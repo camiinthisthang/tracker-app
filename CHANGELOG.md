@@ -7,6 +7,12 @@ Format per entry:
 
 ```
 
+
+## 2026-07-13 — Monthly goal is now PER CREATOR (not a campaign total split)
+- Fix for the confusing "/ 5" bars: the campaign monthly goal was a campaign-wide total split across creators (40 ÷ 9 ≈ 5 each), so everyone trivially hit it and showed "on track". Per Jacqueline, the campaign "Monthly goal" now means the number EACH creator must hit — set 40 → every creator's bar is 40/month, and the weekly card shows 40÷4 = 10/week. Per-creator override still wins.
+- `effectiveMonthlyGoal` no longer divides by creator count (3rd arg kept for call-site compatibility, unused). Updated campaign-form help text, pacing-card tooltip, schema comment. Tests updated (24→23; the two split-behavior tests became one per-creator test).
+- Tested: `npm test` 23/23, `npx next build` green. No schema/DB change (comment-only).
+
 ## 2026-07-13 — Anyone on the agency team can add creators
 - Previously only super admins could add a creator: a non-super-admin agency-team member defaulted to the agency (DropDeck) team, which is blocked for creators, so it errored. Now agency-wide users (super admins + any agency-team member, via `hasAgencyWideAccess`) get the client-team picker and can add a creator under any client. Client managers still add to their own team only. POST /api/creators + /creators page + AddCreatorButton (prop renamed isSuperAdmin → canPickTeam).
 - Tested: `npm test` 24/24, `npx next build` green. No schema/DB change.

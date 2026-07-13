@@ -59,12 +59,10 @@ describe("commonPacingPeriod", () => {
 describe("effectiveMonthlyGoal", () => {
   const campaign = { monthlyPostGoal: 40, weeklyPostTarget: 5 };
 
-  it("splits the campaign goal evenly across creators", () => {
-    expect(effectiveMonthlyGoal({ monthlyPostGoal: null }, campaign, 4)).toBe(10);
-  });
-
-  it("rounds the split up so the campaign total is always covered", () => {
-    expect(effectiveMonthlyGoal({ monthlyPostGoal: null }, campaign, 6)).toBe(7);
+  it("uses the campaign goal as each creator's target (no split)", () => {
+    expect(effectiveMonthlyGoal({ monthlyPostGoal: null }, campaign, 4)).toBe(40);
+    // Creator count no longer changes the per-creator goal.
+    expect(effectiveMonthlyGoal({ monthlyPostGoal: null }, campaign, 9)).toBe(40);
   });
 
   it("lets a per-creator override win", () => {

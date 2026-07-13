@@ -62,23 +62,21 @@ export interface PacingThresholds {
 }
 
 /**
- * Per-creator monthly goal for one campaign membership. Explicit override
- * wins; otherwise the campaign-wide goal splits evenly across active
- * creators; with no campaign goal set, fall back to the pre-existing
- * per-creator weeklyPostTarget×4.
+ * Per-creator monthly goal for one campaign membership. The campaign's
+ * monthly goal is the number EACH creator must hit (e.g. 40/month → the
+ * weekly card shows 40÷4 = 10). A per-creator override wins; with no campaign
+ * goal set, fall back to the pre-existing per-creator weeklyPostTarget×4.
+ *
+ * The third arg is kept for call-site compatibility but no longer used — the
+ * goal is per creator now, not a campaign total split across the roster.
  */
 export function effectiveMonthlyGoal(
   cc: { monthlyPostGoal: number | null },
   campaign: { monthlyPostGoal: number | null; weeklyPostTarget: number },
-  activeCreatorCount: number,
+  _activeCreatorCount?: number,
 ): number {
   if (cc.monthlyPostGoal != null) return cc.monthlyPostGoal;
-  if (campaign.monthlyPostGoal != null) {
-    return Math.max(
-      1,
-      Math.ceil(campaign.monthlyPostGoal / Math.max(1, activeCreatorCount)),
-    );
-  }
+  if (campaign.monthlyPostGoal != null) return campaign.monthlyPostGoal;
   return campaign.weeklyPostTarget * 4;
 }
 

@@ -93,7 +93,7 @@ export function CreatorPacingCard({ creator }: { creator: CreatorPacingCardData 
             {postsThisMonth}
             <span
               className="text-sm font-medium text-slate-400"
-              title="Goal = campaign monthly goal split across its creators (or their personal override), summed across campaigns"
+              title="Goal = each campaign's per-creator monthly goal (or this creator's personal override), summed across their campaigns"
             >
               {" "}
               / {monthlyGoal || "—"} posts · {creator.periodLabel}
