@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   commonPacingPeriod,
+  creatorCommonPeriod,
   creatorFlags,
+  creatorPacingPeriod,
   effectiveMonthlyGoal,
   isOffPace,
   pacingPeriod,
@@ -53,6 +55,103 @@ describe("commonPacingPeriod", () => {
       JUL_15,
     );
     expect(p.start.getDate()).toBe(1);
+  });
+});
+
+describe("creatorPacingPeriod", () => {
+  const campaign = { monthStartDay: 1 };
+
+  it("falls back to the campaign period without a contract start", () => {
+    const p = creatorPacingPeriod({ contractStart: null }, campaign, JUL_15);
+    expect(p.start).toEqual(new Date(2026, 6, 1));
+    expect(p.notStarted).toBe(false);
+  });
+
+  it("anchors the cycle to the contract start's day of month", () => {
+    // Contract signed Jul 8 → cycle runs Jul 8 → Aug 7 regardless of the
+    // campaign's monthStartDay.
+    const p = creatorPacingPeriod(
+      { contractStart: new Date(2026, 6, 8) },
+      campaign,
+      JUL_15,
+    );
+    expect(p.start).toEqual(new Date(2026, 6, 8));
+    expect(p.end).toEqual(new Date(2026, 7, 8));
+    expect(p.daysElapsed).toBe(8); // Jul 8–15 inclusive
+    expect(p.notStarted).toBe(false);
+  });
+
+  it("first cycle starts exactly at the contract start (warm-ups excluded)", () => {
+    // The Kamryn case: signed last week — she's paced over 8 days, not
+    // measured against the whole month.
+    const p = creatorPacingPeriod(
+      { contractStart: new Date(2026, 6, 8) },
+      campaign,
+      JUL_15,
+    );
+    // expected posts at 80% threshold with a 40 goal:
+    // 8/31 × 40 × 0.8 ≈ 8.3 — vs 15.5 under the old whole-month math.
+    expect(isOffPace(9, 40, 80, p)).toBe(false);
+    expect(isOffPace(7, 40, 80, p)).toBe(true);
+  });
+
+  it("rolls into later cycles anchored on the signing day", () => {
+    const p = creatorPacingPeriod(
+      { contractStart: new Date(2026, 4, 20) }, // May 20 signing
+      campaign,
+      JUL_15,
+    );
+    expect(p.start).toEqual(new Date(2026, 5, 20)); // Jun 20 → Jul 19 cycle
+    expect(p.end).toEqual(new Date(2026, 6, 20));
+  });
+
+  it("clamps day-29+ signings to the 28th anchor but starts at the real date", () => {
+    const p = creatorPacingPeriod(
+      { contractStart: new Date(2026, 6, 30) },
+      campaign,
+      new Date(2026, 7, 10),
+    );
+    expect(p.start).toEqual(new Date(2026, 6, 30));
+    expect(p.end).toEqual(new Date(2026, 7, 28));
+  });
+
+  it("marks a future contract as not started", () => {
+    const p = creatorPacingPeriod(
+      { contractStart: new Date(2026, 6, 20) },
+      campaign,
+      JUL_15,
+    );
+    expect(p.notStarted).toBe(true);
+    expect(p.daysElapsed).toBe(0);
+    expect(p.label).toBe("starts Jul 20");
+  });
+});
+
+describe("creatorCommonPeriod", () => {
+  it("uses the latest contract start across memberships", () => {
+    const p = creatorCommonPeriod(
+      [
+        {
+          contractStart: new Date(2026, 5, 1),
+          campaign: { monthStartDay: 1 },
+        },
+        {
+          contractStart: new Date(2026, 6, 8),
+          campaign: { monthStartDay: 1 },
+        },
+      ],
+      JUL_15,
+    );
+    expect(p.start).toEqual(new Date(2026, 6, 8));
+  });
+
+  it("falls back to the campaigns' common period without contract dates", () => {
+    const p = creatorCommonPeriod(
+      [{ contractStart: null, campaign: { monthStartDay: 15 } }],
+      new Date(2026, 6, 20),
+    );
+    expect(p.start.getDate()).toBe(15);
+    expect(p.notStarted).toBe(false);
   });
 });
 
@@ -145,5 +244,17 @@ describe("creatorFlags", () => {
         lastPostAt: new Date(2026, 6, 1),
       }),
     ).toEqual(["quiet", "off_pace"]);
+  });
+
+  it("suppresses every flag before the contract starts", () => {
+    expect(
+      creatorFlags({
+        ...base,
+        postsThisMonth: 0,
+        postsAllTime: 0,
+        lastPostAt: null,
+        notStarted: true,
+      }),
+    ).toEqual([]);
   });
 });

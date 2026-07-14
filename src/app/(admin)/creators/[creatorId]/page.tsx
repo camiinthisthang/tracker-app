@@ -21,7 +21,7 @@ import { ShadowbanToggle } from "@/components/creators/shadowban-toggle";
 import {
   creatorFlags,
   effectiveMonthlyGoal,
-  commonPacingPeriod,
+  creatorCommonPeriod,
 } from "@/lib/pacing";
 import { computeViewBonuses } from "@/lib/view-bonus";
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
@@ -122,9 +122,10 @@ export default async function CreatorDetailPage({
     (activeCampaignsHere.length
       ? Math.min(...activeCampaignsHere.map((c) => c.viralThreshold))
       : DEFAULT_VIRAL_THRESHOLD);
-  // Pacing month per the campaign's configured start day (calendar month
-  // when viewing all campaigns with mixed start days).
-  const period = commonPacingPeriod(
+  // Pacing month: anchored to the creator's contract start when set (latest
+  // contract governs), otherwise the campaign's configured start day
+  // (calendar month when viewing all campaigns with mixed start days).
+  const period = creatorCommonPeriod(
     creator.campaignCreators
       .filter(
         (cc) =>
@@ -132,7 +133,7 @@ export default async function CreatorDetailPage({
           cc.campaign.isActive &&
           (!campaignFilter || cc.campaign.id === campaignFilter.id),
       )
-      .map((cc) => cc.campaign),
+      .map((cc) => ({ contractStart: cc.contractStart, campaign: cc.campaign })),
     now,
   );
 
@@ -335,6 +336,7 @@ export default async function CreatorDetailPage({
     thresholds,
     isShadowbanned: creator.isShadowbanned,
     period,
+    notStarted: period.notStarted,
     now,
   });
 

@@ -165,8 +165,29 @@ export default async function CampaignProgressPage({
     isCurrent: toISODate(w) === currentISO,
   }));
 
+  // Fraction of a window elapsed, clamped 0–1.
+  const nowMs = new Date().getTime();
+  const fractionOf = (start: Date, end: Date) => {
+    const totalMs = end.getTime() - start.getTime();
+    const elapsedMs = nowMs - start.getTime();
+    return totalMs > 0 ? Math.min(Math.max(elapsedMs / totalMs, 0), 1) : 1;
+  };
+
   const contractRows: ContractCreatorRow[] = campaign.campaignCreators.map((cc) => {
-    const mine = allPosts.filter((p) => p.creatorId === cc.creatorId);
+    // This creator's contract window — their own dates when set, the campaign
+    // window otherwise. Posted counts, weekly cells, and the pace flag are
+    // all measured against it, so warm-up posts before a contract start
+    // don't count and a mid-campaign signer isn't paced against time they
+    // weren't contracted for.
+    const winStart = cc.contractStart ?? campaign.startDate;
+    const winEndRaw = cc.contractEnd ?? campaign.endDate;
+    const winEnd = addDays(winEndRaw, 1); // inclusive of the end day
+    const mine = allPosts.filter(
+      (p) =>
+        p.creatorId === cc.creatorId &&
+        p.postedAt >= winStart &&
+        p.postedAt < winEnd
+    );
     const weekly: Record<string, { tiktok: number; instagram: number }> = {};
     for (const w of weekStarts) {
       weekly[toISODate(w)] = { tiktok: 0, instagram: 0 };
@@ -192,17 +213,17 @@ export default async function CampaignProgressPage({
       contractedTiktok: cc.contractedTiktok,
       contractedInstagram: cc.contractedInstagram,
       monthlyRate: cc.monthlyRate != null ? Number(cc.monthlyRate) : null,
+      contractStart: cc.contractStart ? toISODate(calendarDate(cc.contractStart)) : null,
+      contractEnd: cc.contractEnd ? toISODate(calendarDate(cc.contractEnd)) : null,
+      elapsedFraction: fractionOf(winStart, winEndRaw),
       postedTiktok,
       postedInstagram,
       weekly,
     };
   });
 
-  // Fraction of the campaign window elapsed, clamped 0–1, for the pace flag.
-  const totalMs = campaign.endDate.getTime() - campaign.startDate.getTime();
-  const elapsedMs = new Date().getTime() - campaign.startDate.getTime();
-  const elapsedFraction =
-    totalMs > 0 ? Math.min(Math.max(elapsedMs / totalMs, 0), 1) : 1;
+  // Fraction of the campaign window elapsed, for the all-creators totals row.
+  const elapsedFraction = fractionOf(campaign.startDate, campaign.endDate);
 
   // Newest-first in the dropdown so the most recent / current week is on top.
   const options: WeekOption[] = [...weekStarts]

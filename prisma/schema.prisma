@@ -373,6 +373,14 @@ model CampaignCreator {
   // Per-creator monthly rate (USD) for this campaign. Drives the payout column
   // (rate x delivered/contracted, capped 100%). Stored here, never in source.
   monthlyRate         Decimal? @db.Decimal(10, 2)
+  // Per-creator contract window. When contractStart is set, this creator's
+  // pacing "month" cycles from that date (not the campaign's monthStartDay),
+  // posts before it (warm-ups) don't count toward the goal, and the contract
+  // tracker measures elapsed time against THEIR window — so a creator who
+  // signed mid-campaign isn't flagged off-pace against time they weren't
+  // contracted for. Null = fall back to campaign-level behavior.
+  contractStart       DateTime?
+  contractEnd         DateTime?
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

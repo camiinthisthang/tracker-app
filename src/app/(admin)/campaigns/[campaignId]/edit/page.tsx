@@ -62,6 +62,11 @@ export default async function EditCampaignPage({
       videosPerDay: cc.videosPerDay,
       monthlyPostGoal: cc.monthlyPostGoal,
       countAllPlatforms: cc.countAllPlatforms,
+      // Stored midnight UTC — slice the ISO string rather than format() so a
+      // west-of-UTC server doesn't show the previous day.
+      contractStart: cc.contractStart
+        ? cc.contractStart.toISOString().slice(0, 10)
+        : null,
       isActive: cc.isActive,
     })),
   };

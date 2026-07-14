@@ -98,6 +98,7 @@ export async function POST(req: Request) {
             videosPerDay: c.videosPerDay,
             monthlyPostGoal: c.monthlyPostGoal ?? null,
             countAllPlatforms: c.countAllPlatforms,
+            contractStart: c.contractStart ? new Date(c.contractStart) : null,
             isActive: c.isActive,
           })),
         },

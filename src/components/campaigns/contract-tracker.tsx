@@ -24,6 +24,13 @@ export interface ContractCreatorRow {
   contractedInstagram: number | null;
   /** Monthly rate in USD; null = not set. Drives the payout column. */
   monthlyRate: number | null;
+  /** Contract window (YYYY-MM-DD or null = campaign start/end). */
+  contractStart: string | null;
+  contractEnd: string | null;
+  /** Fraction of THIS creator's contract window elapsed (0–1) — a creator
+   * who signed mid-campaign is paced against their own dates, not the whole
+   * campaign's. */
+  elapsedFraction: number;
   postedTiktok: number;
   postedInstagram: number;
   /** Per-week posted counts keyed by ContractWeek.key. */
@@ -234,6 +241,67 @@ function RateInput({
   );
 }
 
+/** Inline-editable contract date (start or end) for one creator. */
+function DateInput({
+  campaignId,
+  creatorId,
+  field,
+  label,
+  initial,
+}: {
+  campaignId: string;
+  creatorId: string;
+  field: "contractStart" | "contractEnd";
+  label: string;
+  initial: string | null;
+}) {
+  const router = useRouter();
+  const [value, setValue] = useState(initial ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    const next = value.trim();
+    if (next === (initial ?? "")) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/creators`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creatorId, [field]: next === "" ? null : next }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(j?.error ?? "Save failed");
+      }
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+      setValue(initial ?? "");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <label className="flex items-center gap-1">
+      <span className="text-[10px] font-medium uppercase text-slate-400">
+        {label}
+      </span>
+      <input
+        type="date"
+        value={value}
+        disabled={saving}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        className="w-[8.2rem] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs tabular-nums text-slate-800 focus:border-[color:var(--brand-blue)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-blue)]/30 disabled:opacity-50"
+      />
+    </label>
+  );
+}
+
 /** Format a USD amount: whole dollars when even, else 2 decimals. */
 function fmtUSD(n: number): string {
   return n.toLocaleString("en-US", {
@@ -281,8 +349,10 @@ function PaceLegend({
           How pace is scored
         </span>
         <span className="block leading-relaxed">
-          Expected = contracted × % of the campaign window elapsed. The bands are
-          a tolerance around that pace — drag the sliders to adjust.
+          Expected = contracted × % of the creator&apos;s contract window
+          elapsed (their dates in the Contract dates column, or the campaign
+          window when unset). The bands are a tolerance around that pace —
+          drag the sliders to adjust.
         </span>
         <span className="mt-2 flex items-center gap-1.5">
           <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-emerald-700 ring-1 ring-inset ring-emerald-200">
@@ -438,6 +508,12 @@ export function ContractTracker({
               <th className="px-3 py-2 text-center font-medium">
                 Contracted (TT / IG)
               </th>
+              <th
+                className="cursor-help px-3 py-2 text-center font-medium"
+                title="This creator's contract window. Pace and posted counts are measured against these dates — warm-up posts before the start don't count. Empty = the whole campaign window."
+              >
+                Contract dates
+              </th>
               <th className="px-3 py-2 text-center font-medium">Rate / mo</th>
               <th className="px-3 py-2 text-center font-medium">Posted</th>
               <th className="px-3 py-2 text-center font-medium">%</th>
@@ -481,7 +557,13 @@ export function ContractTracker({
               .map((row) => {
               const v = valuesFor(row, view);
               const payout = payoutFor(row);
-              const pace = paceStatus(v.contracted, v.posted, elapsedFraction, onTrack, atRisk);
+              const pace = paceStatus(
+                v.contracted,
+                v.posted,
+                row.elapsedFraction,
+                onTrack,
+                atRisk
+              );
               const pct =
                 v.contracted && v.contracted > 0
                   ? Math.round((v.posted / v.contracted) * 100)
@@ -537,6 +619,24 @@ export function ContractTracker({
                       </span>
                     </div>
                   </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex flex-col items-center gap-1">
+                      <DateInput
+                        campaignId={campaignId}
+                        creatorId={row.creatorId}
+                        field="contractStart"
+                        label="From"
+                        initial={row.contractStart}
+                      />
+                      <DateInput
+                        campaignId={campaignId}
+                        creatorId={row.creatorId}
+                        field="contractEnd"
+                        label="To"
+                        initial={row.contractEnd}
+                      />
+                    </div>
+                  </td>
                   <td className="px-3 py-2.5 text-center">
                     <RateInput
                       campaignId={campaignId}
@@ -546,6 +646,16 @@ export function ContractTracker({
                   </td>
                   <td className="px-3 py-2.5 text-center font-semibold tabular-nums text-slate-800">
                     {v.posted}
+                    {v.contracted != null &&
+                      v.contracted > 0 &&
+                      v.posted > v.contracted && (
+                        <span
+                          className="ml-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
+                          title="Delivered beyond the contracted count — these extras are paid per video, not another month"
+                        >
+                          +{v.posted - v.contracted}
+                        </span>
+                      )}
                   </td>
                   <td className="px-3 py-2.5 text-center tabular-nums text-slate-500">
                     {pct == null ? "—" : `${pct}%`}
@@ -597,6 +707,7 @@ export function ContractTracker({
               <td className="px-3 py-2.5 text-center tabular-nums">
                 {totals.contracted || "—"}
               </td>
+              <td className="px-3 py-2.5 text-center text-slate-300">—</td>
               <td className="px-3 py-2.5 text-center text-slate-300">—</td>
               <td className="px-3 py-2.5 text-center tabular-nums">
                 {totals.posted}

@@ -3,6 +3,14 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-14 — Contract-based pacing: each creator measured from THEIR start date (branch regan/dashboard-fixes-jul14)
+- **Schema change** (migration `20260714213000_contract_dates`, additive-only): `CampaignCreator.contractStart` / `contractEnd DateTime?`.
+- **Pacing engine**: new `creatorPacingPeriod` — with a contractStart, a creator's pacing "month" cycles from their signing date (Jul 8 → Aug 7), the first cycle starts exactly at the contract start so warm-up posts/days before it don't count, and a future start yields `notStarted` (card label "starts Jul 20", zero flags). `creatorCommonPeriod` picks the latest contract across memberships. Fixes the Kamryn case: signed last week, was flagged Off-pace against the whole month.
+- **Creators page + creator detail**: pacing period, posts-this-month window, flags, and the period label are now per creator. Post query pulls a 32-day superset and slices each creator's own window.
+- **Contract Tracker** (campaign → Creator Progress): new inline-editable "Contract dates" column (From/To, same PATCH endpoint as contracted counts); pace flag + posted counts + weekly cells measured against each creator's own window (campaign window when unset); "+N over" chip when someone delivers beyond their contracted count (extras are paid per video, per the ops call). Legend updated.
+- **Campaign form roster**: new "Contract start" date column per creator row (validation, POST/PATCH, edit-page initialData all wired).
+- Tested: `npm test` 32/32 (9 new pacing tests), `npx next build` green. Migration additive-only.
+
 ## 2026-07-14 — Cut vs Deactivated: clear, consistent semantics (branch regan/dashboard-fixes-jul14)
 - Per Jacqueline's spec: **Cut** (campaign roster "Active" switch off) = hidden from that campaign's pacing/progress/creators pages and no posts expected, **but their accounts keep syncing** so a late viral video is still tracked. **Deactivated** (creator profile, or per handle) = syncing stops entirely, history kept.
 - `syncCampaign` now includes cut memberships and excludes deactivated creators (`where: { creator: { isActive: true } }` instead of `where: { isActive: true }`). The manual per-creator sync falls back to a cut membership so posts still attach to the campaign they were cut from.

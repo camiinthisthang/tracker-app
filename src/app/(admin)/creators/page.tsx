@@ -2,10 +2,12 @@ import Link from "next/link";
 import { Users } from "lucide-react";
 import {
   creatorFlags,
+  creatorCommonPeriod,
   effectiveMonthlyGoal,
   pacingPeriod,
   commonPacingPeriod,
 } from "@/lib/pacing";
+import { addDays } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import {
   getRequiredSession,
@@ -59,6 +61,7 @@ export default async function CreatorsPage({
                 monthlyPostGoal: true,
                 offPacePct: true,
                 quietDays: true,
+                monthStartDay: true,
               },
             },
           },
@@ -100,6 +103,9 @@ export default async function CreatorsPage({
   const creatorIds = creators.map((c) => c.id);
   const postScope = campaignFilter ? { campaignId: campaignFilter.id } : {};
 
+  // Pacing periods are per creator now (contract-anchored when set), so pull
+  // a superset window — no cycle is longer than 31 days — and slice each
+  // creator's own period out of it below.
   const [aggregates, monthPosts] = creatorIds.length
     ? await Promise.all([
         prisma.post.groupBy({
@@ -113,9 +119,14 @@ export default async function CreatorsPage({
           where: {
             creatorId: { in: creatorIds },
             ...postScope,
-            postedAt: { gte: period.start, lt: period.end },
+            postedAt: { gte: addDays(now, -32) },
           },
-          select: { creatorId: true, platform: true, campaignId: true },
+          select: {
+            creatorId: true,
+            platform: true,
+            campaignId: true,
+            postedAt: true,
+          },
         }),
       ])
     : [[], []];
@@ -134,7 +145,7 @@ export default async function CreatorsPage({
   const aggByCreator = new Map(aggregates.map((a) => [a.creatorId, a]));
   const monthPostsByCreator = new Map<
     string,
-    { platform: string; campaignId: string | null }[]
+    { platform: string; campaignId: string | null; postedAt: Date }[]
   >();
   for (const p of monthPosts) {
     const list = monthPostsByCreator.get(p.creatorId) ?? [];
@@ -177,6 +188,17 @@ export default async function CreatorsPage({
         }
       : { offPacePct: 80, quietDays: 4 };
 
+    // This creator's own pacing period: anchored to their latest contract
+    // start when one is set, campaign month otherwise. Fixes the "started
+    // last week but measured against the whole month" false off-pace.
+    const creatorPeriod = creatorCommonPeriod(
+      relevantCCs.map((cc) => ({
+        contractStart: cc.contractStart,
+        campaign: cc.campaign,
+      })),
+      now,
+    );
+
     const goalPlatform = goalPlatformFor(creator);
     // Counting rule is per creator-per-campaign: all platforms when the CC
     // says so (unique content per handle), canonical platform otherwise.
@@ -185,9 +207,11 @@ export default async function CreatorsPage({
     );
     const postsThisMonth = (monthPostsByCreator.get(creator.id) ?? []).filter(
       (p) =>
-        (p.campaignId != null &&
+        p.postedAt >= creatorPeriod.start &&
+        p.postedAt < creatorPeriod.end &&
+        ((p.campaignId != null &&
           ccByCampaign.get(p.campaignId)?.countAllPlatforms) ||
-        p.platform === goalPlatform,
+          p.platform === goalPlatform),
     ).length;
     const agg = aggByCreator.get(creator.id);
 
@@ -208,12 +232,13 @@ export default async function CreatorsPage({
         monthlyGoal,
         thresholds,
         isShadowbanned: creator.isShadowbanned,
-        period,
+        period: creatorPeriod,
+        notStarted: creatorPeriod.notStarted,
         now,
       }),
       postsThisMonth,
       monthlyGoal,
-      periodLabel: period.label,
+      periodLabel: creatorPeriod.label,
       thresholds,
       views: agg?._sum.views ?? 0,
       likes: agg?._sum.likes ?? 0,

@@ -141,6 +141,7 @@ export function CampaignForm({
         videosPerDay: 1,
         monthlyPostGoal: null,
         countAllPlatforms: false,
+        contractStart: null,
         isActive: true,
       },
     ]);
@@ -754,13 +755,19 @@ export function CampaignForm({
 
         {creators.length > 0 && (
           <div className="mt-4 space-y-3">
-            <div className="hidden grid-cols-[1fr_100px_120px_90px_60px_40px] gap-3 sm:grid">
+            <div className="hidden grid-cols-[1fr_90px_100px_135px_85px_55px_40px] gap-3 sm:grid">
               <span className="text-xs font-medium text-gray-500">Creator</span>
               <span className="text-xs font-medium text-gray-500">
                 Videos per day
               </span>
               <span className="text-xs font-medium text-gray-500">
                 Monthly goal
+              </span>
+              <span
+                className="cursor-help text-xs font-medium text-gray-500"
+                title="When their contract started. Their pacing month cycles from this date and warm-up posts before it don't count toward the goal. Empty = paced by the campaign's month settings."
+              >
+                Contract start
               </span>
               <span
                 className="cursor-help text-xs font-medium text-gray-500"
@@ -794,7 +801,7 @@ export function CampaignForm({
               return (
                 <div
                   key={creator.id}
-                  className={`grid grid-cols-1 gap-3 sm:grid-cols-[1fr_100px_120px_90px_60px_40px] sm:items-center ${
+                  className={`grid grid-cols-1 gap-3 sm:grid-cols-[1fr_90px_100px_135px_85px_55px_40px] sm:items-center ${
                     creator.isActive ? "" : "opacity-60"
                   }`}
                 >
@@ -867,6 +874,18 @@ export function CampaignForm({
                         raw === "" ? null : parseInt(raw) || null,
                       );
                     }}
+                  />
+                  <Input
+                    type="date"
+                    value={creator.contractStart ?? ""}
+                    title="Contract start — their pacing month cycles from this date"
+                    onChange={(e) =>
+                      updateCreator(
+                        creator.id,
+                        "contractStart",
+                        e.target.value === "" ? null : e.target.value,
+                      )
+                    }
                   />
                   <Switch
                     checked={creator.countAllPlatforms}

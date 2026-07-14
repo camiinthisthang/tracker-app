@@ -45,6 +45,92 @@ export function commonPacingPeriod(
   return pacingPeriod(now, days.size === 1 ? [...days][0] : 1);
 }
 
+/**
+ * Pacing period for ONE creator on a campaign. When the membership has a
+ * contractStart, their "month" cycles from that date's day-of-month (a Jul 8
+ * signing paces Jul 8 → Aug 7), the first cycle starts exactly at
+ * contractStart so warm-up days before it don't count against them, and a
+ * future contractStart yields notStarted=true (no flags — they're not late,
+ * they haven't begun). Without a contractStart this is the campaign-level
+ * pacingPeriod, unchanged.
+ */
+export function creatorPacingPeriod(
+  cc: { contractStart: Date | null },
+  campaign: { monthStartDay: number },
+  now = new Date(),
+): PacingPeriod & { notStarted: boolean } {
+  const cs = cc.contractStart;
+  if (!cs) return { ...pacingPeriod(now, campaign.monthStartDay), notStarted: false };
+
+  // Days 29–31 clamp to 28 so every cycle exists in every month.
+  const anchorDay = Math.min(cs.getDate(), 28);
+
+  if (now < cs) {
+    const end = new Date(cs.getFullYear(), cs.getMonth() + 1, anchorDay);
+    return {
+      start: cs,
+      end,
+      daysElapsed: 0,
+      daysInPeriod: Math.max(differenceInCalendarDays(end, cs), 1),
+      label: `starts ${format(cs, "MMM d")}`,
+      notStarted: true,
+    };
+  }
+
+  const base = pacingPeriod(now, anchorDay);
+  // First cycle: clamp to the actual contract start (e.g. contract signed
+  // Jul 30 → anchor 28 → cycle Jul 28–Aug 27, but their period begins Jul 30).
+  const start = base.start < cs ? cs : base.start;
+  const daysInPeriod = Math.max(differenceInCalendarDays(base.end, start), 1);
+  const daysElapsed = Math.min(
+    differenceInCalendarDays(now, start) + 1,
+    daysInPeriod,
+  );
+  return {
+    start,
+    end: base.end,
+    daysElapsed,
+    daysInPeriod,
+    label: `${format(start, "MMM d")} – ${format(addDays(base.end, -1), "MMM d")}`,
+    notStarted: false,
+  };
+}
+
+/**
+ * One period for a creator across their memberships: with any contract
+ * starts present, the LATEST contract governs (the most recent signing is
+ * the cadence being paid for right now); otherwise the campaigns' common
+ * period. Pragmatic simplification — per-membership pacing math still uses
+ * each membership's own period where it matters (campaign progress page).
+ */
+export function creatorCommonPeriod(
+  memberships: {
+    contractStart: Date | null;
+    campaign: { monthStartDay: number };
+  }[],
+  now = new Date(),
+): PacingPeriod & { notStarted: boolean } {
+  const withContract = memberships
+    .filter((m) => m.contractStart != null)
+    .sort(
+      (a, b) => b.contractStart!.getTime() - a.contractStart!.getTime(),
+    );
+  if (withContract.length > 0) {
+    return creatorPacingPeriod(
+      withContract[0],
+      withContract[0].campaign,
+      now,
+    );
+  }
+  return {
+    ...commonPacingPeriod(
+      memberships.map((m) => m.campaign),
+      now,
+    ),
+    notStarted: false,
+  };
+}
+
 export type CreatorFlag = "new" | "quiet" | "off_pace" | "shadowbanned";
 
 export const FLAG_LABELS: Record<CreatorFlag, string> = {
@@ -120,11 +206,18 @@ export function creatorFlags(input: {
   thresholds: PacingThresholds;
   isShadowbanned: boolean;
   period: PacingPeriod;
+  /** Contract hasn't started yet — no flags, they're not late. */
+  notStarted?: boolean;
   now?: Date;
 }): CreatorFlag[] {
   const now = input.now ?? new Date();
   const flags: CreatorFlag[] = [];
 
+  if (input.notStarted) {
+    // Their card label reads "starts <date>" — flagging them New/Quiet/
+    // Off-pace before the contract begins is exactly the Kamryn bug.
+    return flags;
+  }
   if (input.isShadowbanned) {
     // Excluded from pacing entirely — a ban shouldn't read as falling behind.
     flags.push("shadowbanned");
