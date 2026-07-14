@@ -46,6 +46,17 @@ export function commonPacingPeriod(
 }
 
 /**
+ * Contract dates are stored midnight UTC (like campaign start/end), but this
+ * math runs in the server's local timezone (prod pins America/Chicago) — so
+ * read the date's UTC components back as a local-midnight Date before using
+ * getDate()/format()/comparisons. Without this, every contract paces a day
+ * early in any west-of-UTC timezone (the recurring calendarDate gotcha).
+ */
+function contractDate(d: Date): Date {
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+/**
  * Pacing period for ONE creator on a campaign. When the membership has a
  * contractStart, their "month" cycles from that date's day-of-month (a Jul 8
  * signing paces Jul 8 → Aug 7), the first cycle starts exactly at
@@ -59,7 +70,7 @@ export function creatorPacingPeriod(
   campaign: { monthStartDay: number },
   now = new Date(),
 ): PacingPeriod & { notStarted: boolean } {
-  const cs = cc.contractStart;
+  const cs = cc.contractStart ? contractDate(cc.contractStart) : null;
   if (!cs) return { ...pacingPeriod(now, campaign.monthStartDay), notStarted: false };
 
   // Days 29–31 clamp to 28 so every cycle exists in every month.
@@ -97,11 +108,14 @@ export function creatorPacingPeriod(
 }
 
 /**
- * One period for a creator across their memberships: with any contract
- * starts present, the LATEST contract governs (the most recent signing is
- * the cadence being paid for right now); otherwise the campaigns' common
- * period. Pragmatic simplification — per-membership pacing math still uses
- * each membership's own period where it matters (campaign progress page).
+ * One period for a creator across their memberships: the latest contract
+ * that has ALREADY STARTED governs (the cadence being paid for right now) —
+ * a pre-entered future contract on another campaign must not silence pacing
+ * on a live one. With only future contracts, the soonest upcoming one wins
+ * (notStarted state, "starts <date>" label). No contracts at all → the
+ * campaigns' common period. Pragmatic simplification — per-membership
+ * pacing math still uses each membership's own window where it matters
+ * (campaign progress page).
  */
 export function creatorCommonPeriod(
   memberships: {
@@ -110,17 +124,16 @@ export function creatorCommonPeriod(
   }[],
   now = new Date(),
 ): PacingPeriod & { notStarted: boolean } {
-  const withContract = memberships
-    .filter((m) => m.contractStart != null)
-    .sort(
-      (a, b) => b.contractStart!.getTime() - a.contractStart!.getTime(),
-    );
+  const withContract = memberships.filter((m) => m.contractStart != null);
   if (withContract.length > 0) {
-    return creatorPacingPeriod(
-      withContract[0],
-      withContract[0].campaign,
-      now,
-    );
+    const started = withContract
+      .filter((m) => contractDate(m.contractStart!) <= now)
+      .sort((a, b) => b.contractStart!.getTime() - a.contractStart!.getTime());
+    const upcoming = withContract
+      .filter((m) => contractDate(m.contractStart!) > now)
+      .sort((a, b) => a.contractStart!.getTime() - b.contractStart!.getTime());
+    const governing = started[0] ?? upcoming[0];
+    return creatorPacingPeriod(governing, governing.campaign, now);
   }
   return {
     ...commonPacingPeriod(

@@ -125,9 +125,57 @@ describe("creatorPacingPeriod", () => {
     expect(p.daysElapsed).toBe(0);
     expect(p.label).toBe("starts Jul 20");
   });
+
+  it("reads UTC-midnight contract dates by their UTC day (prod stores midnight UTC, server runs west-of-UTC)", () => {
+    // new Date("2026-07-08") = midnight UTC — in America/Chicago this Date's
+    // LOCAL day is Jul 7. The anchor must still be the 8th.
+    const p = creatorPacingPeriod(
+      { contractStart: new Date("2026-07-08") },
+      campaign,
+      JUL_15,
+    );
+    expect(p.start.getDate()).toBe(8);
+    expect(p.label).toBe("Jul 8 – Aug 7");
+  });
 });
 
 describe("creatorCommonPeriod", () => {
+  it("a future contract on one membership doesn't silence pacing on a live one", () => {
+    const p = creatorCommonPeriod(
+      [
+        {
+          contractStart: new Date(2026, 5, 1), // live since Jun 1
+          campaign: { monthStartDay: 1 },
+        },
+        {
+          contractStart: new Date(2026, 7, 1), // pre-entered Aug 1 contract
+          campaign: { monthStartDay: 1 },
+        },
+      ],
+      JUL_15,
+    );
+    expect(p.notStarted).toBe(false);
+    expect(p.start).toEqual(new Date(2026, 6, 1)); // Jun-anchored cycle: Jul 1 – Jul 31
+  });
+
+  it("with only future contracts, the soonest one governs (not started)", () => {
+    const p = creatorCommonPeriod(
+      [
+        {
+          contractStart: new Date(2026, 7, 10),
+          campaign: { monthStartDay: 1 },
+        },
+        {
+          contractStart: new Date(2026, 6, 20),
+          campaign: { monthStartDay: 1 },
+        },
+      ],
+      JUL_15,
+    );
+    expect(p.notStarted).toBe(true);
+    expect(p.label).toBe("starts Jul 20");
+  });
+
   it("uses the latest contract start across memberships", () => {
     const p = creatorCommonPeriod(
       [

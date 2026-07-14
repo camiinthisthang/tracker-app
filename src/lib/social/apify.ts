@@ -26,6 +26,10 @@ import type { SocialPost } from "./types";
 
 const APIFY_BASE = "https://api.apify.com/v2";
 
+/** Per-handle scrape cap. Sync's deletion-reconciliation uses this to tell
+ * "we saw the whole account" from "the scrape hit the cap". */
+export const SCRAPE_RESULTS_LIMIT = 60;
+
 function getToken() {
   const t = process.env.APIFY_TOKEN;
   if (!t) throw new Error("APIFY_TOKEN is not set");
@@ -91,7 +95,7 @@ function stripHandle(raw: string | null | undefined): string | null {
  */
 export async function fetchTikTokPostsViaApify(
   handle: string,
-  limit = 60
+  limit = SCRAPE_RESULTS_LIMIT
 ): Promise<SocialPost[]> {
   const clean = stripHandle(handle);
   if (!clean) return [];
@@ -153,6 +157,7 @@ export async function fetchTikTokPostsViaApify(
         typeof musicMeta.musicAuthor === "string" ? musicMeta.musicAuthor : null,
       musicOriginal:
         typeof musicMeta.musicOriginal === "boolean" ? musicMeta.musicOriginal : null,
+      isPinned: v.isPinned === true,
     });
   }
   return posts;
@@ -163,7 +168,7 @@ export async function fetchTikTokPostsViaApify(
  */
 export async function fetchInstagramPostsViaApify(
   handle: string,
-  limit = 60
+  limit = SCRAPE_RESULTS_LIMIT
 ): Promise<SocialPost[]> {
   const clean = stripHandle(handle);
   if (!clean) return [];
@@ -225,6 +230,7 @@ export async function fetchInstagramPostsViaApify(
       shares: 0,
       saves: 0,
       comments: toInt(p.commentsCount),
+      isPinned: p.isPinned === true,
     });
   }
   return posts;
@@ -238,7 +244,7 @@ export async function fetchInstagramPostsViaApify(
  */
 export async function fetchYouTubeShortsViaApify(
   handle: string,
-  limit = 60
+  limit = SCRAPE_RESULTS_LIMIT
 ): Promise<SocialPost[]> {
   const clean = stripHandle(handle);
   if (!clean) return [];

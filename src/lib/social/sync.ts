@@ -3,6 +3,7 @@ import {
   fetchTikTokPostsViaApify,
   fetchInstagramPostsViaApify,
   fetchYouTubeShortsViaApify,
+  SCRAPE_RESULTS_LIMIT,
 } from "./apify";
 import type { SocialPost } from "./types";
 import type { Platform } from "@/generated/prisma/enums";
@@ -227,16 +228,21 @@ export async function syncCampaign(campaignId: string) {
       const inWindow = fetched.filter(
         (p) => p.postedAt >= windowStart && p.postedAt < windowEnd
       );
-      // How far back this scrape actually covered. Scrapes are capped (~60
-      // newest posts), so anything older than the oldest fetched item is
-      // outside this run's knowledge — deletion reconciliation must not
-      // touch posts older than this or a busy creator's history gets pruned.
-      const oldestFetched = fetched.length
-        ? fetched.reduce(
-            (min, p) => (p.postedAt < min ? p.postedAt : min),
-            fetched[0].postedAt
-          )
-        : null;
+      // How far back this scrape's coverage actually reaches, for deletion
+      // reconciliation. Under the cap = we saw the whole account, coverage
+      // is unbounded (use the campaign window). At the cap = coverage is the
+      // oldest NON-PINNED item: pinned posts surface first regardless of age
+      // and would fake deep coverage, causing real older posts to be pruned.
+      const capHit = fetched.length >= SCRAPE_RESULTS_LIMIT;
+      const nonPinned = fetched.filter((p) => !p.isPinned);
+      const coverageStart = !capHit
+        ? windowStart
+        : nonPinned.length
+          ? nonPinned.reduce(
+              (min, p) => (p.postedAt < min ? p.postedAt : min),
+              nonPinned[0].postedAt
+            )
+          : null;
       return {
         task,
         posts: HASHTAG_FILTERING_ENABLED
@@ -245,7 +251,7 @@ export async function syncCampaign(campaignId: string) {
         // Raw in-window externalIds (pre-hashtag-filter) — the source of truth
         // for reconciling deletions below.
         liveExternalIds: inWindow.map((p) => p.externalId),
-        oldestFetched,
+        coverageStart,
         success: true,
       };
     } catch (error) {
@@ -263,7 +269,7 @@ export async function syncCampaign(campaignId: string) {
         task,
         posts: [] as SocialPost[],
         liveExternalIds: [] as string[],
-        oldestFetched: null as Date | null,
+        coverageStart: null as Date | null,
         success: false,
       };
     }
@@ -277,14 +283,25 @@ export async function syncCampaign(campaignId: string) {
   const allExternalIds = fetchResults.flatMap((r) =>
     r.posts.map((p) => ({ platform: p.platform, externalId: p.externalId }))
   );
-  const existingViews = new Map<string, number>();
+  const existingByKey = new Map<
+    string,
+    { views: number; suspectDropCount: number }
+  >();
   if (allExternalIds.length > 0) {
     const existing = await prisma.post.findMany({
       where: { OR: allExternalIds },
-      select: { platform: true, externalId: true, views: true },
+      select: {
+        platform: true,
+        externalId: true,
+        views: true,
+        suspectDropCount: true,
+      },
     });
     for (const p of existing) {
-      existingViews.set(`${p.platform}:${p.externalId}`, p.views);
+      existingByKey.set(`${p.platform}:${p.externalId}`, {
+        views: p.views,
+        suspectDropCount: p.suspectDropCount,
+      });
     }
   }
 
@@ -296,7 +313,7 @@ export async function syncCampaign(campaignId: string) {
         campaignId,
         task.cc.creatorId,
         task.scopedToCampaign,
-        existingViews.get(`${post.platform}:${post.externalId}`)
+        existingByKey.get(`${post.platform}:${post.externalId}`)
       );
       totalPostsUpserted++;
     }
@@ -311,7 +328,7 @@ export async function syncCampaign(campaignId: string) {
   // history survives. PostMetricsSnapshot cascades on Post delete.
   let totalPrunedStale = 0;
   const prunedPairs = new Set<string>();
-  for (const { task, success, liveExternalIds, oldestFetched } of fetchResults) {
+  for (const { task, success, liveExternalIds, coverageStart } of fetchResults) {
     if (!success) continue;
 
     const pairKey = `${task.cc.creatorId}:${task.platform}`;
@@ -335,14 +352,14 @@ export async function syncCampaign(campaignId: string) {
     // platform). Scoped to this task's username so one account's scrape can't
     // delete a sibling account's posts, guarded by a non-empty live set so a
     // soft-empty scrape can't wipe real posts, and bounded by BOTH the
-    // campaign window and the scrape's own coverage (oldest fetched post) —
-    // the ~60-post scrape cap means a prolific creator's older in-window
+    // campaign window and the scrape's own coverage (see coverageStart above)
+    // — the ~60-post scrape cap means a prolific creator's older in-window
     // posts never appear in the live set, and without the coverage bound
     // they'd be wrongly deleted here on every sync.
     const handle = task.handle.trim().replace(/^@+/, "");
-    if (handle && liveExternalIds.length > 0 && oldestFetched) {
+    if (handle && liveExternalIds.length > 0 && coverageStart) {
       const reconcileStart =
-        oldestFetched > windowStart ? oldestFetched : windowStart;
+        coverageStart > windowStart ? coverageStart : windowStart;
       const deleted = await prisma.post.deleteMany({
         where: {
           creatorId: task.cc.creatorId,
@@ -413,7 +430,7 @@ async function upsertPost(
   campaignId: string,
   creatorId: string,
   reassignCampaign = false,
-  knownViews?: number
+  known?: { views: number; suspectDropCount: number }
 ) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -424,24 +441,31 @@ async function upsertPost(
   // overwrite in both cases — the stored numbers survive and the next
   // healthy sync updates them. Creates still record whatever the scrape
   // said (a brand-new post genuinely starts near zero).
-  const zeroed = post.views === 0 && knownViews != null && knownViews > 0;
+  //
+  // Escape hatch: if 3 consecutive syncs report the same "suspicious" low
+  // reading, it's the stored number that's wrong (e.g. one inflated scrape)
+  // — accept the low value so a bad high can't lock in forever.
+  const zeroed = post.views === 0 && known != null && known.views > 0;
   const bigDrop =
-    knownViews != null && knownViews >= 1000 && post.views < knownViews / 2;
-  const suspicious = zeroed || bigDrop;
-  if (suspicious) {
+    known != null && known.views >= 1000 && post.views < known.views / 2;
+  const priorDrops = known?.suspectDropCount ?? 0;
+  const suspicious = (zeroed || bigDrop) && priorDrops < 2;
+  if (zeroed || bigDrop) {
     console.warn(
       `[sync] suspicious metric drop for ${post.platform} ${post.externalId} ` +
-        `@${post.username}: scraped views=${post.views}, keeping stored=${knownViews}`
+        `@${post.username}: scraped views=${post.views}, stored=${known?.views} ` +
+        `(consecutive=${priorDrops + 1}${suspicious ? ", keeping stored" : ", accepting scraped"})`
     );
   }
   const metricsUpdate = suspicious
-    ? {}
+    ? { suspectDropCount: priorDrops + 1 }
     : {
         views: post.views,
         likes: post.likes,
         shares: post.shares,
         saves: post.saves,
         comments: post.comments,
+        suspectDropCount: 0,
       };
 
   const dbPost = await prisma.post.upsert({

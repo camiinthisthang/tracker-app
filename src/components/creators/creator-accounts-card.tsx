@@ -280,23 +280,26 @@ export function CreatorAccountsCard({
     }
   }
 
-  function AccountRow({ a }: { a: Account }) {
-    return (
-      <AccountRowItem
-        a={a}
-        togglingId={togglingId}
-        saveHandleEdit={saveHandleEdit}
-        toggleShadowban={toggleShadowban}
-        toggleAccount={toggleAccount}
-        deleteAccount={deleteAccount}
-      />
-    );
-  }
+  // Plain render helpers (NOT nested components): calling a function inline
+  // keeps the element type the stable top-level AccountRowItem, so its edit
+  // state survives parent re-renders. A nested `function Row()` used as
+  // <Row/> gets a new identity every render and React remounts the subtree.
+  const renderAccountRow = (a: Account) => (
+    <AccountRowItem
+      key={a.id}
+      a={a}
+      togglingId={togglingId}
+      saveHandleEdit={saveHandleEdit}
+      toggleShadowban={toggleShadowban}
+      toggleAccount={toggleAccount}
+      deleteAccount={deleteAccount}
+    />
+  );
 
-  function CampaignSection({ c }: { c: CampaignRef }) {
+  const renderCampaignSection = (c: CampaignRef) => {
     const campAccounts = accounts.filter((a) => a.campaignId === c.id);
     return (
-      <div className="rounded-lg border border-slate-100 p-4">
+      <div key={c.id} className="rounded-lg border border-slate-100 p-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {c.name}
@@ -321,9 +324,7 @@ export function CreatorAccountsCard({
         </div>
         {campAccounts.length > 0 ? (
           <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100">
-            {campAccounts.map((a) => (
-              <AccountRow key={a.id} a={a} />
-            ))}
+            {campAccounts.map(renderAccountRow)}
           </ul>
         ) : (
           <p className="text-xs text-slate-400">
@@ -334,7 +335,7 @@ export function CreatorAccountsCard({
         )}
       </div>
     );
-  }
+  };
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -357,7 +358,7 @@ export function CreatorAccountsCard({
             start tracking their accounts.
           </p>
         ) : (
-          activeCampaigns.map((c) => <CampaignSection key={c.id} c={c} />)
+          activeCampaigns.map(renderCampaignSection)
         )}
       </div>
 
@@ -450,9 +451,7 @@ export function CreatorAccountsCard({
           </button>
           {showEnded && (
             <div className="mt-2 space-y-3">
-              {endedCampaigns.map((c) => (
-                <CampaignSection key={c.id} c={c} />
-              ))}
+              {endedCampaigns.map(renderCampaignSection)}
             </div>
           )}
         </div>
@@ -534,9 +533,7 @@ export function CreatorAccountsCard({
                   Shared extra accounts (all campaigns)
                 </p>
                 <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-white">
-                  {sharedExtras.map((a) => (
-                    <AccountRow key={a.id} a={a} />
-                  ))}
+                  {sharedExtras.map(renderAccountRow)}
                 </ul>
               </div>
             )}

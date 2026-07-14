@@ -417,6 +417,11 @@ model Post {
   musicTitle    String?
   musicAuthor   String?
   musicOriginal Boolean?
+  // Consecutive syncs whose scraped metrics looked like a bogus downgrade
+  // (zeroed or <50% of stored). After 3 in a row the low reading is accepted
+  // as real — so a one-off inflated scrape can't lock in a wrong high number
+  // forever. Reset on every accepted update.
+  suspectDropCount Int @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

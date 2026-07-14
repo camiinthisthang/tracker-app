@@ -3,6 +3,16 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-14 — Post-review fixes: 6 findings from an adversarial review of the branch
+An independent review pass over the whole branch surfaced 6 real bugs; all fixed:
+1. **Contract dates paced a day early in prod** — contract dates are stored midnight UTC but pacing math ran in server-local time (prod pins America/Chicago), so `getDate()`/`format()`/comparisons were off by one day west of UTC. New `contractDate()` normalizer in pacing.ts (same pattern as the existing `calendarDate()` gotcha). Tests now pass under both UTC and TZ=America/Chicago.
+2. **A pre-entered FUTURE contract on one campaign silenced all pacing for a creator's LIVE contract** — `creatorCommonPeriod` now picks the latest contract that has already started; only-future contracts fall back to the soonest upcoming one.
+3. **Renaming a handle with synced posts would have hard-deleted its history on the next sync** (rename drops the old username from knownHandles → stale-handle prune wipes it, snapshots cascade). PATCH rename now has the same posts-guard as DELETE: refuse with a pointer to "add new handle + deactivate old".
+4. **Pinned posts defeated the reconciliation coverage bound** (an old pinned post faked deep coverage → real older posts pruned). `SocialPost.isPinned` now flows from the TikTok/IG scrapers; coverage = oldest NON-pinned item, and only applies when the scrape actually hit the `SCRAPE_RESULTS_LIMIT` cap (under the cap = we saw the whole account).
+5. **The metric-downgrade guard was a one-way ratchet** — one inflated scrape could lock in a wrong high number forever. **Schema change** (migration `20260714220000_suspect_drop_count`, additive): `Post.suspectDropCount` counts consecutive suspicious readings; the 3rd consecutive low reading is accepted as real and the counter resets on any accepted update.
+6. **Account-row edit state was still lost on re-render** — `AccountRow`/`CampaignSection` were nested component definitions (new identity every render → React remounts). Converted to plain render helpers so the element type is the stable top-level `AccountRowItem`.
+- Tested: `npm test` 35/35 under UTC AND TZ=America/Chicago, `npx next build` green.
+
 ## 2026-07-14 — Sync guard hardening (follow-up to the reliability commit)
 - The metric guard now compares against the STORED view counts (one batched query per sync, no per-post reads): an update is skipped as suspicious when the scrape says 0 for a post we know has views, or reports less than half of a stored count ≥1,000 — this catches the exact "30k post showing 32 views" downgrade, not just zeros. Skips are logged with both numbers.
 - Cut members with no handles no longer generate "no handle" failures in the sync summary (only active members are expected to be trackable).

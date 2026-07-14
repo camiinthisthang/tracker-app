@@ -42,9 +42,11 @@ export async function PATCH(
   if ("note" in (body ?? {})) {
     data.note = typeof body.note === "string" ? body.note.trim() || null : null;
   }
-  // Editable handle — for typo fixes. Renaming means the next sync scrapes
-  // the corrected handle; any posts stored under the misspelled name get
-  // pruned as stale-handle leftovers (they were never real).
+  // Editable handle — for typo fixes ONLY. Renaming drops the old username
+  // from knownHandlesFor(), so the next sync's stale-handle prune would
+  // hard-delete every post stored under it (snapshots cascade). Guard like
+  // DELETE does: a handle with synced posts can't be renamed — add the new
+  // handle as a separate account and deactivate this one instead.
   if ("handle" in (body ?? {})) {
     const handle =
       typeof body.handle === "string"
@@ -55,6 +57,25 @@ export async function PATCH(
         { error: "Handle can't be empty" },
         { status: 400 }
       );
+    }
+    if (handle.toLowerCase() !== account.handle.toLowerCase()) {
+      const postCount = await prisma.post.count({
+        where: {
+          creatorId,
+          platform: account.platform,
+          username: { equals: account.handle, mode: "insensitive" },
+        },
+      });
+      if (postCount > 0) {
+        return NextResponse.json(
+          {
+            error: `This handle has ${postCount} synced post${
+              postCount === 1 ? "" : "s"
+            } — renaming would wipe that history on the next sync. Add the new handle as a separate account and deactivate this one instead.`,
+          },
+          { status: 409 }
+        );
+      }
     }
     const clash = await prisma.creatorAccount.findUnique({
       where: {
