@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import { ExternalLink, Download } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
@@ -51,9 +52,13 @@ const columns: ColumnDef<PostRow>[] = [
         row.original.creator.handle.toLowerCase();
       return (
         <div>
-          <span className="text-sm font-medium text-slate-700">
+          <Link
+            href={`/creators/${row.original.creator.id}`}
+            title={`Open ${row.original.creator.name}'s creator page`}
+            className="text-sm font-medium text-slate-700 hover:text-blue-600 hover:underline"
+          >
             {row.original.creator.handle}
-          </span>
+          </Link>
           {viaOtherAccount && (
             <p className="text-xs text-slate-400">
               via @{row.original.username}

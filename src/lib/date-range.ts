@@ -4,6 +4,7 @@ export const RANGE_PRESETS = [
   { key: "24h", label: "24h", days: 1 },
   { key: "7d", label: "7d", days: 7 },
   { key: "14d", label: "14d", days: 14 },
+  { key: "30d", label: "30d", days: 30 },
   { key: "90d", label: "90d", days: 90 },
 ] as const;
 

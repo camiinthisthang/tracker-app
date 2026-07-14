@@ -3,6 +3,14 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-14 — UI batch: 30d filter, creator back-links, campaign dropdown, centered layout (branch regan/dashboard-fixes-jul14)
+- Dashboard date filter gains a **30d** preset (between 14d and 90d) — flows through the dashboard, charts, and PDF export automatically since they all share RANGE_PRESETS.
+- Posts table: the creator cell is now a link to that creator's page ("click back into the creators" from a post).
+- Creators page: the campaign filter is a **dropdown** (reuses the dashboard's CampaignSwitcher) instead of pill links — Adriel's request.
+- Admin layout: content is capped at 1400px and centered — pages hugged the full viewport width, which read as "not centered" on wide screens (the posts-page complaint).
+- NOT fixed here: Adriel's creator page rendering stretched/oversized — couldn't reproduce from code alone; needs a look at the live page (Kana said she knows why it's enlarged — ask her).
+- Tested: `npm test` 32/32, `npx next build` green. No schema change.
+
 ## 2026-07-14 — Social handles: editable + deletable (branch regan/dashboard-fixes-jul14)
 - The Aspen typo case: a misspelled handle could only be deactivated, never fixed. Handles now have a pencil (inline rename) on every account row; PATCH `/api/creators/[id]/accounts/[accountId]` accepts `handle` (strips @, rejects empty, 409 on duplicate per platform).
 - New DELETE on the same route — hard-removes a handle ONLY when it has zero synced posts (typos that never synced); otherwise 409 pointing at Deactivate so history is kept. Trash button on each row surfaces the server's explanation on refusal.

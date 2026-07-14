@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { AddCreatorButton } from "@/components/creators/add-creator-button";
 import { type CreatorPacingCardData } from "@/components/creators/creator-pacing-card";
 import { CreatorsCardsClient } from "@/components/creators/creators-cards-client";
+import { CampaignSwitcher } from "@/components/dashboard/campaign-switcher";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
 
 export default async function CreatorsPage({
@@ -305,33 +306,15 @@ export default async function CreatorsPage({
         />
       ) : (
         <>
-          {/* Campaign filter — applies to the whole page */}
+          {/* Campaign filter — a dropdown (per Adriel), applies to the whole
+              page: pacing, flags, stats. */}
           {filterCampaigns.length > 0 && (
-            <div className="mb-4 flex flex-wrap gap-1.5">
-              <Link
-                href="/creators"
-                className={`rounded-full px-3 py-1 text-xs font-medium ${
-                  !campaignFilter
-                    ? "bg-slate-800 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                All campaigns
-              </Link>
-              {filterCampaigns.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/creators?campaign=${c.id}`}
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    campaignFilter?.id === c.id
-                      ? "bg-slate-800 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {c.name}
-                  {!c.isActive && " (ended)"}
-                </Link>
-              ))}
+            <div className="mb-4">
+              <CampaignSwitcher
+                campaigns={filterCampaigns}
+                selectedId={campaignFilter?.id}
+                basePath="/creators"
+              />
             </div>
           )}
 
