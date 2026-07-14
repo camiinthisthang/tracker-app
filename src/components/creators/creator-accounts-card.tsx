@@ -10,6 +10,8 @@ import {
   Plus,
   ChevronDown,
   ExternalLink,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -236,67 +238,58 @@ export function CreatorAccountsCard({
 
   const sharedExtras = accounts.filter((a) => !a.campaignId);
 
+  async function saveHandleEdit(account: Account, newHandle: string) {
+    const cleaned = newHandle.trim().replace(/^@+/, "");
+    if (!cleaned || cleaned === account.handle) return true;
+    const res = await fetch(
+      `/api/creators/${creatorId}/accounts/${account.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle: cleaned }),
+      }
+    );
+    if (!res.ok) {
+      const j = await res.json().catch(() => null);
+      toast.error(j?.error ?? "Could not rename handle");
+      return false;
+    }
+    toast.success("Handle updated — it syncs under the corrected name from the next run");
+    router.refresh();
+    return true;
+  }
+
+  async function deleteAccount(account: Account) {
+    setTogglingId(account.id);
+    try {
+      const res = await fetch(
+        `/api/creators/${creatorId}/accounts/${account.id}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        toast.error(j?.error ?? "Could not delete account");
+        return;
+      }
+      toast.success("Account removed");
+      router.refresh();
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   function AccountRow({ a }: { a: Account }) {
     return (
-      <li className="flex items-center gap-3 px-3 py-2.5">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm text-slate-800">
-            <a
-              href={platformProfileUrl(a.platform, a.handle)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 hover:text-blue-600 hover:underline"
-            >
-              @{a.handle}
-              <ExternalLink className="h-3 w-3 text-blue-500" />
-            </a>
-            <span className="ml-2 text-xs text-slate-400">
-              {ACTIVE_PLATFORMS.find((p) => p.value === a.platform)?.label ??
-                a.platform}
-            </span>
-          </p>
-          {a.note && (
-            <p className="truncate text-xs text-slate-400">{a.note}</p>
-          )}
-        </div>
-        {a.isShadowbanned && (
-          <span
-            title="This handle is shadow-banned — a note on the handle only; pacing continues on their other handles"
-            className="cursor-help rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600"
-          >
-            Shadow-banned
-          </span>
-        )}
-        <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-            a.isActive
-              ? "bg-green-50 text-green-600"
-              : "bg-slate-100 text-slate-500"
-          }`}
-        >
-          {a.isActive ? "Syncing" : "Inactive"}
-        </span>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={togglingId === a.id}
-          title="Flag or clear a shadow-ban on this handle only"
-          onClick={() => toggleShadowban(a)}
-          className={a.isShadowbanned ? "text-violet-600" : "text-slate-500"}
-        >
-          {a.isShadowbanned ? "Clear SB" : "Mark SB"}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={togglingId === a.id}
-          onClick={() => toggleAccount(a)}
-        >
-          {a.isActive ? "Deactivate" : "Reactivate"}
-        </Button>
-      </li>
+      <AccountRowItem
+        a={a}
+        togglingId={togglingId}
+        saveHandleEdit={saveHandleEdit}
+        toggleShadowban={toggleShadowban}
+        toggleAccount={toggleAccount}
+        deleteAccount={deleteAccount}
+      />
     );
   }
 
@@ -552,4 +545,154 @@ export function CreatorAccountsCard({
       </div>
     </div>
   );
+}
+
+/** One account row with inline handle editing. Top-level (not nested in the
+ * card) so its edit state survives parent re-renders. */
+function AccountRowItem({
+  a,
+  togglingId,
+  saveHandleEdit,
+  toggleShadowban,
+  toggleAccount,
+  deleteAccount,
+}: {
+  a: Account;
+  togglingId: string | null;
+  saveHandleEdit: (a: Account, h: string) => Promise<boolean>;
+  toggleShadowban: (a: Account) => void;
+  toggleAccount: (a: Account) => void;
+  deleteAccount: (a: Account) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(a.handle);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  async function commitEdit() {
+    setSavingEdit(true);
+    const ok = await saveHandleEdit(a, draft);
+    setSavingEdit(false);
+    if (ok) setEditing(false);
+  }
+
+  return (
+      <li className="flex items-center gap-3 px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          {editing ? (
+            <div className="flex items-center gap-2">
+              <Input
+                className="h-8 w-48"
+                value={draft}
+                autoFocus
+                disabled={savingEdit}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitEdit();
+                  if (e.key === "Escape") {
+                    setDraft(a.handle);
+                    setEditing(false);
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                disabled={savingEdit}
+                onClick={commitEdit}
+                className="bg-slate-900 text-white hover:bg-slate-800"
+              >
+                {savingEdit ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={savingEdit}
+                onClick={() => {
+                  setDraft(a.handle);
+                  setEditing(false);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <p className="truncate text-sm text-slate-800">
+              <a
+                href={platformProfileUrl(a.platform, a.handle)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 hover:text-blue-600 hover:underline"
+              >
+                @{a.handle}
+                <ExternalLink className="h-3 w-3 text-blue-500" />
+              </a>
+              <span className="ml-2 text-xs text-slate-400">
+                {ACTIVE_PLATFORMS.find((p) => p.value === a.platform)?.label ??
+                  a.platform}
+              </span>
+              <button
+                type="button"
+                title="Fix a typo in this handle"
+                onClick={() => setEditing(true)}
+                className="ml-1.5 align-middle text-slate-300 hover:text-slate-600"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            </p>
+          )}
+          {a.note && !editing && (
+            <p className="truncate text-xs text-slate-400">{a.note}</p>
+          )}
+        </div>
+        {a.isShadowbanned && (
+          <span
+            title="This handle is shadow-banned — a note on the handle only; pacing continues on their other handles"
+            className="cursor-help rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600"
+          >
+            Shadow-banned
+          </span>
+        )}
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+            a.isActive
+              ? "bg-green-50 text-green-600"
+              : "bg-slate-100 text-slate-500"
+          }`}
+        >
+          {a.isActive ? "Syncing" : "Inactive"}
+        </span>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={togglingId === a.id}
+          title="Flag or clear a shadow-ban on this handle only"
+          onClick={() => toggleShadowban(a)}
+          className={a.isShadowbanned ? "text-violet-600" : "text-slate-500"}
+        >
+          {a.isShadowbanned ? "Clear SB" : "Mark SB"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={togglingId === a.id}
+          onClick={() => toggleAccount(a)}
+        >
+          {a.isActive ? "Deactivate" : "Reactivate"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={togglingId === a.id}
+          title="Delete this handle — only allowed when it has no synced posts (use Deactivate to keep history)"
+          onClick={() => deleteAccount(a)}
+          className="h-8 w-8 p-0 text-slate-300 hover:text-red-500"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </li>
+    );
 }

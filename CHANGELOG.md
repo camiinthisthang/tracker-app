@@ -3,6 +3,13 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-14 — Social handles: editable + deletable (branch regan/dashboard-fixes-jul14)
+- The Aspen typo case: a misspelled handle could only be deactivated, never fixed. Handles now have a pencil (inline rename) on every account row; PATCH `/api/creators/[id]/accounts/[accountId]` accepts `handle` (strips @, rejects empty, 409 on duplicate per platform).
+- New DELETE on the same route — hard-removes a handle ONLY when it has zero synced posts (typos that never synced); otherwise 409 pointing at Deactivate so history is kept. Trash button on each row surfaces the server's explanation on refusal.
+- Deactivated handles already stop syncing (`resolveSyncHandles` skips inactive) — confirmed, no change needed.
+- Refactor: AccountRow hoisted to a top-level `AccountRowItem` component (it gained edit state; nested definition would remount and lose it on parent re-renders).
+- Tested: `npm test` 32/32, `npx next build` + `tsc --noEmit` green. No schema change.
+
 ## 2026-07-14 — Contract-based pacing: each creator measured from THEIR start date (branch regan/dashboard-fixes-jul14)
 - **Schema change** (migration `20260714213000_contract_dates`, additive-only): `CampaignCreator.contractStart` / `contractEnd DateTime?`.
 - **Pacing engine**: new `creatorPacingPeriod` — with a contractStart, a creator's pacing "month" cycles from their signing date (Jul 8 → Aug 7), the first cycle starts exactly at the contract start so warm-up posts/days before it don't count, and a future start yields `notStarted` (card label "starts Jul 20", zero flags). `creatorCommonPeriod` picks the latest contract across memberships. Fixes the Kamryn case: signed last week, was flagged Off-pace against the whole month.
