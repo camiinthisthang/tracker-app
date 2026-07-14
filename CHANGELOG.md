@@ -3,6 +3,13 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-14 — Sync reliability: no more silent zeros, no more phantom deletions (Regan/Claude, branch regan/dashboard-fixes-jul14)
+- **Zero-views guard**: a scrape that returns 0 views for an existing post no longer overwrites the real number (partial actor output / still-processing posts did exactly this — the "30k post showing 32 views" class of bug). Metrics only update when the scrape has a non-zero view count; daily snapshots mirror the stored (post-guard) values so history doesn't dip either.
+- **Deletion-reconciliation coverage bound**: reconciliation now only deletes posts newer than the OLDEST post the scrape actually returned. Scrapes cap at ~60 posts, so a prolific creator's older in-window posts never appeared in the live set and were being wrongly deleted every sync (very likely why Adriel's July count went 13 → 11).
+- **Apify errors are now readable and visible**: `describeApifyError` extracts the HTTP status + Apify error message (flags 402/limit/quota/credit as "likely out of Apify credits"); per-handle failure reasons land in the sync summary.
+- **Schema change** (migration `20260714210000_sync_summary`, additive-only): `Campaign.lastSyncSummary Json?` stores `{at, postsUpserted, platformAttempts, failures}` from every sync. New `SyncHealthBanner` renders on the campaign Overview and the Dashboard when the latest sync had failures — including a "ask Cami to top up Apify credits" hint when that's the likely cause.
+- Tested: `npm test` 23/23, `npx next build` green. Migration not run locally (no DATABASE_URL); single additive ALTER, applies on deploy.
+
 Format per entry:
 
 ```

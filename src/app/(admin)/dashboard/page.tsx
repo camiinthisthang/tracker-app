@@ -12,6 +12,10 @@ import { StatCard } from "@/components/shared/stat-card";
 import { TrendDelta } from "@/components/shared/trend-delta";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { CampaignSwitcher } from "@/components/dashboard/campaign-switcher";
+import {
+  SyncHealthBanner,
+  type SyncSummary,
+} from "@/components/campaigns/sync-health-banner";
 import { ExportPdfButton } from "@/components/dashboard/export-pdf-button";
 import { DashboardViewsChart } from "@/components/dashboard/dashboard-views-chart";
 import { TopPosts } from "@/components/dashboard/top-posts-week";
@@ -211,6 +215,31 @@ export default async function DashboardPage({
     "/charts",
   );
 
+  // Sync health across the campaigns in view: if the latest sync of any
+  // active campaign had failed fetches, say so up top — stale/zero views on
+  // the client-facing summary should never be a silent mystery.
+  const syncHealthRows = await prisma.campaign.findMany({
+    where: { ...campaignWhere, isActive: true },
+    select: { name: true, lastSyncSummary: true },
+  });
+  const syncFailures = syncHealthRows.flatMap((c) => {
+    const s = c.lastSyncSummary as SyncSummary | null;
+    const failures = s?.failures ?? [];
+    const prefix = syncHealthRows.length > 1 ? `${c.name} · ` : "";
+    return failures.map((f) => ({
+      creator: `${prefix}${f.creator}`,
+      reason: f.reason,
+    }));
+  });
+  const latestSyncAt = syncHealthRows
+    .map((c) => (c.lastSyncSummary as SyncSummary | null)?.at)
+    .filter((a): a is string => !!a)
+    .sort()
+    .pop();
+  const mergedSyncSummary: SyncSummary | null = syncFailures.length
+    ? { at: latestSyncAt, failures: syncFailures }
+    : null;
+
   return (
     <div>
       <PageHeader
@@ -239,6 +268,8 @@ export default async function DashboardPage({
           <ExportPdfButton />
         </div>
       </PageHeader>
+
+      <SyncHealthBanner summary={mergedSyncSummary} />
 
       {/* Date range — scopes the stat cards, views graph, top posts, top
           sounds and top creators. Weekly Shoutouts keeps its own week nav. */}

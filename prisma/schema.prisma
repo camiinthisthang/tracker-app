@@ -208,6 +208,11 @@ model Campaign {
   previewLinks     String[]
   galleryUrls      String[]
   lastSyncAt       DateTime?
+  // Outcome of the most recent sync; shape:
+  // { at, postsUpserted, platformAttempts, failures: [{creator, platform, handle, reason}] }
+  // Surfaces Apify failures (credit caps, blocked scrapes) in the UI instead
+  // of letting them read as silent zeros.
+  lastSyncSummary  Json?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

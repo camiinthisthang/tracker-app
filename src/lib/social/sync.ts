@@ -220,6 +220,16 @@ export async function syncCampaign(campaignId: string) {
       const inWindow = fetched.filter(
         (p) => p.postedAt >= windowStart && p.postedAt < windowEnd
       );
+      // How far back this scrape actually covered. Scrapes are capped (~60
+      // newest posts), so anything older than the oldest fetched item is
+      // outside this run's knowledge — deletion reconciliation must not
+      // touch posts older than this or a busy creator's history gets pruned.
+      const oldestFetched = fetched.length
+        ? fetched.reduce(
+            (min, p) => (p.postedAt < min ? p.postedAt : min),
+            fetched[0].postedAt
+          )
+        : null;
       return {
         task,
         posts: HASHTAG_FILTERING_ENABLED
@@ -228,6 +238,7 @@ export async function syncCampaign(campaignId: string) {
         // Raw in-window externalIds (pre-hashtag-filter) — the source of truth
         // for reconciling deletions below.
         liveExternalIds: inWindow.map((p) => p.externalId),
+        oldestFetched,
         success: true,
       };
     } catch (error) {
@@ -237,12 +248,15 @@ export async function syncCampaign(campaignId: string) {
       );
       skipped.push({
         creator: task.cc.creator.handle,
-        reason: `${task.platform} fetch failed`,
+        reason: `${task.platform} @${task.handle}: ${
+          error instanceof Error ? error.message : "fetch failed"
+        }`,
       });
       return {
         task,
         posts: [] as SocialPost[],
         liveExternalIds: [] as string[],
+        oldestFetched: null as Date | null,
         success: false,
       };
     }
@@ -272,7 +286,7 @@ export async function syncCampaign(campaignId: string) {
   // history survives. PostMetricsSnapshot cascades on Post delete.
   let totalPrunedStale = 0;
   const prunedPairs = new Set<string>();
-  for (const { task, success, liveExternalIds } of fetchResults) {
+  for (const { task, success, liveExternalIds, oldestFetched } of fetchResults) {
     if (!success) continue;
 
     const pairKey = `${task.cc.creatorId}:${task.platform}`;
@@ -295,17 +309,21 @@ export async function syncCampaign(campaignId: string) {
     // externalId no longer appears in the latest scrape (deleted from the
     // platform). Scoped to this task's username so one account's scrape can't
     // delete a sibling account's posts, guarded by a non-empty live set so a
-    // soft-empty scrape can't wipe real posts, and window-scoped so the
-    // 60-post scrape cap can't delete older out-of-window posts. Inactive
-    // accounts are never scraped, so their history is never reconciled away.
+    // soft-empty scrape can't wipe real posts, and bounded by BOTH the
+    // campaign window and the scrape's own coverage (oldest fetched post) —
+    // the ~60-post scrape cap means a prolific creator's older in-window
+    // posts never appear in the live set, and without the coverage bound
+    // they'd be wrongly deleted here on every sync.
     const handle = task.handle.trim().replace(/^@+/, "");
-    if (handle && liveExternalIds.length > 0) {
+    if (handle && liveExternalIds.length > 0 && oldestFetched) {
+      const reconcileStart =
+        oldestFetched > windowStart ? oldestFetched : windowStart;
       const deleted = await prisma.post.deleteMany({
         where: {
           creatorId: task.cc.creatorId,
           platform: task.platform,
           username: { equals: handle, mode: "insensitive" },
-          postedAt: { gte: windowStart, lt: windowEnd },
+          postedAt: { gte: reconcileStart, lt: windowEnd },
           externalId: { notIn: liveExternalIds },
         },
       });
@@ -316,10 +334,19 @@ export async function syncCampaign(campaignId: string) {
   // Update campaign daily metrics
   await updateCampaignDailyMetrics(campaignId, today);
 
-  // Update lastSyncAt
+  // Update lastSyncAt + persist the outcome so failures are visible in the
+  // UI (campaign overview banner) instead of only in server logs.
   await prisma.campaign.update({
     where: { id: campaignId },
-    data: { lastSyncAt: new Date() },
+    data: {
+      lastSyncAt: new Date(),
+      lastSyncSummary: {
+        at: new Date().toISOString(),
+        postsUpserted: totalPostsUpserted,
+        platformAttempts: tasks.length,
+        failures: skipped,
+      },
+    },
   });
 
   return {
@@ -365,6 +392,22 @@ async function upsertPost(
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Scrapers sometimes return a post with zeroed-out metrics (still
+  // processing, partial actor output, transient scrape glitch). Never
+  // overwrite a real view count with 0 — omit views from the update so the
+  // existing number survives; the next healthy sync corrects it. Creates
+  // still record 0 (a brand-new post genuinely starts there).
+  const metricsUpdate =
+    post.views > 0
+      ? {
+          views: post.views,
+          likes: post.likes,
+          shares: post.shares,
+          saves: post.saves,
+          comments: post.comments,
+        }
+      : {};
+
   const dbPost = await prisma.post.upsert({
     where: {
       platform_externalId: {
@@ -392,11 +435,7 @@ async function upsertPost(
       musicOriginal: post.musicOriginal ?? null,
     },
     update: {
-      views: post.views,
-      likes: post.likes,
-      shares: post.shares,
-      saves: post.saves,
-      comments: post.comments,
+      ...metricsUpdate,
       title: post.title,
       thumbnailUrl: post.thumbnailUrl,
       musicTitle: post.musicTitle ?? null,
@@ -406,7 +445,8 @@ async function upsertPost(
     },
   });
 
-  // Create daily snapshot
+  // Daily snapshot mirrors the post's stored (post-guard) numbers, so a
+  // zeroed scrape doesn't write a bogus dip into the metrics history either.
   await prisma.postMetricsSnapshot.upsert({
     where: {
       postId_date: {
@@ -417,18 +457,18 @@ async function upsertPost(
     create: {
       postId: dbPost.id,
       date: today,
-      views: post.views,
-      likes: post.likes,
-      shares: post.shares,
-      saves: post.saves,
-      comments: post.comments,
+      views: dbPost.views,
+      likes: dbPost.likes,
+      shares: dbPost.shares,
+      saves: dbPost.saves,
+      comments: dbPost.comments,
     },
     update: {
-      views: post.views,
-      likes: post.likes,
-      shares: post.shares,
-      saves: post.saves,
-      comments: post.comments,
+      views: dbPost.views,
+      likes: dbPost.likes,
+      shares: dbPost.shares,
+      saves: dbPost.saves,
+      comments: dbPost.comments,
     },
   });
 

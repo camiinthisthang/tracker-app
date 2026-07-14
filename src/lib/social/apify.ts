@@ -43,12 +43,40 @@ async function runActorSync(
   timeoutMs = 120_000
 ): Promise<unknown[]> {
   const url = `${APIFY_BASE}/acts/${actorId}/run-sync-get-dataset-items`;
-  const res = await axios.post(url, input, {
-    params: { token: getToken() },
-    timeout: timeoutMs,
-    headers: { "Content-Type": "application/json" },
-  });
-  return Array.isArray(res.data) ? res.data : [];
+  try {
+    const res = await axios.post(url, input, {
+      params: { token: getToken() },
+      timeout: timeoutMs,
+      headers: { "Content-Type": "application/json" },
+    });
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    throw new Error(describeApifyError(err), { cause: err });
+  }
+}
+
+/**
+ * Turn an axios/Apify failure into a human-readable reason that can be shown
+ * in the UI. The important case is credit exhaustion ("Monthly usage hard
+ * limit exceeded", HTTP 402/403) — before this, it surfaced as a generic
+ * "fetch failed" and the dashboard just showed stale or zero views.
+ */
+export function describeApifyError(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    if (err.code === "ECONNABORTED") return "Apify run timed out";
+    const status = err.response?.status;
+    const data = err.response?.data as
+      | { error?: { type?: string; message?: string } }
+      | undefined;
+    const message = data?.error?.message ?? err.message;
+    const quotaHit =
+      status === 402 ||
+      /limit|quota|credit|payment/i.test(message);
+    return `Apify error${status ? ` ${status}` : ""}: ${message}${
+      quotaHit ? " — likely out of Apify credits" : ""
+    }`;
+  }
+  return err instanceof Error ? err.message : String(err);
 }
 
 function stripHandle(raw: string | null | undefined): string | null {
