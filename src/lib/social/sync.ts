@@ -211,7 +211,9 @@ export async function syncCampaign(campaignId: string) {
         scopedToCampaign: h.scopedToCampaign,
       });
     }
-    if (handles.length === 0) {
+    // A cut member with no handles isn't a problem worth flagging — only
+    // active members are expected to be trackable.
+    if (handles.length === 0 && cc.isActive) {
       skipped.push({
         creator: cc.creator.handle,
         reason: "no TikTok, Instagram, or YouTube handle on profile",
@@ -269,6 +271,23 @@ export async function syncCampaign(campaignId: string) {
 
   const fetchResults = await Promise.all(fetches);
 
+  // Existing view counts for everything we're about to upsert, one query —
+  // lets upsertPost spot a bogus metric downgrade (a scrape that says 32 for
+  // a post we know has 30k) without a per-post read.
+  const allExternalIds = fetchResults.flatMap((r) =>
+    r.posts.map((p) => ({ platform: p.platform, externalId: p.externalId }))
+  );
+  const existingViews = new Map<string, number>();
+  if (allExternalIds.length > 0) {
+    const existing = await prisma.post.findMany({
+      where: { OR: allExternalIds },
+      select: { platform: true, externalId: true, views: true },
+    });
+    for (const p of existing) {
+      existingViews.set(`${p.platform}:${p.externalId}`, p.views);
+    }
+  }
+
   // DB writes are sequential to avoid overwhelming the connection pool.
   for (const { task, posts } of fetchResults) {
     for (const post of posts) {
@@ -276,7 +295,8 @@ export async function syncCampaign(campaignId: string) {
         post,
         campaignId,
         task.cc.creatorId,
-        task.scopedToCampaign
+        task.scopedToCampaign,
+        existingViews.get(`${post.platform}:${post.externalId}`)
       );
       totalPostsUpserted++;
     }
@@ -392,26 +412,37 @@ async function upsertPost(
   post: SocialPost,
   campaignId: string,
   creatorId: string,
-  reassignCampaign = false
+  reassignCampaign = false,
+  knownViews?: number
 ) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Scrapers sometimes return a post with zeroed-out metrics (still
-  // processing, partial actor output, transient scrape glitch). Never
-  // overwrite a real view count with 0 — omit views from the update so the
-  // existing number survives; the next healthy sync corrects it. Creates
-  // still record 0 (a brand-new post genuinely starts there).
-  const metricsUpdate =
-    post.views > 0
-      ? {
-          views: post.views,
-          likes: post.likes,
-          shares: post.shares,
-          saves: post.saves,
-          comments: post.comments,
-        }
-      : {};
+  // Scrapers sometimes return garbage metrics for a post we already track:
+  // zeroed-out rows (still processing, partial actor output) or a massive
+  // undercount (the "30k post showing 32 views" bug). Skip the metric
+  // overwrite in both cases — the stored numbers survive and the next
+  // healthy sync updates them. Creates still record whatever the scrape
+  // said (a brand-new post genuinely starts near zero).
+  const zeroed = post.views === 0 && knownViews != null && knownViews > 0;
+  const bigDrop =
+    knownViews != null && knownViews >= 1000 && post.views < knownViews / 2;
+  const suspicious = zeroed || bigDrop;
+  if (suspicious) {
+    console.warn(
+      `[sync] suspicious metric drop for ${post.platform} ${post.externalId} ` +
+        `@${post.username}: scraped views=${post.views}, keeping stored=${knownViews}`
+    );
+  }
+  const metricsUpdate = suspicious
+    ? {}
+    : {
+        views: post.views,
+        likes: post.likes,
+        shares: post.shares,
+        saves: post.saves,
+        comments: post.comments,
+      };
 
   const dbPost = await prisma.post.upsert({
     where: {

@@ -3,6 +3,11 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-14 — Sync guard hardening (follow-up to the reliability commit)
+- The metric guard now compares against the STORED view counts (one batched query per sync, no per-post reads): an update is skipped as suspicious when the scrape says 0 for a post we know has views, or reports less than half of a stored count ≥1,000 — this catches the exact "30k post showing 32 views" downgrade, not just zeros. Skips are logged with both numbers.
+- Cut members with no handles no longer generate "no handle" failures in the sync summary (only active members are expected to be trackable).
+- Tested: `npm test` 32/32, `npx next build` green.
+
 ## 2026-07-14 — UI batch: 30d filter, creator back-links, campaign dropdown, centered layout (branch regan/dashboard-fixes-jul14)
 - Dashboard date filter gains a **30d** preset (between 14d and 90d) — flows through the dashboard, charts, and PDF export automatically since they all share RANGE_PRESETS.
 - Posts table: the creator cell is now a link to that creator's page ("click back into the creators" from a post).
