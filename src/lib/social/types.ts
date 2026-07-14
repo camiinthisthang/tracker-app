@@ -15,6 +15,9 @@ export interface SocialPost {
   musicTitle?: string | null;
   musicAuthor?: string | null;
   musicOriginal?: boolean | null;
+  // Pinned posts appear first in profile scrapes regardless of age, so they
+  // must be excluded when estimating how far back a scrape's coverage goes.
+  isPinned?: boolean;
 }
 
 export interface SocialApiClient {

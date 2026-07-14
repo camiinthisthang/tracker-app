@@ -69,15 +69,37 @@ export async function PATCH(
   }
 
   // Editable contract fields. contractedTiktok/Instagram are non-negative
-  // integers; monthlyRate is a non-negative dollar amount (up to 2 decimals).
-  // Each accepts null (cleared). Absent keys are left untouched.
+  // integers; monthlyRate is a non-negative dollar amount (up to 2 decimals);
+  // contractStart/contractEnd are YYYY-MM-DD (stored midnight UTC, same
+  // convention as campaign start/end). Each accepts null (cleared). Absent
+  // keys are left untouched.
   const data: {
     contractedTiktok?: number | null;
     contractedInstagram?: number | null;
     monthlyRate?: number | null;
+    contractStart?: Date | null;
+    contractEnd?: Date | null;
     useDefaultHandles?: boolean;
     countAllPlatforms?: boolean;
   } = {};
+  for (const key of ["contractStart", "contractEnd"] as const) {
+    if (!(key in (body ?? {}))) continue;
+    const raw = body[key];
+    if (raw === null || raw === "") {
+      data[key] = null;
+    } else if (
+      typeof raw === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(raw) &&
+      !Number.isNaN(new Date(raw).getTime())
+    ) {
+      data[key] = new Date(raw);
+    } else {
+      return NextResponse.json(
+        { error: `${key} must be a YYYY-MM-DD date` },
+        { status: 400 }
+      );
+    }
+  }
   if (typeof body?.useDefaultHandles === "boolean")
     data.useDefaultHandles = body.useDefaultHandles;
   if (typeof body?.countAllPlatforms === "boolean")

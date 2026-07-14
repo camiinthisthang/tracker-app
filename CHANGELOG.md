@@ -3,6 +3,58 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-14 — Post-review fixes: 6 findings from an adversarial review of the branch
+An independent review pass over the whole branch surfaced 6 real bugs; all fixed:
+1. **Contract dates paced a day early in prod** — contract dates are stored midnight UTC but pacing math ran in server-local time (prod pins America/Chicago), so `getDate()`/`format()`/comparisons were off by one day west of UTC. New `contractDate()` normalizer in pacing.ts (same pattern as the existing `calendarDate()` gotcha). Tests now pass under both UTC and TZ=America/Chicago.
+2. **A pre-entered FUTURE contract on one campaign silenced all pacing for a creator's LIVE contract** — `creatorCommonPeriod` now picks the latest contract that has already started; only-future contracts fall back to the soonest upcoming one.
+3. **Renaming a handle with synced posts would have hard-deleted its history on the next sync** (rename drops the old username from knownHandles → stale-handle prune wipes it, snapshots cascade). PATCH rename now has the same posts-guard as DELETE: refuse with a pointer to "add new handle + deactivate old".
+4. **Pinned posts defeated the reconciliation coverage bound** (an old pinned post faked deep coverage → real older posts pruned). `SocialPost.isPinned` now flows from the TikTok/IG scrapers; coverage = oldest NON-pinned item, and only applies when the scrape actually hit the `SCRAPE_RESULTS_LIMIT` cap (under the cap = we saw the whole account).
+5. **The metric-downgrade guard was a one-way ratchet** — one inflated scrape could lock in a wrong high number forever. **Schema change** (migration `20260714220000_suspect_drop_count`, additive): `Post.suspectDropCount` counts consecutive suspicious readings; the 3rd consecutive low reading is accepted as real and the counter resets on any accepted update.
+6. **Account-row edit state was still lost on re-render** — `AccountRow`/`CampaignSection` were nested component definitions (new identity every render → React remounts). Converted to plain render helpers so the element type is the stable top-level `AccountRowItem`.
+- Tested: `npm test` 35/35 under UTC AND TZ=America/Chicago, `npx next build` green.
+
+## 2026-07-14 — Sync guard hardening (follow-up to the reliability commit)
+- The metric guard now compares against the STORED view counts (one batched query per sync, no per-post reads): an update is skipped as suspicious when the scrape says 0 for a post we know has views, or reports less than half of a stored count ≥1,000 — this catches the exact "30k post showing 32 views" downgrade, not just zeros. Skips are logged with both numbers.
+- Cut members with no handles no longer generate "no handle" failures in the sync summary (only active members are expected to be trackable).
+- Tested: `npm test` 32/32, `npx next build` green.
+
+## 2026-07-14 — UI batch: 30d filter, creator back-links, campaign dropdown, centered layout (branch regan/dashboard-fixes-jul14)
+- Dashboard date filter gains a **30d** preset (between 14d and 90d) — flows through the dashboard, charts, and PDF export automatically since they all share RANGE_PRESETS.
+- Posts table: the creator cell is now a link to that creator's page ("click back into the creators" from a post).
+- Creators page: the campaign filter is a **dropdown** (reuses the dashboard's CampaignSwitcher) instead of pill links — Adriel's request.
+- Admin layout: content is capped at 1400px and centered — pages hugged the full viewport width, which read as "not centered" on wide screens (the posts-page complaint).
+- NOT fixed here: Adriel's creator page rendering stretched/oversized — couldn't reproduce from code alone; needs a look at the live page (Kana said she knows why it's enlarged — ask her).
+- Tested: `npm test` 32/32, `npx next build` green. No schema change.
+
+## 2026-07-14 — Social handles: editable + deletable (branch regan/dashboard-fixes-jul14)
+- The Aspen typo case: a misspelled handle could only be deactivated, never fixed. Handles now have a pencil (inline rename) on every account row; PATCH `/api/creators/[id]/accounts/[accountId]` accepts `handle` (strips @, rejects empty, 409 on duplicate per platform).
+- New DELETE on the same route — hard-removes a handle ONLY when it has zero synced posts (typos that never synced); otherwise 409 pointing at Deactivate so history is kept. Trash button on each row surfaces the server's explanation on refusal.
+- Deactivated handles already stop syncing (`resolveSyncHandles` skips inactive) — confirmed, no change needed.
+- Refactor: AccountRow hoisted to a top-level `AccountRowItem` component (it gained edit state; nested definition would remount and lose it on parent re-renders).
+- Tested: `npm test` 32/32, `npx next build` + `tsc --noEmit` green. No schema change.
+
+## 2026-07-14 — Contract-based pacing: each creator measured from THEIR start date (branch regan/dashboard-fixes-jul14)
+- **Schema change** (migration `20260714213000_contract_dates`, additive-only): `CampaignCreator.contractStart` / `contractEnd DateTime?`.
+- **Pacing engine**: new `creatorPacingPeriod` — with a contractStart, a creator's pacing "month" cycles from their signing date (Jul 8 → Aug 7), the first cycle starts exactly at the contract start so warm-up posts/days before it don't count, and a future start yields `notStarted` (card label "starts Jul 20", zero flags). `creatorCommonPeriod` picks the latest contract across memberships. Fixes the Kamryn case: signed last week, was flagged Off-pace against the whole month.
+- **Creators page + creator detail**: pacing period, posts-this-month window, flags, and the period label are now per creator. Post query pulls a 32-day superset and slices each creator's own window.
+- **Contract Tracker** (campaign → Creator Progress): new inline-editable "Contract dates" column (From/To, same PATCH endpoint as contracted counts); pace flag + posted counts + weekly cells measured against each creator's own window (campaign window when unset); "+N over" chip when someone delivers beyond their contracted count (extras are paid per video, per the ops call). Legend updated.
+- **Campaign form roster**: new "Contract start" date column per creator row (validation, POST/PATCH, edit-page initialData all wired).
+- Tested: `npm test` 32/32 (9 new pacing tests), `npx next build` green. Migration additive-only.
+
+## 2026-07-14 — Cut vs Deactivated: clear, consistent semantics (branch regan/dashboard-fixes-jul14)
+- Per Jacqueline's spec: **Cut** (campaign roster "Active" switch off) = hidden from that campaign's pacing/progress/creators pages and no posts expected, **but their accounts keep syncing** so a late viral video is still tracked. **Deactivated** (creator profile, or per handle) = syncing stops entirely, history kept.
+- `syncCampaign` now includes cut memberships and excludes deactivated creators (`where: { creator: { isActive: true } }` instead of `where: { isActive: true }`). The manual per-creator sync falls back to a cut membership so posts still attach to the campaign they were cut from.
+- Creators page: creators cut from every campaign (or whose campaigns all ended) drop out of the pacing cards into the renamed "Not on an active campaign" pill list, tagged `cut` / `deactivated` / `campaign ended`. Brand-new unassigned creators still get cards so they don't vanish before assignment.
+- Tooltips updated everywhere the two states appear (campaign creators table, campaign form roster header + trash-button comment) so nobody has to guess again.
+- Tested: `npm test` 23/23, `npx next build` green. No schema change.
+
+## 2026-07-14 — Sync reliability: no more silent zeros, no more phantom deletions (Regan/Claude, branch regan/dashboard-fixes-jul14)
+- **Zero-views guard**: a scrape that returns 0 views for an existing post no longer overwrites the real number (partial actor output / still-processing posts did exactly this — the "30k post showing 32 views" class of bug). Metrics only update when the scrape has a non-zero view count; daily snapshots mirror the stored (post-guard) values so history doesn't dip either.
+- **Deletion-reconciliation coverage bound**: reconciliation now only deletes posts newer than the OLDEST post the scrape actually returned. Scrapes cap at ~60 posts, so a prolific creator's older in-window posts never appeared in the live set and were being wrongly deleted every sync (very likely why Adriel's July count went 13 → 11).
+- **Apify errors are now readable and visible**: `describeApifyError` extracts the HTTP status + Apify error message (flags 402/limit/quota/credit as "likely out of Apify credits"); per-handle failure reasons land in the sync summary.
+- **Schema change** (migration `20260714210000_sync_summary`, additive-only): `Campaign.lastSyncSummary Json?` stores `{at, postsUpserted, platformAttempts, failures}` from every sync. New `SyncHealthBanner` renders on the campaign Overview and the Dashboard when the latest sync had failures — including a "ask Cami to top up Apify credits" hint when that's the likely cause.
+- Tested: `npm test` 23/23, `npx next build` green. Migration not run locally (no DATABASE_URL); single additive ALTER, applies on deploy.
+
 Format per entry:
 
 ```

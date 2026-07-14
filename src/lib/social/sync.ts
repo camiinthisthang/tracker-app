@@ -3,6 +3,7 @@ import {
   fetchTikTokPostsViaApify,
   fetchInstagramPostsViaApify,
   fetchYouTubeShortsViaApify,
+  SCRAPE_RESULTS_LIMIT,
 } from "./apify";
 import type { SocialPost } from "./types";
 import type { Platform } from "@/generated/prisma/enums";
@@ -144,11 +145,16 @@ export function fetchForPlatform(
  * DB, creates daily metric snapshots.
  */
 export async function syncCampaign(campaignId: string) {
+  // Cut creators (cc.isActive=false) STILL sync — cut means "hidden from the
+  // campaign's pacing/progress pages", not "stop tracking": if a cut
+  // creator's post goes viral we still want the views. What stops a
+  // creator's sync entirely is deactivating them (Creator.isActive=false) or
+  // deactivating individual handles.
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
     include: {
       campaignCreators: {
-        where: { isActive: true },
+        where: { creator: { isActive: true } },
         include: { creator: { include: { accounts: true } } },
       },
     },
@@ -206,7 +212,9 @@ export async function syncCampaign(campaignId: string) {
         scopedToCampaign: h.scopedToCampaign,
       });
     }
-    if (handles.length === 0) {
+    // A cut member with no handles isn't a problem worth flagging — only
+    // active members are expected to be trackable.
+    if (handles.length === 0 && cc.isActive) {
       skipped.push({
         creator: cc.creator.handle,
         reason: "no TikTok, Instagram, or YouTube handle on profile",
@@ -220,6 +228,21 @@ export async function syncCampaign(campaignId: string) {
       const inWindow = fetched.filter(
         (p) => p.postedAt >= windowStart && p.postedAt < windowEnd
       );
+      // How far back this scrape's coverage actually reaches, for deletion
+      // reconciliation. Under the cap = we saw the whole account, coverage
+      // is unbounded (use the campaign window). At the cap = coverage is the
+      // oldest NON-PINNED item: pinned posts surface first regardless of age
+      // and would fake deep coverage, causing real older posts to be pruned.
+      const capHit = fetched.length >= SCRAPE_RESULTS_LIMIT;
+      const nonPinned = fetched.filter((p) => !p.isPinned);
+      const coverageStart = !capHit
+        ? windowStart
+        : nonPinned.length
+          ? nonPinned.reduce(
+              (min, p) => (p.postedAt < min ? p.postedAt : min),
+              nonPinned[0].postedAt
+            )
+          : null;
       return {
         task,
         posts: HASHTAG_FILTERING_ENABLED
@@ -228,6 +251,7 @@ export async function syncCampaign(campaignId: string) {
         // Raw in-window externalIds (pre-hashtag-filter) — the source of truth
         // for reconciling deletions below.
         liveExternalIds: inWindow.map((p) => p.externalId),
+        coverageStart,
         success: true,
       };
     } catch (error) {
@@ -237,18 +261,49 @@ export async function syncCampaign(campaignId: string) {
       );
       skipped.push({
         creator: task.cc.creator.handle,
-        reason: `${task.platform} fetch failed`,
+        reason: `${task.platform} @${task.handle}: ${
+          error instanceof Error ? error.message : "fetch failed"
+        }`,
       });
       return {
         task,
         posts: [] as SocialPost[],
         liveExternalIds: [] as string[],
+        coverageStart: null as Date | null,
         success: false,
       };
     }
   });
 
   const fetchResults = await Promise.all(fetches);
+
+  // Existing view counts for everything we're about to upsert, one query —
+  // lets upsertPost spot a bogus metric downgrade (a scrape that says 32 for
+  // a post we know has 30k) without a per-post read.
+  const allExternalIds = fetchResults.flatMap((r) =>
+    r.posts.map((p) => ({ platform: p.platform, externalId: p.externalId }))
+  );
+  const existingByKey = new Map<
+    string,
+    { views: number; suspectDropCount: number }
+  >();
+  if (allExternalIds.length > 0) {
+    const existing = await prisma.post.findMany({
+      where: { OR: allExternalIds },
+      select: {
+        platform: true,
+        externalId: true,
+        views: true,
+        suspectDropCount: true,
+      },
+    });
+    for (const p of existing) {
+      existingByKey.set(`${p.platform}:${p.externalId}`, {
+        views: p.views,
+        suspectDropCount: p.suspectDropCount,
+      });
+    }
+  }
 
   // DB writes are sequential to avoid overwhelming the connection pool.
   for (const { task, posts } of fetchResults) {
@@ -257,7 +312,8 @@ export async function syncCampaign(campaignId: string) {
         post,
         campaignId,
         task.cc.creatorId,
-        task.scopedToCampaign
+        task.scopedToCampaign,
+        existingByKey.get(`${post.platform}:${post.externalId}`)
       );
       totalPostsUpserted++;
     }
@@ -272,7 +328,7 @@ export async function syncCampaign(campaignId: string) {
   // history survives. PostMetricsSnapshot cascades on Post delete.
   let totalPrunedStale = 0;
   const prunedPairs = new Set<string>();
-  for (const { task, success, liveExternalIds } of fetchResults) {
+  for (const { task, success, liveExternalIds, coverageStart } of fetchResults) {
     if (!success) continue;
 
     const pairKey = `${task.cc.creatorId}:${task.platform}`;
@@ -295,17 +351,21 @@ export async function syncCampaign(campaignId: string) {
     // externalId no longer appears in the latest scrape (deleted from the
     // platform). Scoped to this task's username so one account's scrape can't
     // delete a sibling account's posts, guarded by a non-empty live set so a
-    // soft-empty scrape can't wipe real posts, and window-scoped so the
-    // 60-post scrape cap can't delete older out-of-window posts. Inactive
-    // accounts are never scraped, so their history is never reconciled away.
+    // soft-empty scrape can't wipe real posts, and bounded by BOTH the
+    // campaign window and the scrape's own coverage (see coverageStart above)
+    // — the ~60-post scrape cap means a prolific creator's older in-window
+    // posts never appear in the live set, and without the coverage bound
+    // they'd be wrongly deleted here on every sync.
     const handle = task.handle.trim().replace(/^@+/, "");
-    if (handle && liveExternalIds.length > 0) {
+    if (handle && liveExternalIds.length > 0 && coverageStart) {
+      const reconcileStart =
+        coverageStart > windowStart ? coverageStart : windowStart;
       const deleted = await prisma.post.deleteMany({
         where: {
           creatorId: task.cc.creatorId,
           platform: task.platform,
           username: { equals: handle, mode: "insensitive" },
-          postedAt: { gte: windowStart, lt: windowEnd },
+          postedAt: { gte: reconcileStart, lt: windowEnd },
           externalId: { notIn: liveExternalIds },
         },
       });
@@ -316,10 +376,19 @@ export async function syncCampaign(campaignId: string) {
   // Update campaign daily metrics
   await updateCampaignDailyMetrics(campaignId, today);
 
-  // Update lastSyncAt
+  // Update lastSyncAt + persist the outcome so failures are visible in the
+  // UI (campaign overview banner) instead of only in server logs.
   await prisma.campaign.update({
     where: { id: campaignId },
-    data: { lastSyncAt: new Date() },
+    data: {
+      lastSyncAt: new Date(),
+      lastSyncSummary: {
+        at: new Date().toISOString(),
+        postsUpserted: totalPostsUpserted,
+        platformAttempts: tasks.length,
+        failures: skipped,
+      },
+    },
   });
 
   return {
@@ -360,10 +429,44 @@ async function upsertPost(
   post: SocialPost,
   campaignId: string,
   creatorId: string,
-  reassignCampaign = false
+  reassignCampaign = false,
+  known?: { views: number; suspectDropCount: number }
 ) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  // Scrapers sometimes return garbage metrics for a post we already track:
+  // zeroed-out rows (still processing, partial actor output) or a massive
+  // undercount (the "30k post showing 32 views" bug). Skip the metric
+  // overwrite in both cases — the stored numbers survive and the next
+  // healthy sync updates them. Creates still record whatever the scrape
+  // said (a brand-new post genuinely starts near zero).
+  //
+  // Escape hatch: if 3 consecutive syncs report the same "suspicious" low
+  // reading, it's the stored number that's wrong (e.g. one inflated scrape)
+  // — accept the low value so a bad high can't lock in forever.
+  const zeroed = post.views === 0 && known != null && known.views > 0;
+  const bigDrop =
+    known != null && known.views >= 1000 && post.views < known.views / 2;
+  const priorDrops = known?.suspectDropCount ?? 0;
+  const suspicious = (zeroed || bigDrop) && priorDrops < 2;
+  if (zeroed || bigDrop) {
+    console.warn(
+      `[sync] suspicious metric drop for ${post.platform} ${post.externalId} ` +
+        `@${post.username}: scraped views=${post.views}, stored=${known?.views} ` +
+        `(consecutive=${priorDrops + 1}${suspicious ? ", keeping stored" : ", accepting scraped"})`
+    );
+  }
+  const metricsUpdate = suspicious
+    ? { suspectDropCount: priorDrops + 1 }
+    : {
+        views: post.views,
+        likes: post.likes,
+        shares: post.shares,
+        saves: post.saves,
+        comments: post.comments,
+        suspectDropCount: 0,
+      };
 
   const dbPost = await prisma.post.upsert({
     where: {
@@ -392,11 +495,7 @@ async function upsertPost(
       musicOriginal: post.musicOriginal ?? null,
     },
     update: {
-      views: post.views,
-      likes: post.likes,
-      shares: post.shares,
-      saves: post.saves,
-      comments: post.comments,
+      ...metricsUpdate,
       title: post.title,
       thumbnailUrl: post.thumbnailUrl,
       musicTitle: post.musicTitle ?? null,
@@ -406,7 +505,8 @@ async function upsertPost(
     },
   });
 
-  // Create daily snapshot
+  // Daily snapshot mirrors the post's stored (post-guard) numbers, so a
+  // zeroed scrape doesn't write a bogus dip into the metrics history either.
   await prisma.postMetricsSnapshot.upsert({
     where: {
       postId_date: {
@@ -417,18 +517,18 @@ async function upsertPost(
     create: {
       postId: dbPost.id,
       date: today,
-      views: post.views,
-      likes: post.likes,
-      shares: post.shares,
-      saves: post.saves,
-      comments: post.comments,
+      views: dbPost.views,
+      likes: dbPost.likes,
+      shares: dbPost.shares,
+      saves: dbPost.saves,
+      comments: dbPost.comments,
     },
     update: {
-      views: post.views,
-      likes: post.likes,
-      shares: post.shares,
-      saves: post.saves,
-      comments: post.comments,
+      views: dbPost.views,
+      likes: dbPost.likes,
+      shares: dbPost.shares,
+      saves: dbPost.saves,
+      comments: dbPost.comments,
     },
   });
 

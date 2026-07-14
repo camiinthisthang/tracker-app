@@ -109,6 +109,7 @@ export async function PATCH(
             videosPerDay: c.videosPerDay,
             monthlyPostGoal: c.monthlyPostGoal ?? null,
             countAllPlatforms: c.countAllPlatforms,
+            contractStart: c.contractStart ? new Date(c.contractStart) : null,
             isActive: c.isActive,
           },
           update: {
@@ -116,6 +117,7 @@ export async function PATCH(
             videosPerDay: c.videosPerDay,
             monthlyPostGoal: c.monthlyPostGoal ?? null,
             countAllPlatforms: c.countAllPlatforms,
+            contractStart: c.contractStart ? new Date(c.contractStart) : null,
             isActive: c.isActive,
           },
         });

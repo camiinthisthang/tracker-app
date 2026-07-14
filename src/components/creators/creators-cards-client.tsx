@@ -63,7 +63,7 @@ export function CreatorsCardsClient({
 }: {
   needsAttention: CreatorPacingCardData[];
   onTrack: CreatorPacingCardData[];
-  inactive: { id: string; name: string }[];
+  inactive: { id: string; name: string; tag?: string }[];
   legend: React.ReactNode;
   periodLabel: string;
 }) {
@@ -159,11 +159,15 @@ export function CreatorsCardsClient({
         )}
       </div>
 
-      {/* Inactive roster */}
+      {/* Off the main roster: deactivated (sync stopped), cut from every
+          campaign (still synced, just not paced here), or campaign ended. */}
       {inactiveShown.length > 0 && (
         <div className="mt-8">
-          <h2 className="mb-2 text-sm font-semibold text-slate-500">
-            Inactive
+          <h2
+            className="mb-2 cursor-help text-sm font-semibold text-slate-500"
+            title="Deactivated = syncing stopped. Cut = removed from campaign pacing but their posts still sync, so viral videos are caught."
+          >
+            Not on an active campaign
           </h2>
           <div className="flex flex-wrap gap-2">
             {inactiveShown.map((c) => (
@@ -173,6 +177,9 @@ export function CreatorsCardsClient({
                 className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500 hover:bg-slate-200"
               >
                 {c.name}
+                {c.tag && (
+                  <span className="ml-1 text-slate-400">· {c.tag}</span>
+                )}
               </Link>
             ))}
           </div>

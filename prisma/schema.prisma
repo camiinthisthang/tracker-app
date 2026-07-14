@@ -208,6 +208,11 @@ model Campaign {
   previewLinks     String[]
   galleryUrls      String[]
   lastSyncAt       DateTime?
+  // Outcome of the most recent sync; shape:
+  // { at, postsUpserted, platformAttempts, failures: [{creator, platform, handle, reason}] }
+  // Surfaces Apify failures (credit caps, blocked scrapes) in the UI instead
+  // of letting them read as silent zeros.
+  lastSyncSummary  Json?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -368,6 +373,14 @@ model CampaignCreator {
   // Per-creator monthly rate (USD) for this campaign. Drives the payout column
   // (rate x delivered/contracted, capped 100%). Stored here, never in source.
   monthlyRate         Decimal? @db.Decimal(10, 2)
+  // Per-creator contract window. When contractStart is set, this creator's
+  // pacing "month" cycles from that date (not the campaign's monthStartDay),
+  // posts before it (warm-ups) don't count toward the goal, and the contract
+  // tracker measures elapsed time against THEIR window — so a creator who
+  // signed mid-campaign isn't flagged off-pace against time they weren't
+  // contracted for. Null = fall back to campaign-level behavior.
+  contractStart       DateTime?
+  contractEnd         DateTime?
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -404,6 +417,11 @@ model Post {
   musicTitle    String?
   musicAuthor   String?
   musicOriginal Boolean?
+  // Consecutive syncs whose scraped metrics looked like a bogus downgrade
+  // (zeroed or <50% of stored). After 3 in a row the low reading is accepted
+  // as real — so a one-off inflated scrape can't lock in a wrong high number
+  // forever. Reset on every accepted update.
+  suspectDropCount Int @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

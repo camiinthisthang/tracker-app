@@ -10,6 +10,10 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/shared/stat-card";
 import { SyncButton } from "@/components/campaigns/sync-button";
+import {
+  SyncHealthBanner,
+  type SyncSummary,
+} from "@/components/campaigns/sync-health-banner";
 import { Badge } from "@/components/ui/badge";
 import { TopPostsGallery } from "@/components/campaigns/top-posts-gallery";
 import {
@@ -285,6 +289,10 @@ export default async function CampaignOverviewPage({
           lastSyncAt={campaign.lastSyncAt?.toISOString()}
         />
       </PageHeader>
+
+      <SyncHealthBanner
+        summary={(campaign.lastSyncSummary as SyncSummary | null) ?? null}
+      />
 
       {/* Campaign Details — full width at the top */}
       <div className="rounded-xl border border-slate-200 bg-white p-5">

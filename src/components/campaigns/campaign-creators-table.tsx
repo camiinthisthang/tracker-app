@@ -116,14 +116,14 @@ export function CampaignCreatorsTable({
                     <div className="flex flex-wrap gap-1">
                       {!c.creatorActive ? (
                         <span
-                          title="Deactivated from the whole roster — history kept, syncing stopped"
+                          title="Deactivated from the whole roster — syncing STOPPED, history kept"
                           className="cursor-help rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
                         >
                           Deactivated
                         </span>
                       ) : !c.onCampaign ? (
                         <span
-                          title="Cut from this campaign — still active elsewhere, posts/history kept"
+                          title="Cut from this campaign — hidden from pacing/progress, but posts STILL SYNC so viral videos are caught"
                           className="cursor-help rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700"
                         >
                           Cut

@@ -18,6 +18,16 @@ export const campaignCreatorSchema = z.object({
   // Unique content on every handle → all posts count toward pacing;
   // false = canonical platform only (cross-posters).
   countAllPlatforms: z.boolean().default(false),
+  // Per-creator contract start (YYYY-MM-DD, "" = unset). Anchors their
+  // pacing month and excludes warm-up posts before it.
+  contractStart: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((v) => (v ? v : null))
+    .refine((v) => v === null || /^\d{4}-\d{2}-\d{2}$/.test(v), {
+      message: "contractStart must be YYYY-MM-DD",
+    }),
   isActive: z.boolean().default(true),
 });
 

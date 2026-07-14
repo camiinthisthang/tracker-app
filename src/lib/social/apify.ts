@@ -26,6 +26,10 @@ import type { SocialPost } from "./types";
 
 const APIFY_BASE = "https://api.apify.com/v2";
 
+/** Per-handle scrape cap. Sync's deletion-reconciliation uses this to tell
+ * "we saw the whole account" from "the scrape hit the cap". */
+export const SCRAPE_RESULTS_LIMIT = 60;
+
 function getToken() {
   const t = process.env.APIFY_TOKEN;
   if (!t) throw new Error("APIFY_TOKEN is not set");
@@ -43,12 +47,40 @@ async function runActorSync(
   timeoutMs = 120_000
 ): Promise<unknown[]> {
   const url = `${APIFY_BASE}/acts/${actorId}/run-sync-get-dataset-items`;
-  const res = await axios.post(url, input, {
-    params: { token: getToken() },
-    timeout: timeoutMs,
-    headers: { "Content-Type": "application/json" },
-  });
-  return Array.isArray(res.data) ? res.data : [];
+  try {
+    const res = await axios.post(url, input, {
+      params: { token: getToken() },
+      timeout: timeoutMs,
+      headers: { "Content-Type": "application/json" },
+    });
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    throw new Error(describeApifyError(err), { cause: err });
+  }
+}
+
+/**
+ * Turn an axios/Apify failure into a human-readable reason that can be shown
+ * in the UI. The important case is credit exhaustion ("Monthly usage hard
+ * limit exceeded", HTTP 402/403) — before this, it surfaced as a generic
+ * "fetch failed" and the dashboard just showed stale or zero views.
+ */
+export function describeApifyError(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    if (err.code === "ECONNABORTED") return "Apify run timed out";
+    const status = err.response?.status;
+    const data = err.response?.data as
+      | { error?: { type?: string; message?: string } }
+      | undefined;
+    const message = data?.error?.message ?? err.message;
+    const quotaHit =
+      status === 402 ||
+      /limit|quota|credit|payment/i.test(message);
+    return `Apify error${status ? ` ${status}` : ""}: ${message}${
+      quotaHit ? " — likely out of Apify credits" : ""
+    }`;
+  }
+  return err instanceof Error ? err.message : String(err);
 }
 
 function stripHandle(raw: string | null | undefined): string | null {
@@ -63,7 +95,7 @@ function stripHandle(raw: string | null | undefined): string | null {
  */
 export async function fetchTikTokPostsViaApify(
   handle: string,
-  limit = 60
+  limit = SCRAPE_RESULTS_LIMIT
 ): Promise<SocialPost[]> {
   const clean = stripHandle(handle);
   if (!clean) return [];
@@ -125,6 +157,7 @@ export async function fetchTikTokPostsViaApify(
         typeof musicMeta.musicAuthor === "string" ? musicMeta.musicAuthor : null,
       musicOriginal:
         typeof musicMeta.musicOriginal === "boolean" ? musicMeta.musicOriginal : null,
+      isPinned: v.isPinned === true,
     });
   }
   return posts;
@@ -135,7 +168,7 @@ export async function fetchTikTokPostsViaApify(
  */
 export async function fetchInstagramPostsViaApify(
   handle: string,
-  limit = 60
+  limit = SCRAPE_RESULTS_LIMIT
 ): Promise<SocialPost[]> {
   const clean = stripHandle(handle);
   if (!clean) return [];
@@ -197,6 +230,7 @@ export async function fetchInstagramPostsViaApify(
       shares: 0,
       saves: 0,
       comments: toInt(p.commentsCount),
+      isPinned: p.isPinned === true,
     });
   }
   return posts;
@@ -210,7 +244,7 @@ export async function fetchInstagramPostsViaApify(
  */
 export async function fetchYouTubeShortsViaApify(
   handle: string,
-  limit = 60
+  limit = SCRAPE_RESULTS_LIMIT
 ): Promise<SocialPost[]> {
   const clean = stripHandle(handle);
   if (!clean) return [];
