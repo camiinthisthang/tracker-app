@@ -153,8 +153,10 @@ export function CampaignForm({
   }
 
   // Trash button. For a creator that's already on the campaign, this is a soft
-  // "cut": flip isActive=false so we keep their posts/history but stop syncing
-  // and stop expecting future posts. For a brand-new unsaved row, just drop it.
+  // "cut": flip isActive=false so they drop off the campaign's pacing/progress
+  // pages and we stop expecting posts — but their accounts KEEP SYNCING so a
+  // late viral video is still tracked. (Stopping sync entirely = deactivate
+  // the creator or their handles.) For a brand-new unsaved row, just drop it.
   function removeCreator(id: string) {
     const row = creators.find((c) => c.id === id);
     if (row && row.creatorId && initialCreatorIds.current.has(row.creatorId)) {
@@ -766,7 +768,12 @@ export function CampaignForm({
               >
                 All platforms
               </span>
-              <span className="text-xs font-medium text-gray-500">Active</span>
+              <span
+                className="cursor-help text-xs font-medium text-gray-500"
+                title="Off = cut from this campaign: hidden from pacing/progress and no posts expected, but their accounts still sync so viral videos are caught. To stop syncing entirely, deactivate the creator (or their handles) on their profile."
+              >
+                Active
+              </span>
               <span />
             </div>
             <Separator />

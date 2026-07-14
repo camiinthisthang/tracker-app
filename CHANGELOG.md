@@ -3,6 +3,13 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-14 — Cut vs Deactivated: clear, consistent semantics (branch regan/dashboard-fixes-jul14)
+- Per Jacqueline's spec: **Cut** (campaign roster "Active" switch off) = hidden from that campaign's pacing/progress/creators pages and no posts expected, **but their accounts keep syncing** so a late viral video is still tracked. **Deactivated** (creator profile, or per handle) = syncing stops entirely, history kept.
+- `syncCampaign` now includes cut memberships and excludes deactivated creators (`where: { creator: { isActive: true } }` instead of `where: { isActive: true }`). The manual per-creator sync falls back to a cut membership so posts still attach to the campaign they were cut from.
+- Creators page: creators cut from every campaign (or whose campaigns all ended) drop out of the pacing cards into the renamed "Not on an active campaign" pill list, tagged `cut` / `deactivated` / `campaign ended`. Brand-new unassigned creators still get cards so they don't vanish before assignment.
+- Tooltips updated everywhere the two states appear (campaign creators table, campaign form roster header + trash-button comment) so nobody has to guess again.
+- Tested: `npm test` 23/23, `npx next build` green. No schema change.
+
 ## 2026-07-14 — Sync reliability: no more silent zeros, no more phantom deletions (Regan/Claude, branch regan/dashboard-fixes-jul14)
 - **Zero-views guard**: a scrape that returns 0 views for an existing post no longer overwrites the real number (partial actor output / still-processing posts did exactly this — the "30k post showing 32 views" class of bug). Metrics only update when the scrape has a non-zero view count; daily snapshots mirror the stored (post-guard) values so history doesn't dip either.
 - **Deletion-reconciliation coverage bound**: reconciliation now only deletes posts newer than the OLDEST post the scrape actually returned. Scrapes cap at ~60 posts, so a prolific creator's older in-window posts never appeared in the live set and were being wrongly deleted every sync (very likely why Adriel's July count went 13 → 11).

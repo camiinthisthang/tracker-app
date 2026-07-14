@@ -32,9 +32,11 @@ export async function POST(
     where: { id: creatorId },
     include: {
       accounts: true,
+      // Prefer an active membership, but fall back to a cut one — a cut
+      // creator's posts still attach to the campaign they were cut from so
+      // viral videos keep being tracked.
       campaignCreators: {
-        where: { isActive: true },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
         take: 1,
         select: {
           campaign: {

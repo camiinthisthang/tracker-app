@@ -144,11 +144,16 @@ export function fetchForPlatform(
  * DB, creates daily metric snapshots.
  */
 export async function syncCampaign(campaignId: string) {
+  // Cut creators (cc.isActive=false) STILL sync — cut means "hidden from the
+  // campaign's pacing/progress pages", not "stop tracking": if a cut
+  // creator's post goes viral we still want the views. What stops a
+  // creator's sync entirely is deactivating them (Creator.isActive=false) or
+  // deactivating individual handles.
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
     include: {
       campaignCreators: {
-        where: { isActive: true },
+        where: { creator: { isActive: true } },
         include: { creator: { include: { accounts: true } } },
       },
     },

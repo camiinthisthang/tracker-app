@@ -142,7 +142,12 @@ export default async function CreatorsPage({
     monthPostsByCreator.set(p.creatorId, list);
   }
 
-  const cards: (CreatorPacingCardData & { isActive: boolean })[] = [];
+  const cards: (CreatorPacingCardData & {
+    isActive: boolean;
+    onActiveCampaign: boolean;
+    hasMemberships: boolean;
+    cutFromActive: boolean;
+  })[] = [];
   for (const creator of creators) {
     const relevantCCs = creator.campaignCreators.filter(
       (cc) =>
@@ -191,6 +196,11 @@ export default async function CreatorsPage({
       name: creator.name,
       handle: creator.handle,
       isActive: creator.isActive,
+      onActiveCampaign: relevantCCs.length > 0,
+      hasMemberships: creator.campaignCreators.length > 0,
+      cutFromActive: creator.campaignCreators.some(
+        (cc) => cc.campaign.isActive && !cc.isActive,
+      ),
       flags: creatorFlags({
         postsThisMonth,
         postsAllTime: agg?._count ?? 0,
@@ -212,7 +222,13 @@ export default async function CreatorsPage({
     });
   }
 
-  const activeCards = cards.filter((c) => c.isActive);
+  // Pacing cards = active creators on an active campaign (plus brand-new
+  // unassigned ones, so they don't vanish before assignment). Creators cut
+  // from every campaign, or whose campaigns all ended, drop to the pill list
+  // — cut means "off the main pages", their data still syncs.
+  const activeCards = cards.filter(
+    (c) => c.isActive && (c.onActiveCampaign || !c.hasMemberships),
+  );
   const needsAttention = activeCards
     .filter((c) => c.flags.length > 0)
     .sort((a, b) => {
@@ -223,7 +239,19 @@ export default async function CreatorsPage({
   const onTrack = activeCards
     .filter((c) => c.flags.length === 0)
     .sort((a, b) => b.views - a.views);
-  const inactive = cards.filter((c) => !c.isActive);
+  const inactive = cards
+    .filter(
+      (c) => !c.isActive || (c.hasMemberships && !c.onActiveCampaign),
+    )
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      tag: !c.isActive
+        ? "deactivated"
+        : c.cutFromActive
+          ? "cut"
+          : "campaign ended",
+    }));
 
   const totalViews = cards.reduce((sum, c) => sum + c.views, 0);
   const totalPosts = aggregates.reduce((sum, a) => sum + a._count, 0);
@@ -292,7 +320,7 @@ export default async function CreatorsPage({
           <CreatorsCardsClient
             needsAttention={needsAttention}
             onTrack={onTrack}
-            inactive={inactive.map((c) => ({ id: c.id, name: c.name }))}
+            inactive={inactive}
             periodLabel={period.label}
             legend={
               campaignFilter ? (
