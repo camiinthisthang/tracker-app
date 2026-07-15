@@ -182,6 +182,13 @@ export default async function CampaignProgressPage({
     const winStart = cc.contractStart ?? campaign.startDate;
     const winEndRaw = cc.contractEnd ?? campaign.endDate;
     const winEnd = addDays(winEndRaw, 1); // inclusive of the end day
+    // 1-week warm-up leeway (on by default): expected pace accrues from a
+    // week after the window opens, so the ramp-up week can't flag anyone as
+    // behind. Posts during warm-up still count as delivered. Skipped when
+    // the window is shorter than the warm-up itself.
+    const warmupEnd = addDays(winStart, 7);
+    const paceStart =
+      cc.hasWarmupWeek && warmupEnd < winEndRaw ? warmupEnd : winStart;
     const mine = allPosts.filter(
       (p) =>
         p.creatorId === cc.creatorId &&
@@ -215,7 +222,8 @@ export default async function CampaignProgressPage({
       monthlyRate: cc.monthlyRate != null ? Number(cc.monthlyRate) : null,
       contractStart: cc.contractStart ? toISODate(calendarDate(cc.contractStart)) : null,
       contractEnd: cc.contractEnd ? toISODate(calendarDate(cc.contractEnd)) : null,
-      elapsedFraction: fractionOf(winStart, winEndRaw),
+      hasWarmupWeek: cc.hasWarmupWeek,
+      elapsedFraction: fractionOf(paceStart, winEndRaw),
       postedTiktok,
       postedInstagram,
       weekly,

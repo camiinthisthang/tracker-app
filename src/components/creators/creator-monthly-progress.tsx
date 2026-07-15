@@ -19,6 +19,9 @@ export function CreatorMonthlyProgress({
   scopeLabel,
   periodLabel,
   thresholds,
+  title = "Monthly goal",
+  expected,
+  note,
 }: {
   postsThisMonth: number;
   monthlyGoal: number;
@@ -26,6 +29,12 @@ export function CreatorMonthlyProgress({
   scopeLabel: string;
   periodLabel: string;
   thresholds: PacingThresholds;
+  /** "Campaign goal" for contract-based pacing; defaults to the monthly view. */
+  title?: string;
+  /** Cumulative expected-by-today count (contract pacing), shown under the bar. */
+  expected?: number;
+  /** e.g. warm-up week or not-started explanation. */
+  note?: string | null;
 }) {
   const pct =
     monthlyGoal > 0 ? Math.min(100, (postsThisMonth / monthlyGoal) * 100) : 0;
@@ -41,10 +50,10 @@ export function CreatorMonthlyProgress({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-slate-800">
-            Monthly goal · {periodLabel}
+            {title} · {periodLabel}
           </h3>
           <p className="text-xs text-slate-400">
-            Cumulative pacing month · {scopeLabel} · flags at &lt;
+            Cumulative pacing · {scopeLabel} · flags at &lt;
             {thresholds.offPacePct}% of pace or {thresholds.quietDays}+ quiet
             days (set per campaign)
           </p>
@@ -83,6 +92,12 @@ export function CreatorMonthlyProgress({
           style={{ width: `${pct}%` }}
         />
       </div>
+      {expected !== undefined && expected > 0 && (
+        <p className="mt-1.5 text-xs text-slate-400">
+          Expected ~{Math.round(expected)} by today to stay on pace
+        </p>
+      )}
+      {note && <p className="mt-1.5 text-xs text-blue-500">{note}</p>}
       {shadowbanned && (
         <p className="mt-1.5 text-xs text-violet-500">
           Shadow-banned — excluded from pacing so the ban isn&apos;t read as

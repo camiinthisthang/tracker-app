@@ -144,6 +144,110 @@ export function creatorCommonPeriod(
   };
 }
 
+/**
+ * Campaign-goal pacing (per Jacqueline, 2026-07-15): a creator's real goal is
+ * their contracted video total over their contract dates — not a rolling
+ * month. The weekly goal divides that total across the contract's weeks
+ * AFTER the 1-week warm-up (hasWarmupWeek, on by default): the first week of
+ * a contract is ramp-up and doesn't count against pacing. Expected-to-date
+ * accrues linearly from the end of the warm-up, so during warm-up nobody is
+ * off-pace, while posts made during warm-up still count as delivered.
+ */
+export interface ContractGoal {
+  start: Date;
+  /** Day AFTER the contract's last day — use with `postedAt < endExclusive`. */
+  endExclusive: Date;
+  /** Where pacing starts accruing: start + 7d when hasWarmupWeek. */
+  effectiveStart: Date;
+  totalGoal: number;
+  weeklyGoal: number;
+  expectedToDate: number;
+  notStarted: boolean;
+  inWarmup: boolean;
+  /** e.g. "Jul 8 – Sep 30" */
+  label: string;
+}
+
+export function contractGoal(
+  cc: {
+    contractStart: Date | null;
+    contractEnd: Date | null;
+    hasWarmupWeek: boolean;
+    contractedTiktok: number | null;
+    contractedInstagram: number | null;
+  },
+  now = new Date(),
+): ContractGoal | null {
+  if (!cc.contractStart || !cc.contractEnd) return null;
+  const totalGoal = (cc.contractedTiktok ?? 0) + (cc.contractedInstagram ?? 0);
+  if (totalGoal <= 0) return null;
+
+  const start = contractDate(cc.contractStart);
+  const endExclusive = addDays(contractDate(cc.contractEnd), 1);
+  if (endExclusive <= start) return null;
+
+  // A contract shorter than the warm-up week gets no warm-up — otherwise the
+  // usable window would be empty.
+  const warmupEnd = addDays(start, 7);
+  const effectiveStart =
+    cc.hasWarmupWeek && warmupEnd < endExclusive ? warmupEnd : start;
+
+  const usableDays = Math.max(
+    differenceInCalendarDays(endExclusive, effectiveStart),
+    1,
+  );
+  const weeklyGoal = totalGoal / (usableDays / 7);
+  const notStarted = now < start;
+  const inWarmup = !notStarted && now < effectiveStart;
+  const elapsedUsable = Math.min(
+    Math.max(differenceInCalendarDays(now, effectiveStart) + 1, 0),
+    usableDays,
+  );
+  const expectedToDate =
+    notStarted || inWarmup ? 0 : (totalGoal * elapsedUsable) / usableDays;
+
+  return {
+    start,
+    endExclusive,
+    effectiveStart,
+    totalGoal,
+    weeklyGoal,
+    expectedToDate,
+    notStarted,
+    inWarmup,
+    label: `${format(start, "MMM d")} – ${format(addDays(endExclusive, -1), "MMM d")}`,
+  };
+}
+
+/**
+ * The contract goal that governs a creator across their memberships — same
+ * rule as creatorCommonPeriod: the latest contract that has already started
+ * wins; with only future contracts, the soonest upcoming one. Null when no
+ * membership has contract dates + a contracted total (callers fall back to
+ * monthly-goal pacing).
+ */
+export function governingContractGoal<
+  M extends {
+    contractStart: Date | null;
+    contractEnd: Date | null;
+    hasWarmupWeek: boolean;
+    contractedTiktok: number | null;
+    contractedInstagram: number | null;
+  },
+>(memberships: M[], now = new Date()): { goal: ContractGoal; cc: M } | null {
+  const withGoals = memberships
+    .map((cc) => ({ cc, goal: contractGoal(cc, now) }))
+    .filter((x): x is { cc: M; goal: ContractGoal } => x.goal !== null);
+  if (withGoals.length === 0) return null;
+  const started = withGoals
+    .filter((x) => !x.goal.notStarted)
+    .sort((a, b) => b.goal.start.getTime() - a.goal.start.getTime());
+  const upcoming = withGoals
+    .filter((x) => x.goal.notStarted)
+    .sort((a, b) => a.goal.start.getTime() - b.goal.start.getTime());
+  return started[0] ?? upcoming[0];
+}
+
 export type CreatorFlag = "new" | "quiet" | "off_pace" | "shadowbanned";
 
 export const FLAG_LABELS: Record<CreatorFlag, string> = {
@@ -221,6 +325,12 @@ export function creatorFlags(input: {
   period: PacingPeriod;
   /** Contract hasn't started yet — no flags, they're not late. */
   notStarted?: boolean;
+  /**
+   * Campaign-goal pacing: when set, off-pace is judged against the contract's
+   * cumulative expectation (warm-up already excluded via expectedToDate=0)
+   * instead of the monthly period math.
+   */
+  contract?: { delivered: number; expectedToDate: number; inWarmup?: boolean };
   now?: Date;
 }): CreatorFlag[] {
   const now = input.now ?? new Date();
@@ -240,20 +350,27 @@ export function creatorFlags(input: {
     flags.push("new");
     return flags;
   }
+  // The warm-up week is leeway across the board — no Quiet nagging while
+  // they're still ramping up.
+  const inWarmup = input.contract?.inWarmup ?? false;
   if (
-    !input.lastPostAt ||
-    differenceInCalendarDays(now, input.lastPostAt) >= input.thresholds.quietDays
+    !inWarmup &&
+    (!input.lastPostAt ||
+      differenceInCalendarDays(now, input.lastPostAt) >=
+        input.thresholds.quietDays)
   ) {
     flags.push("quiet");
   }
-  if (
-    isOffPace(
-      input.postsThisMonth,
-      input.monthlyGoal,
-      input.thresholds.offPacePct,
-      input.period,
-    )
-  ) {
+  const offPace = input.contract
+    ? input.contract.delivered <
+      input.contract.expectedToDate * (input.thresholds.offPacePct / 100)
+    : isOffPace(
+        input.postsThisMonth,
+        input.monthlyGoal,
+        input.thresholds.offPacePct,
+        input.period,
+      );
+  if (offPace) {
     flags.push("off_pace");
   }
   return flags;

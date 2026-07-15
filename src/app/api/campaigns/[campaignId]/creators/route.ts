@@ -81,6 +81,7 @@ export async function PATCH(
     contractEnd?: Date | null;
     useDefaultHandles?: boolean;
     countAllPlatforms?: boolean;
+    hasWarmupWeek?: boolean;
   } = {};
   for (const key of ["contractStart", "contractEnd"] as const) {
     if (!(key in (body ?? {}))) continue;
@@ -104,6 +105,8 @@ export async function PATCH(
     data.useDefaultHandles = body.useDefaultHandles;
   if (typeof body?.countAllPlatforms === "boolean")
     data.countAllPlatforms = body.countAllPlatforms;
+  if (typeof body?.hasWarmupWeek === "boolean")
+    data.hasWarmupWeek = body.hasWarmupWeek;
   for (const key of ["contractedTiktok", "contractedInstagram"] as const) {
     if (!(key in body)) continue;
     const raw = body[key];

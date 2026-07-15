@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { format, startOfWeek, addDays, subDays, startOfDay } from "date-fns";
+import { format, addDays, subDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession } from "@/lib/auth";
 import { canAccessCreator, campaignVisibilityWhere } from "@/lib/visibility";
@@ -22,7 +22,9 @@ import {
   creatorFlags,
   effectiveMonthlyGoal,
   creatorCommonPeriod,
+  governingContractGoal,
 } from "@/lib/pacing";
+import { getWeekWindow, parseWeekOffset } from "@/lib/weeks";
 import { computeViewBonuses } from "@/lib/view-bonus";
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
 import { goalPlatformFor } from "@/lib/social/goal-counting";
@@ -106,8 +108,12 @@ export default async function CreatorDetailPage({
   };
 
   const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = addDays(weekStart, 7);
+  // Week navigation: ?week=N steps back N weeks (0 = this week) so each
+  // contract week can be reviewed with the arrows on the weekly card.
+  const weekOffset = parseWeekOffset(sp.week);
+  const weekWindow = getWeekWindow(weekOffset, now);
+  const weekStart = weekWindow.start;
+  const weekEnd = weekWindow.end;
   const chartParam = Number(Array.isArray(sp.chart) ? sp.chart[0] : sp.chart);
   const chartDays = CHART_WINDOWS.includes(chartParam) ? chartParam : 28;
   const chartStart = startOfDay(subDays(now, chartDays));
@@ -125,17 +131,23 @@ export default async function CreatorDetailPage({
   // Pacing month: anchored to the creator's contract start when set (latest
   // contract governs), otherwise the campaign's configured start day
   // (calendar month when viewing all campaigns with mixed start days).
+  const pacingCCs = creator.campaignCreators.filter(
+    (cc) =>
+      cc.isActive &&
+      cc.campaign.isActive &&
+      (!campaignFilter || cc.campaign.id === campaignFilter.id),
+  );
   const period = creatorCommonPeriod(
-    creator.campaignCreators
-      .filter(
-        (cc) =>
-          cc.isActive &&
-          cc.campaign.isActive &&
-          (!campaignFilter || cc.campaign.id === campaignFilter.id),
-      )
-      .map((cc) => ({ contractStart: cc.contractStart, campaign: cc.campaign })),
+    pacingCCs.map((cc) => ({
+      contractStart: cc.contractStart,
+      campaign: cc.campaign,
+    })),
     now,
   );
+  // Campaign-goal pacing wins when a contract (dates + contracted total) is
+  // set: delivered vs contracted over the whole contract, warm-up week
+  // excluded from expectations. Falls back to the monthly card otherwise.
+  const governing = governingContractGoal(pacingCCs, now);
 
   const [
     totalViews,
@@ -148,6 +160,7 @@ export default async function CreatorDetailPage({
     weekPosts,
     monthPosts,
     activeCounts,
+    contractPosts,
   ] = await Promise.all([
     prisma.post.aggregate({
       where: postWhere,
@@ -203,6 +216,18 @@ export default async function CreatorDetailPage({
       where: { isActive: true, creator: { isActive: true } },
       _count: true,
     }),
+    governing
+      ? prisma.post.findMany({
+          where: {
+            ...postWhere,
+            postedAt: {
+              gte: governing.goal.start,
+              lt: governing.goal.endExclusive,
+            },
+          },
+          select: { platform: true, campaignId: true },
+        })
+      : Promise.resolve([]),
   ]);
   const attributedSignups = totalSignups._sum.signupCount ?? 0;
   const hasActiveCampaign = creator.campaignCreators.some(
@@ -267,30 +292,27 @@ export default async function CreatorDetailPage({
   // Weekly posting cadence (Mon–Sun), same shape the creator home uses.
   // Ring counts use the creator's goal platform only so cross-posts on the
   // other platform don't double-count.
-  const activeCCs = creator.campaignCreators.filter(
-    (cc) =>
-      cc.isActive &&
-      cc.campaign.isActive &&
-      (!campaignFilter || cc.campaign.id === campaignFilter.id),
-  );
-  // Weekly target derives from the same goal source as monthly pacing
-  // (campaign goal split / per-creator override), so the two cards agree
-  // and both adjust from the campaign form.
+  const activeCCs = pacingCCs;
+  // Weekly target: with a contract, it's the contracted total spread across
+  // the contract's post-warm-up weeks (the campaign goal ÷ weeks). Without
+  // one, fall back to the monthly-goal ÷ 4 derivation.
   const activeCountByCampaign = new Map(
     activeCounts.map((g) => [g.campaignId, g._count]),
   );
-  const weeklyTarget = activeCCs.reduce(
-    (sum, cc) =>
-      sum +
-      Math.ceil(
-        effectiveMonthlyGoal(
-          cc,
-          cc.campaign,
-          activeCountByCampaign.get(cc.campaign.id) ?? 1,
-        ) / 4,
-      ),
-    0,
-  );
+  const weeklyTarget = governing
+    ? Math.max(1, Math.round(governing.goal.weeklyGoal))
+    : activeCCs.reduce(
+        (sum, cc) =>
+          sum +
+          Math.ceil(
+            effectiveMonthlyGoal(
+              cc,
+              cc.campaign,
+              activeCountByCampaign.get(cc.campaign.id) ?? 1,
+            ) / 4,
+          ),
+        0,
+      );
   const dailyTarget = weeklyTarget / DAY_LABELS.length;
   const goalPlatform = goalPlatformFor(creator);
   const ccByCampaignId = new Map(
@@ -328,6 +350,7 @@ export default async function CreatorDetailPage({
       }
     : { offPacePct: 80, quietDays: 4 };
   const monthGoalPosts = monthPosts.filter(countsForGoal).length;
+  const delivered = contractPosts.filter(countsForGoal).length;
   const flags = creatorFlags({
     postsThisMonth: monthGoalPosts,
     postsAllTime: totalViews._count,
@@ -336,7 +359,14 @@ export default async function CreatorDetailPage({
     thresholds,
     isShadowbanned: creator.isShadowbanned,
     period,
-    notStarted: period.notStarted,
+    notStarted: governing ? governing.goal.notStarted : period.notStarted,
+    contract: governing
+      ? {
+          delivered,
+          expectedToDate: governing.goal.expectedToDate,
+          inWarmup: governing.goal.inWarmup,
+        }
+      : undefined,
     now,
   });
 
@@ -356,6 +386,17 @@ export default async function CreatorDetailPage({
       })),
     })),
   );
+
+  // Weekly-card arrow links: step through past weeks, preserving the
+  // campaign + chart filters.
+  const weekHref = (offset: number) => {
+    const qs = new URLSearchParams({
+      ...(campaignFilter ? { campaign: campaignFilter.id } : {}),
+      ...(chartDays !== 28 ? { chart: String(chartDays) } : {}),
+      ...(offset > 0 ? { week: String(offset) } : {}),
+    }).toString();
+    return `/creators/${creator.id}${qs ? `?${qs}` : ""}`;
+  };
 
   return (
     <div>
@@ -553,16 +594,38 @@ export default async function CreatorDetailPage({
         </div>
       )}
 
-      {/* Monthly goal (primary pacing view) + weekly cadence */}
+      {/* Campaign goal (primary pacing view) + weekly cadence. Contract-based
+          when contract dates + contracted totals are set (Contract Tracker),
+          monthly fallback otherwise. */}
       <div className="mt-4">
-        <CreatorMonthlyProgress
-          postsThisMonth={monthGoalPosts}
-          monthlyGoal={monthlyGoal}
-          flags={flags}
-          scopeLabel={campaignFilter ? campaignFilter.name : "all campaigns"}
-          periodLabel={period.label}
-          thresholds={thresholds}
-        />
+        {governing ? (
+          <CreatorMonthlyProgress
+            title="Campaign goal"
+            postsThisMonth={delivered}
+            monthlyGoal={governing.goal.totalGoal}
+            flags={flags}
+            scopeLabel={campaignFilter ? campaignFilter.name : "all campaigns"}
+            periodLabel={`contract ${governing.goal.label}`}
+            thresholds={thresholds}
+            expected={governing.goal.expectedToDate}
+            note={
+              governing.goal.notStarted
+                ? `Contract starts ${format(governing.goal.start, "MMM d")}.`
+                : governing.goal.inWarmup
+                  ? `Warm-up week — pacing starts ${format(governing.goal.effectiveStart, "MMM d")}; posts already count toward the goal.`
+                  : null
+            }
+          />
+        ) : (
+          <CreatorMonthlyProgress
+            postsThisMonth={monthGoalPosts}
+            monthlyGoal={monthlyGoal}
+            flags={flags}
+            scopeLabel={campaignFilter ? campaignFilter.name : "all campaigns"}
+            periodLabel={period.label}
+            thresholds={thresholds}
+          />
+        )}
       </div>
       <div className="mt-4">
         <CreatorWeeklyProgress
@@ -570,7 +633,11 @@ export default async function CreatorDetailPage({
           weeklyTarget={weeklyTarget}
           postsPerDay={postsPerDay}
           dailyTarget={dailyTarget}
-          weekLabel={`Mon ${format(weekStart, "MMM d")} – Sun ${format(addDays(weekStart, 6), "MMM d")}`}
+          weekLabel={`${weekWindow.label} · Mon ${format(weekStart, "MMM d")} – Sun ${format(addDays(weekStart, 6), "MMM d")}`}
+          nav={{
+            olderHref: weekHref(weekOffset + 1),
+            newerHref: weekOffset > 0 ? weekHref(weekOffset - 1) : null,
+          }}
         />
       </div>
 

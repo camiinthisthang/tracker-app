@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CreatorWeeklyProgressProps {
@@ -15,6 +15,9 @@ interface CreatorWeeklyProgressProps {
   historyHref?: string;
   /** e.g. "Mon Jul 7 – Sun Jul 13" — which week the goal covers. */
   weekLabel?: string;
+  /** Arrow links to step through past weeks. newerHref null = viewing the
+   * current week (no forward arrow). */
+  nav?: { olderHref: string; newerHref: string | null };
 }
 
 function ProgressRing({ count, target }: { count: number; target: number }) {
@@ -76,18 +79,44 @@ export function CreatorWeeklyProgress({
   dailyTarget,
   historyHref,
   weekLabel,
+  nav,
 }: CreatorWeeklyProgressProps) {
   const pct =
     weeklyTarget > 0 ? Math.min((postsThisWeek / weeklyTarget) * 100, 100) : 0;
   const onTrack = postsThisWeek >= weeklyTarget;
+  const isCurrentWeek = !nav || nav.newerHref === null;
 
   const titleBlock = (
     <div className="flex items-center gap-1.5">
       <h3 className="text-sm font-semibold text-slate-800">
-        This week&apos;s goal
+        {isCurrentWeek ? "This week's goal" : "Week in review"}
       </h3>
       {historyHref && (
         <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-600" />
+      )}
+      {nav && (
+        <span className="ml-1 flex items-center gap-0.5">
+          <Link
+            href={nav.olderHref}
+            aria-label="Previous week"
+            className="rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Link>
+          {nav.newerHref ? (
+            <Link
+              href={nav.newerHref}
+              aria-label="Next week"
+              className="rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          ) : (
+            <span className="rounded-md p-0.5 text-slate-200">
+              <ChevronRight className="h-4 w-4" />
+            </span>
+          )}
+        </span>
       )}
     </div>
   );

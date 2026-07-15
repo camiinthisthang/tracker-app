@@ -3,6 +3,15 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-15 — Campaign goal replaces monthly goal; weekly view with arrows; warm-up leeway (branch claude/drop-deck-ugc-data-issues-waql9p)
+Per Jacqueline's decisions (2026-07-15):
+- **Pacing engine** (`contractGoal` / `governingContractGoal` in pacing.ts): when a creator has contract dates + contracted totals (both already editable in the Contract Tracker), their goal is the contracted total over their contract window. Weekly goal = total ÷ contract weeks AFTER the 1-week warm-up (e.g. 44 videos over 12 weeks → 11 usable weeks → 4/week). Expected-to-date accrues linearly from the end of warm-up; during warm-up nothing is expected and Quiet/Off-pace flags are suppressed, but posts made then still count as delivered. Falls back to the existing monthly-goal behavior when no contract is set.
+- **Creators page**: cards now show delivered / contracted with the contract range as the label ("contract Jul 8 – Sep 30"), off-pace judged against the contract expectation. Monthly framing remains only for creators without contracts.
+- **Creator detail page**: the "Monthly goal" card becomes **"Campaign goal"** (delivered / contracted across the whole contract, "expected ~N by today", warm-up/starts notes). The weekly card gains **← → arrows** (?week=N) to step back through past weeks; its target is the contract weekly goal.
+- **Contract Tracker** (campaign → Creator Progress): new "Warm-up wk" checkbox per creator (drives `hasWarmupWeek`, PATCH accepts it); pace expectation now starts a week after the contract start when it's on. Legend updated.
+- Tests: 12 new pacing tests (47 total). `npm test` 47/47, `tsc --noEmit` + `npx next build` green.
+- Drive-by observation (not done): the creator-facing pages (/home, /creator-progress) still derive weekly targets from the monthly goal ÷ 4 — should switch to the contract weekly goal for consistency once the admin-side numbers are confirmed right.
+
 ## 2026-07-15 — Schema change: per-creator warm-up toggle (branch claude/drop-deck-ugc-data-issues-waql9p-db)
 - **Schema change** (migration `20260715120000_warmup_week`, additive-only, on its own branch per Jacqueline's "DB changes in an additional branch" request): `CampaignCreator.hasWarmupWeek Boolean @default(true)` — the 1-week leeway after contractStart that doesn't count against pacing. On by default for everyone; per-creator opt-out.
 - Not run locally (no DATABASE_URL); single additive ALTER with a default, applies on deploy via `prisma migrate deploy`. No data touched.
