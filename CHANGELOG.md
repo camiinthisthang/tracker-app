@@ -3,6 +3,11 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-15 — Schema change: per-creator warm-up toggle (branch claude/drop-deck-ugc-data-issues-waql9p-db)
+- **Schema change** (migration `20260715120000_warmup_week`, additive-only, on its own branch per Jacqueline's "DB changes in an additional branch" request): `CampaignCreator.hasWarmupWeek Boolean @default(true)` — the 1-week leeway after contractStart that doesn't count against pacing. On by default for everyone; per-creator opt-out.
+- Not run locally (no DATABASE_URL); single additive ALTER with a default, applies on deploy via `prisma migrate deploy`. No data touched.
+- Tested: `npx prisma generate`, `npx next build`, `npm test` 35/35 all green.
+
 ## 2026-07-15 — Sync accuracy: keep everything, never auto-delete, guarded manual sync, IG Reels tab (branch claude/drop-deck-ugc-data-issues-waql9p)
 Per Jacqueline's decisions (2026-07-15) after the Aspen 30.1K-reel / Adriel missing-videos report:
 - **Keep every post we can scrape.** Campaign date-window filtering removed from both sync paths — posts outside the campaign start/end dates are no longer skipped at write time, and the "out-of-range prune" that hard-deleted them on every sync is gone. Goal/pacing math still applies its own windows at read time.

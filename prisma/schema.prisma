@@ -381,6 +381,11 @@ model CampaignCreator {
   // contracted for. Null = fall back to campaign-level behavior.
   contractStart       DateTime?
   contractEnd         DateTime?
+  // 1-week warm-up leeway: the first week after contractStart doesn't count
+  // against pacing (weekly goal denominator excludes it, expected-pace starts
+  // accruing after it). On by default for every creator; untick for the rare
+  // contract with no ramp-up grace.
+  hasWarmupWeek       Boolean  @default(true)
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
