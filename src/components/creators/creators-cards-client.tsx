@@ -159,13 +159,14 @@ export function CreatorsCardsClient({
         )}
       </div>
 
-      {/* Off the main roster: deactivated (sync stopped), cut from every
-          campaign (still synced, just not paced here), or campaign ended. */}
+      {/* Off the main roster: deactivated (per campaign or whole roster) or
+          campaign ended. Deactivation never stops syncing — it only removes
+          them from the managed lists above. */}
       {inactiveShown.length > 0 && (
         <div className="mt-8">
           <h2
             className="mb-2 cursor-help text-sm font-semibold text-slate-500"
-            title="Deactivated = syncing stopped. Cut = removed from campaign pacing but their posts still sync, so viral videos are caught."
+            title="Deactivated = no longer managed, so they're kept out of Needs attention / On track — but their accounts still sync and viral posts are still tracked. 'On campaign' = deactivated from that campaign only. Syncing stops only when a specific handle is deactivated in the creator's Social accounts."
           >
             Not on an active campaign
           </h2>

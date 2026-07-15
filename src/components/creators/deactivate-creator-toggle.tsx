@@ -8,8 +8,11 @@ import { toast } from "sonner";
 
 /**
  * Soft fire/rehire a creator. Flips Creator.isActive without deleting any
- * history (posts, earnings, campaign assignments stay). Use this instead of
- * the Danger zone delete when you just want to stop tracking someone.
+ * history (posts, earnings, campaign assignments stay). Hides them from the
+ * tracking/attention pages everywhere — their accounts KEEP SYNCING so viral
+ * posts are still caught. To deactivate on just one campaign, use the
+ * campaign roster's Active switch instead; to stop a scrape, deactivate the
+ * handle in Social accounts.
  */
 export function DeactivateCreatorToggle({
   creatorId,
@@ -48,6 +51,11 @@ export function DeactivateCreatorToggle({
       size="sm"
       onClick={toggle}
       disabled={saving}
+      title={
+        isActive
+          ? "Hide this creator from tracking pages everywhere (all campaigns). Their accounts keep syncing so viral posts are still caught. For one campaign only, use that campaign's Active switch; to stop a scrape, deactivate the handle in Social accounts."
+          : "Bring this creator back onto the tracking pages"
+      }
       className={
         isActive
           ? "text-slate-600"

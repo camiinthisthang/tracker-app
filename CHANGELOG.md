@@ -3,6 +3,14 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-15 — Deactivation never stops syncing; "Cut" renamed to per-campaign "Deactivated"; manual sync respects use-defaults (branch claude/drop-deck-ugc-data-issues-waql9p)
+Per Jacqueline (2026-07-15) — several creators were both cut AND whole-creator-deactivated, which silently froze their data:
+- **Syncing never stops for deactivated creators.** `syncCampaign` no longer filters on `Creator.isActive` — every membership syncs, whether the creator is deactivated on the campaign or the whole roster. Deactivation now purely means "not managed anymore": kept out of Needs attention / On track, pacing, and progress pages, but posts keep syncing in case something goes viral. The ONLY way to stop a scrape is deactivating the individual handle in Social accounts (or deleting the creator).
+- **"Cut" is gone from the UI** — the per-campaign state is now called **Deactivated** everywhere (campaign creators table, campaign form roster, contract tracker, creator progress, creators-page pills, creator page). Whole-roster deactivation shows as "Deactivated (roster)". Clarity tooltips added/updated at every badge, the roster Active switch, the whole-creator Deactivate button, and the "Not on an active campaign" pill list.
+- **Manual "Sync now" respects the membership's "use default handles" setting** (was: always pulled profile defaults). Creators tracked purely via per-campaign accounts no longer risk pulling a stale profile handle on manual sync; a creator with no campaign membership still falls back to profile handles.
+- No data migration: the creators currently in the frozen state resume syncing automatically on the next sync. Optionally flip their whole-roster Deactivate back to Active if they should reappear on tracking pages (per-campaign deactivation is the intended state).
+- Tested: `npm test` 47/47, `npx next build` green. No schema change.
+
 ## 2026-07-15 — Campaign goal replaces monthly goal; weekly view with arrows; warm-up leeway (branch claude/drop-deck-ugc-data-issues-waql9p)
 Per Jacqueline's decisions (2026-07-15):
 - **Pacing engine** (`contractGoal` / `governingContractGoal` in pacing.ts): when a creator has contract dates + contracted totals (both already editable in the Contract Tracker), their goal is the contracted total over their contract window. Weekly goal = total ÷ contract weeks AFTER the 1-week warm-up (e.g. 44 videos over 12 weeks → 11 usable weeks → 4/week). Expected-to-date accrues linearly from the end of warm-up; during warm-up nothing is expected and Quiet/Off-pace flags are suppressed, but posts made then still count as delivered. Falls back to the existing monthly-goal behavior when no contract is set.

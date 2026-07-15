@@ -144,16 +144,16 @@ export function fetchForPlatform(
  * DB, creates daily metric snapshots.
  */
 export async function syncCampaign(campaignId: string) {
-  // Cut creators (cc.isActive=false) STILL sync — cut means "hidden from the
-  // campaign's pacing/progress pages", not "stop tracking": if a cut
-  // creator's post goes viral we still want the views. What stops a
-  // creator's sync entirely is deactivating them (Creator.isActive=false) or
-  // deactivating individual handles.
+  // EVERY membership syncs — deactivated creators included (per Jacqueline,
+  // 2026-07-15): deactivating a creator (per campaign or whole roster) only
+  // hides them from the tracking/attention pages, it never stops data
+  // collection — a deactivated creator's post can still go viral and the
+  // client wants those views. The only thing that stops a scrape is
+  // deactivating the individual handle (Social accounts → toggle off).
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
     include: {
       campaignCreators: {
-        where: { creator: { isActive: true } },
         include: { creator: { include: { accounts: true } } },
       },
     },
@@ -197,8 +197,8 @@ export async function syncCampaign(campaignId: string) {
         scopedToCampaign: h.scopedToCampaign,
       });
     }
-    // A cut member with no handles isn't a problem worth flagging — only
-    // active members are expected to be trackable.
+    // A deactivated member with no handles isn't a problem worth flagging —
+    // only active members are expected to be trackable.
     if (handles.length === 0 && cc.isActive) {
       skipped.push({
         creator: cc.creator.handle,

@@ -516,7 +516,7 @@ export default async function CreatorDetailPage({
             >
               {cc.campaign.name}
               {!cc.campaign.isActive && " (ended)"}
-              {!cc.isActive && " (cut)"}
+              {!cc.isActive && " (deactivated)"}
             </Link>
           ))}
         </div>

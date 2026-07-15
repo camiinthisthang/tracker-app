@@ -38,13 +38,14 @@ export async function POST(
     where: { id: creatorId },
     include: {
       accounts: true,
-      // Prefer an active membership, but fall back to a cut one — a cut
-      // creator's posts still attach to the campaign they were cut from so
-      // viral videos keep being tracked.
+      // Prefer an active membership, but fall back to a deactivated one — a
+      // deactivated creator's posts still attach to the campaign they were
+      // deactivated from so viral videos keep being tracked.
       campaignCreators: {
         orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
         take: 1,
         select: {
+          useDefaultHandles: true,
           campaign: {
             select: { id: true },
           },
@@ -64,7 +65,13 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const campaignId = creator.campaignCreators[0]?.campaign?.id;
+  const membership = creator.campaignCreators[0];
+  const campaignId = membership?.campaign?.id;
+  // Profile default handles follow the membership's "use default handles"
+  // setting, same as the campaign sync (per Jacqueline, 2026-07-15 — most
+  // creators are tracked purely via per-campaign accounts). Only a creator
+  // with no campaign membership at all falls back to their profile handles.
+  const includeDefaults = membership ? membership.useDefaultHandles : true;
 
   // The historical TikTok fallback to the generic `handle` is preserved here
   // (the campaign-wide sync only falls back to tiktokUsername).
@@ -78,7 +85,8 @@ export async function POST(
       youtubeHandle: creator.youtubeHandle,
       accounts: creator.accounts,
     },
-    campaignId ?? null
+    campaignId ?? null,
+    includeDefaults
   );
 
   const failures: { platform: SyncPlatform; handle: string; error: string }[] =
