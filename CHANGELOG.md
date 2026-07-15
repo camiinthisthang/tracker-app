@@ -3,6 +3,11 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-15 — Title column follow-up: fixed width, not max-width (branch claude/drop-deck-ugc-data-issues-waql9p, NOT merged — awaiting Jackie's approval)
+- Jackie's report after the first fix deployed: the page no longer stretches, but the Title column still ballooned inside the scroll container, pushing Views/Posted-at off-screen. Root cause: auto table layout ignores `max-width` on cell content when sizing columns. Switched both posts tables to a fixed `w-[200px]`/`w-[220px]` block — always honored, so all columns fit the viewport with no horizontal scrolling. Caption still on hover.
+- Per Jackie: no merges to main without her approval from here on — this sits on the branch until she confirms.
+- Tested: `npm test` 47/47, `npx next build` green.
+
 ## 2026-07-15 — Stretched-page fix (unbreakable captions) + sortable posts card on the creator page (branch claude/drop-deck-ugc-data-issues-waql9p)
 - **The posts page / Adriel's pages stretching way past the window** — root cause found: the posts tables' Title cell put `truncate max-w-[200px]` on an inline `<span>`, where neither applies, while table cells force `whitespace-nowrap` — so a long hashtag caption rendered as one unbreakable line and stretched the whole table/page to the caption's width. Fixed with `block` + truncate in both tables (`posts-table-client`, `creator-posts-table`, full caption on hover) and `overflow-x-auto` on the shared DataTable card so wide content scrolls inside the card, never the page.
 - **Creator page "Recent posts" is now a sortable "Posts" card** — Recent / Top views / Top engagement pills (?posts= param, preserved across the week/chart/campaign controls); every row shows views AND engagement (likes+comments+shares+saves, tooltip on the label); top-10 under the selected sort from a 500-post recency superset.
