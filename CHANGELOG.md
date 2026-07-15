@@ -3,6 +3,12 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-15 — ROOT CAUSE: Apify 64GB concurrent-memory cap was silently killing most fetches; sync now throttled (branch, awaiting merge approval)
+- Jackie's poncho banner (13 failed fetches, "Apify error 402 ... exceed the memory limit of 65536MB for all your Actor runs") exposed the real systemic bug: Apify caps CONCURRENT actor-run memory at 64GB account-wide, each run reserves ~4GB, and our sync launched every (creator × platform) scrape at once — 16 creators ≈ 30-45 parallel runs ≈ 120-180GB requested. The first ~15 ran; everything else silently fetched nothing, every sync. This, not credits and not the scrapers, explains most of the stale/missing data across creators.
+- Fix: all scrape fan-outs (campaign sync + manual creator sync) now run through a bounded pool (`SCRAPE_CONCURRENCY = 8` ≈ 32GB peak), with one 10s-delayed retry when a memory-402 still slips through (someone else's run hogging the account).
+- `describeApifyError` + SyncHealthBanner now distinguish the memory cap from credit exhaustion — the old banner text sent Cami to buy credits for what is a concurrency problem ("limit" matched the credits regex). Memory hint says: throttled now, re-sync to fill gaps.
+- Tested: `npm test` 47/47, `npx next build` green. No schema change.
+
 ## 2026-07-15 — Debug depth param + creators quick-jump strip (branch, awaiting merge approval)
 - Debug findings from Jackie's first scrape-debug run: both IG actors healthy and identical; `videoPlayCount` is the (only) populated view field and matches reality for recent posts. The "Insane." Jul 10 reel sits deeper than the debug's 10-item window — added `?limit=` (cap 60) to reach it. Collab-post attribution is the working dark-horse theory if the deep scrape still reports 2.8K.
 - Creators page: "Jump to" strip at the top — every creator A–Z as a pill linking to their profile (inactive ones dimmed), per Jacqueline's request.

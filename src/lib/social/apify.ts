@@ -73,11 +73,17 @@ export function describeApifyError(err: unknown): string {
       | { error?: { type?: string; message?: string } }
       | undefined;
     const message = data?.error?.message ?? err.message;
+    // "Memory limit" 402s are the CONCURRENCY cap (64GB across all running
+    // actor runs), not billing — don't send anyone to buy credits for them.
+    const memoryHit = /memory limit/i.test(message);
     const quotaHit =
-      status === 402 ||
-      /limit|quota|credit|payment/i.test(message);
+      !memoryHit && (status === 402 || /quota|credit|payment/i.test(message));
     return `Apify error${status ? ` ${status}` : ""}: ${message}${
-      quotaHit ? " — likely out of Apify credits" : ""
+      memoryHit
+        ? " — Apify concurrent-run memory cap (too many scrapes at once, NOT a credits issue); re-sync to fill the gaps"
+        : quotaHit
+          ? " — likely out of Apify credits"
+          : ""
     }`;
   }
   return err instanceof Error ? err.message : String(err);
