@@ -347,6 +347,29 @@ export default async function CreatorsPage({
         />
       ) : (
         <>
+          {/* Quick jump: every creator A–Z, one click to their profile. */}
+          <div className="mb-4 flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-medium text-slate-400">
+              Jump to:
+            </span>
+            {[...creators]
+              .sort((a, b) => a.handle.localeCompare(b.handle))
+              .map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/creators/${c.id}`}
+                  title={c.name}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    c.isActive
+                      ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      : "bg-slate-50 text-slate-400 hover:bg-slate-100"
+                  }`}
+                >
+                  @{c.handle}
+                </Link>
+              ))}
+          </div>
+
           {/* Campaign filter — a dropdown (per Adriel), applies to the whole
               page: pacing, flags, stats. */}
           {filterCampaigns.length > 0 && (
