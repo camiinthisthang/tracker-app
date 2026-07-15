@@ -60,7 +60,9 @@ export function DataTable<TData, TValue>({
   const endRow = Math.min((currentPage + 1) * currentPageSize, totalRows);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white">
+    // overflow-x-auto: cells are whitespace-nowrap, so a wide table scrolls
+    // inside its card instead of stretching the whole page sideways.
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (

@@ -3,6 +3,12 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-15 — Stretched-page fix (unbreakable captions) + sortable posts card on the creator page (branch claude/drop-deck-ugc-data-issues-waql9p)
+- **The posts page / Adriel's pages stretching way past the window** — root cause found: the posts tables' Title cell put `truncate max-w-[200px]` on an inline `<span>`, where neither applies, while table cells force `whitespace-nowrap` — so a long hashtag caption rendered as one unbreakable line and stretched the whole table/page to the caption's width. Fixed with `block` + truncate in both tables (`posts-table-client`, `creator-posts-table`, full caption on hover) and `overflow-x-auto` on the shared DataTable card so wide content scrolls inside the card, never the page.
+- **Creator page "Recent posts" is now a sortable "Posts" card** — Recent / Top views / Top engagement pills (?posts= param, preserved across the week/chart/campaign controls); every row shows views AND engagement (likes+comments+shares+saves, tooltip on the label); top-10 under the selected sort from a 500-post recency superset.
+- Also confirmed from Jackie's screenshot: Aspen's "Insane." reel IS tracked (Jul 10) but frozen at 2,881 views — the feed scrape stopped returning it, which the Reels-tab scrape (deployed earlier today) fixes on next sync; increases always pass the metric guard.
+- Tested: `npm test` 47/47, `npx next build` green. No schema change.
+
 ## 2026-07-15 — Deactivation never stops syncing; "Cut" renamed to per-campaign "Deactivated"; manual sync respects use-defaults (branch claude/drop-deck-ugc-data-issues-waql9p)
 Per Jacqueline (2026-07-15) — several creators were both cut AND whole-creator-deactivated, which silently froze their data:
 - **Syncing never stops for deactivated creators.** `syncCampaign` no longer filters on `Creator.isActive` — every membership syncs, whether the creator is deactivated on the campaign or the whole roster. Deactivation now purely means "not managed anymore": kept out of Needs attention / On track, pacing, and progress pages, but posts keep syncing in case something goes viral. The ONLY way to stop a scrape is deactivating the individual handle in Social accounts (or deleting the creator).
