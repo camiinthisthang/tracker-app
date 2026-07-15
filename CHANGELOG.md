@@ -3,6 +3,11 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-15 — Debug depth param + creators quick-jump strip (branch, awaiting merge approval)
+- Debug findings from Jackie's first scrape-debug run: both IG actors healthy and identical; `videoPlayCount` is the (only) populated view field and matches reality for recent posts. The "Insane." Jul 10 reel sits deeper than the debug's 10-item window — added `?limit=` (cap 60) to reach it. Collab-post attribution is the working dark-horse theory if the deep scrape still reports 2.8K.
+- Creators page: "Jump to" strip at the top — every creator A–Z as a pill linking to their profile (inactive ones dimmed), per Jacqueline's request.
+- Tested: `npm test` 47/47, `npx next build` green. No schema change.
+
 ## 2026-07-15 — Aspen 30.1K investigation round 2: broader view-field aliases + scrape-debug endpoint (branch, NOT merged — awaiting Jackie's approval)
 - New evidence: the "Insane." reel ticked 2,881 → 2,882, so the scrape IS returning it and writing updates — the actor itself is reporting ~2.8K. Suspects: the Reels-tab scrape failing silently (its errors were console-only), the play count living under an unread field name, or IG's views-vs-plays metric split.
 - IG mapper now takes the max across EVERY known play/view alias of both actors (`videoViewCount, videoPlayCount, igPlayCount, playCount, playsCount, viewsCount, videoViews, reelPlayCount`) — was only the first three.
