@@ -164,7 +164,16 @@ export async function fetchTikTokPostsViaApify(
 }
 
 /**
- * Fetch a creator's recent Instagram posts / reels via apify/instagram-scraper.
+ * Fetch a creator's recent Instagram content via TWO scrapes merged:
+ * - apify/instagram-scraper on the profile → the main feed grid
+ * - apify/instagram-reel-scraper → the Reels tab
+ *
+ * The Reels tab is scraped separately because a reel that wasn't shared to
+ * the feed exists ONLY there — the feed scrape never sees it (the Aspen
+ * "30.1K reel missing" case). Duplicates are merged by id, keeping the
+ * highest view count (the two actors can disagree, and stale-low counts are
+ * a known actor bug). One scrape failing is tolerated as long as the other
+ * succeeds; both failing throws so the sync summary shows the real error.
  */
 export async function fetchInstagramPostsViaApify(
   handle: string,
@@ -173,13 +182,62 @@ export async function fetchInstagramPostsViaApify(
   const clean = stripHandle(handle);
   if (!clean) return [];
 
-  const items = await runActorSync("apify~instagram-scraper", {
-    directUrls: [`https://www.instagram.com/${clean}/`],
-    resultsType: "posts",
-    resultsLimit: limit,
-    addParentData: false,
-  });
+  const [feed, reels] = await Promise.allSettled([
+    runActorSync("apify~instagram-scraper", {
+      directUrls: [`https://www.instagram.com/${clean}/`],
+      resultsType: "posts",
+      resultsLimit: limit,
+      addParentData: false,
+    }),
+    runActorSync("apify~instagram-reel-scraper", {
+      username: [clean],
+      resultsLimit: limit,
+    }),
+  ]);
 
+  if (feed.status === "rejected" && reels.status === "rejected") {
+    throw feed.reason;
+  }
+  for (const [label, r] of [
+    ["feed", feed],
+    ["reels", reels],
+  ] as const) {
+    if (r.status === "rejected") {
+      console.warn(
+        `[ig-sync] @${clean} ${label} scrape failed (continuing with the other): ${
+          r.reason instanceof Error ? r.reason.message : String(r.reason)
+        }`
+      );
+    }
+  }
+
+  const merged = new Map<string, SocialPost>();
+  for (const post of [
+    ...mapInstagramItems(feed.status === "fulfilled" ? feed.value : [], clean),
+    ...mapInstagramItems(
+      reels.status === "fulfilled" ? reels.value : [],
+      clean
+    ),
+  ]) {
+    const prev = merged.get(post.externalId);
+    if (!prev) {
+      merged.set(post.externalId, post);
+      continue;
+    }
+    merged.set(post.externalId, {
+      ...prev,
+      views: Math.max(prev.views, post.views),
+      likes: Math.max(prev.likes, post.likes),
+      comments: Math.max(prev.comments, post.comments),
+      title: prev.title ?? post.title,
+      thumbnailUrl: prev.thumbnailUrl ?? post.thumbnailUrl,
+      isPinned: prev.isPinned || post.isPinned,
+    });
+  }
+  return [...merged.values()];
+}
+
+function mapInstagramItems(items: unknown[], clean: string): SocialPost[] {
   const posts: SocialPost[] = [];
   for (const raw of items) {
     const p = raw as Record<string, unknown>;

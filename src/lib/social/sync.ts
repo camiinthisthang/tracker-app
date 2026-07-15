@@ -3,7 +3,6 @@ import {
   fetchTikTokPostsViaApify,
   fetchInstagramPostsViaApify,
   fetchYouTubeShortsViaApify,
-  SCRAPE_RESULTS_LIMIT,
 } from "./apify";
 import type { SocialPost } from "./types";
 import type { Platform } from "@/generated/prisma/enums";
@@ -165,24 +164,10 @@ export async function syncCampaign(campaignId: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Date window for this campaign. End is inclusive of the full endDate day,
-  // so a post at 5pm on the endDate counts. Apply at both write time (filter
-  // before upsert) and as an idempotent prune (clean up legacy out-of-range
-  // posts on every sync).
-  const windowStart = campaign.startDate;
-  const windowEnd = new Date(campaign.endDate);
-  windowEnd.setDate(windowEnd.getDate() + 1);
-
-  const prunedOutOfRange = await prisma.post.deleteMany({
-    where: {
-      campaignId,
-      OR: [
-        { postedAt: { lt: windowStart } },
-        { postedAt: { gte: windowEnd } },
-      ],
-    },
-  });
-
+  // No date-window filtering: we keep EVERY post we can scrape from a
+  // creator's accounts (per Jacqueline, 2026-07-15 — clients want the full
+  // account picture; a viral video from before the campaign window still
+  // counts). Goal/pacing math applies its own contract windows at read time.
   let totalPostsUpserted = 0;
   const skipped: { creator: string; reason: string }[] = [];
 
@@ -225,33 +210,11 @@ export async function syncCampaign(campaignId: string) {
   const fetches = tasks.map(async (task) => {
     try {
       const fetched = await fetchForPlatform(task.platform, task.handle);
-      const inWindow = fetched.filter(
-        (p) => p.postedAt >= windowStart && p.postedAt < windowEnd
-      );
-      // How far back this scrape's coverage actually reaches, for deletion
-      // reconciliation. Under the cap = we saw the whole account, coverage
-      // is unbounded (use the campaign window). At the cap = coverage is the
-      // oldest NON-PINNED item: pinned posts surface first regardless of age
-      // and would fake deep coverage, causing real older posts to be pruned.
-      const capHit = fetched.length >= SCRAPE_RESULTS_LIMIT;
-      const nonPinned = fetched.filter((p) => !p.isPinned);
-      const coverageStart = !capHit
-        ? windowStart
-        : nonPinned.length
-          ? nonPinned.reduce(
-              (min, p) => (p.postedAt < min ? p.postedAt : min),
-              nonPinned[0].postedAt
-            )
-          : null;
       return {
         task,
         posts: HASHTAG_FILTERING_ENABLED
-          ? filterByHashtags(inWindow, campaign.hashtags)
-          : inWindow,
-        // Raw in-window externalIds (pre-hashtag-filter) — the source of truth
-        // for reconciling deletions below.
-        liveExternalIds: inWindow.map((p) => p.externalId),
-        coverageStart,
+          ? filterByHashtags(fetched, campaign.hashtags)
+          : fetched,
         success: true,
       };
     } catch (error) {
@@ -268,8 +231,6 @@ export async function syncCampaign(campaignId: string) {
       return {
         task,
         posts: [] as SocialPost[],
-        liveExternalIds: [] as string[],
-        coverageStart: null as Date | null,
         success: false,
       };
     }
@@ -277,33 +238,9 @@ export async function syncCampaign(campaignId: string) {
 
   const fetchResults = await Promise.all(fetches);
 
-  // Existing view counts for everything we're about to upsert, one query —
-  // lets upsertPost spot a bogus metric downgrade (a scrape that says 32 for
-  // a post we know has 30k) without a per-post read.
-  const allExternalIds = fetchResults.flatMap((r) =>
-    r.posts.map((p) => ({ platform: p.platform, externalId: p.externalId }))
+  const existingByKey = await loadExistingMetrics(
+    fetchResults.flatMap((r) => r.posts)
   );
-  const existingByKey = new Map<
-    string,
-    { views: number; suspectDropCount: number }
-  >();
-  if (allExternalIds.length > 0) {
-    const existing = await prisma.post.findMany({
-      where: { OR: allExternalIds },
-      select: {
-        platform: true,
-        externalId: true,
-        views: true,
-        suspectDropCount: true,
-      },
-    });
-    for (const p of existing) {
-      existingByKey.set(`${p.platform}:${p.externalId}`, {
-        views: p.views,
-        suspectDropCount: p.suspectDropCount,
-      });
-    }
-  }
 
   // DB writes are sequential to avoid overwhelming the connection pool.
   for (const { task, posts } of fetchResults) {
@@ -326,50 +263,28 @@ export async function syncCampaign(campaignId: string) {
   // isn't one of the creator's known handles — primary column plus every
   // CreatorAccount row, active or not, so a deactivated (banned) account's
   // history survives. PostMetricsSnapshot cascades on Post delete.
+  // This is the ONLY deletion left in sync. Posts missing from a scrape are
+  // never auto-deleted (per Jacqueline, 2026-07-15): the actors routinely
+  // return partial sets, and trusting one run made post counts bounce. A
+  // video the creator really deleted keeps its last-known metrics.
   let totalPrunedStale = 0;
   const prunedPairs = new Set<string>();
-  for (const { task, success, liveExternalIds, coverageStart } of fetchResults) {
+  for (const { task, success } of fetchResults) {
     if (!success) continue;
 
     const pairKey = `${task.cc.creatorId}:${task.platform}`;
-    if (!prunedPairs.has(pairKey)) {
-      prunedPairs.add(pairKey);
-      const known = knownHandlesFor(task.cc.creator, task.platform);
-      if (known.length > 0) {
-        const pruned = await prisma.post.deleteMany({
-          where: {
-            creatorId: task.cc.creatorId,
-            platform: task.platform,
-            NOT: { username: { in: known, mode: "insensitive" } },
-          },
-        });
-        totalPrunedStale += pruned.count;
-      }
-    }
-
-    // Reconcile deletions: drop in-window posts on this exact account whose
-    // externalId no longer appears in the latest scrape (deleted from the
-    // platform). Scoped to this task's username so one account's scrape can't
-    // delete a sibling account's posts, guarded by a non-empty live set so a
-    // soft-empty scrape can't wipe real posts, and bounded by BOTH the
-    // campaign window and the scrape's own coverage (see coverageStart above)
-    // — the ~60-post scrape cap means a prolific creator's older in-window
-    // posts never appear in the live set, and without the coverage bound
-    // they'd be wrongly deleted here on every sync.
-    const handle = task.handle.trim().replace(/^@+/, "");
-    if (handle && liveExternalIds.length > 0 && coverageStart) {
-      const reconcileStart =
-        coverageStart > windowStart ? coverageStart : windowStart;
-      const deleted = await prisma.post.deleteMany({
+    if (prunedPairs.has(pairKey)) continue;
+    prunedPairs.add(pairKey);
+    const known = knownHandlesFor(task.cc.creator, task.platform);
+    if (known.length > 0) {
+      const pruned = await prisma.post.deleteMany({
         where: {
           creatorId: task.cc.creatorId,
           platform: task.platform,
-          username: { equals: handle, mode: "insensitive" },
-          postedAt: { gte: reconcileStart, lt: windowEnd },
-          externalId: { notIn: liveExternalIds },
+          NOT: { username: { in: known, mode: "insensitive" } },
         },
       });
-      totalPrunedStale += deleted.count;
+      totalPrunedStale += pruned.count;
     }
   }
 
@@ -394,11 +309,43 @@ export async function syncCampaign(campaignId: string) {
   return {
     postsUpserted: totalPostsUpserted,
     prunedStale: totalPrunedStale,
-    prunedOutOfRange: prunedOutOfRange.count,
     creatorsAttempted: campaign.campaignCreators.length,
     platformAttempts: tasks.length,
     skipped,
   };
+}
+
+/**
+ * Stored view counts + suspect-drop counters for a batch of scraped posts, in
+ * one query — lets upsertPost spot a bogus metric downgrade (a scrape that
+ * says 32 for a post we know has 30k) without a per-post read.
+ */
+export async function loadExistingMetrics(
+  posts: SocialPost[]
+): Promise<Map<string, { views: number; suspectDropCount: number }>> {
+  const byKey = new Map<string, { views: number; suspectDropCount: number }>();
+  if (posts.length === 0) return byKey;
+  const existing = await prisma.post.findMany({
+    where: {
+      OR: posts.map((p) => ({
+        platform: p.platform,
+        externalId: p.externalId,
+      })),
+    },
+    select: {
+      platform: true,
+      externalId: true,
+      views: true,
+      suspectDropCount: true,
+    },
+  });
+  for (const p of existing) {
+    byKey.set(`${p.platform}:${p.externalId}`, {
+      views: p.views,
+      suspectDropCount: p.suspectDropCount,
+    });
+  }
+  return byKey;
 }
 
 /**
@@ -423,9 +370,10 @@ function filterByHashtags(
  * Upsert a social post into the database and create/update today's metric
  * snapshot. `reassignCampaign` is set for posts scraped via a campaign-scoped
  * account: they belong to that campaign even if a different campaign's sync
- * created the row first.
+ * created the row first. Shared by the campaign sync and the manual
+ * per-creator sync so the suspicious-metric-drop guard applies to both.
  */
-async function upsertPost(
+export async function upsertPost(
   post: SocialPost,
   campaignId: string,
   creatorId: string,

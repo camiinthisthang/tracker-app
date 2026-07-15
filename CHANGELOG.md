@@ -3,6 +3,15 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-15 — Sync accuracy: keep everything, never auto-delete, guarded manual sync, IG Reels tab (branch claude/drop-deck-ugc-data-issues-waql9p)
+Per Jacqueline's decisions (2026-07-15) after the Aspen 30.1K-reel / Adriel missing-videos report:
+- **Keep every post we can scrape.** Campaign date-window filtering removed from both sync paths — posts outside the campaign start/end dates are no longer skipped at write time, and the "out-of-range prune" that hard-deleted them on every sync is gone. Goal/pacing math still applies its own windows at read time.
+- **Never auto-delete a post that's missing from a scrape** (forced or scheduled). The actors routinely return partial sets (IG runs returning 11–30 items while under the 60 cap), and trusting a single run made post counts bounce — very likely Adriel's 20-30 → 10-12. A really-deleted video keeps its last-known metrics. The only deletion left is the stale-handle prune (posts under a username that was never the creator's).
+- **Manual "Sync now" goes through the shared guarded write path.** The per-creator route had its own upsert WITHOUT the suspicious-metric-drop guard, so a manual sync could still overwrite a stored 30.1K with a bogus low scrape — likely why manual syncing didn't fix Aspen. `upsertPost` + `loadExistingMetrics` are now exported from sync.ts and used by both paths.
+- **Instagram now scrapes the Reels tab too** (`apify/instagram-reel-scraper`) and merges with the feed scrape by post id, keeping the highest view count. A reel not shared to the feed grid only exists on the Reels tab and was invisible before — the likely reason the 30.1K reel never came in at all. One scrape failing is tolerated when the other succeeds. Cost: roughly doubles IG scrape spend (~$1/1K results per actor run); still small at current volume.
+- Also diagnosed (no code change needed): hashtag filtering has been OFF since June 18 — not the cause; Apify itself is healthy (runs green, $11/$29 used) — **no Apify support ticket needed**; all of the July 13 observations predate the July 14 fix batch, so a re-sync on the deployed build should re-create the wrongly-deleted posts.
+- Tested: `npm test` 35/35, `npx next build` green. No schema/DB change in this chunk.
+
 ## 2026-07-14 — Post-review fixes: 6 findings from an adversarial review of the branch
 An independent review pass over the whole branch surfaced 6 real bugs; all fixed:
 1. **Contract dates paced a day early in prod** — contract dates are stored midnight UTC but pacing math ran in server-local time (prod pins America/Chicago), so `getDate()`/`format()`/comparisons were off by one day west of UTC. New `contractDate()` normalizer in pacing.ts (same pattern as the existing `calendarDate()` gotcha). Tests now pass under both UTC and TZ=America/Chicago.
