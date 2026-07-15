@@ -15,9 +15,16 @@ import { debugScrapeInstagram } from "@/lib/social/apify";
  * Costs a few cents of Apify credits per call (2 actors × ~10 results).
  */
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ creatorId: string }> }
 ) {
+  // ?limit=30 → scrape depth per actor (default 10, capped at 60 to match
+  // the real sync and keep credit spend bounded).
+  const limitParam = Number(new URL(req.url).searchParams.get("limit"));
+  const limit =
+    Number.isInteger(limitParam) && limitParam > 0
+      ? Math.min(limitParam, 60)
+      : 10;
   const session = await getSession();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -66,7 +73,7 @@ export async function GET(
   }
 
   const results = await Promise.all(
-    igHandles.map((h) => debugScrapeInstagram(h.handle))
+    igHandles.map((h) => debugScrapeInstagram(h.handle, limit))
   );
   return NextResponse.json({
     creator: creator.handle,
