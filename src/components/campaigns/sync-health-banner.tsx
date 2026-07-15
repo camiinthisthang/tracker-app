@@ -17,9 +17,13 @@ export function SyncHealthBanner({ summary }: { summary: SyncSummary | null }) {
   const failures = summary?.failures ?? [];
   if (!summary || failures.length === 0) return null;
 
-  const creditIssue = failures.some((f) =>
-    /credit|limit|quota|402/i.test(f.reason)
-  );
+  // Memory-cap 402s ("memory limit ... for all your Actor runs") are a
+  // concurrency problem, not billing — check them first so they don't
+  // trigger the buy-credits hint.
+  const memoryIssue = failures.some((f) => /memory limit/i.test(f.reason));
+  const creditIssue =
+    !memoryIssue &&
+    failures.some((f) => /credit|quota|payment|402/i.test(f.reason));
 
   return (
     <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 print:hidden">
@@ -34,6 +38,14 @@ export function SyncHealthBanner({ summary }: { summary: SyncSummary | null }) {
               : ""}{" "}
             — some views may be stale or missing
           </p>
+          {memoryIssue && (
+            <p className="mt-1 text-xs font-medium text-amber-700">
+              Too many scrapes ran at once and Apify&apos;s concurrent-memory
+              cap rejected the rest — not a credits problem. The sync now
+              throttles itself; hit Sync Data again to fill in the skipped
+              handles.
+            </p>
+          )}
           {creditIssue && (
             <p className="mt-1 text-xs font-medium text-amber-700">
               Looks like the Apify account is out of credits — ask Cami to top

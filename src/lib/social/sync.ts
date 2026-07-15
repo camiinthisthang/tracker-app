@@ -139,6 +139,58 @@ export function fetchForPlatform(
 }
 
 /**
+ * Apify accounts have a 64GB TOTAL memory cap across all concurrently
+ * running actor runs, and each scraper run reserves ~4GB. Launching every
+ * (creator, platform) scrape at once blew straight through it on a
+ * 16-creator campaign — the first ~15 runs started, the rest got 402
+ * "memory limit" errors and those handles silently synced nothing (the
+ * Jul 15 poncho banner: 13 failed fetches). 8 concurrent ≈ 32GB keeps us
+ * safely under the cap even with a manual sync running alongside.
+ */
+export const SCRAPE_CONCURRENCY = 8;
+
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(limit, items.length)) },
+    async () => {
+      while (true) {
+        const i = next++;
+        if (i >= items.length) return;
+        results[i] = await fn(items[i]);
+      }
+    }
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * One retry for the memory-cap case: with our own fan-out throttled, a 402
+ * memory error means someone else's runs are hogging the account right now —
+ * a short wait usually clears it.
+ */
+export async function fetchWithMemoryRetry(
+  platform: SyncPlatform,
+  handle: string
+): Promise<SocialPost[]> {
+  try {
+    return await fetchForPlatform(platform, handle);
+  } catch (e) {
+    if (e instanceof Error && /memory limit/i.test(e.message)) {
+      await new Promise((r) => setTimeout(r, 10_000));
+      return fetchForPlatform(platform, handle);
+    }
+    throw e;
+  }
+}
+
+/**
  * Sync all posts for a single campaign.
  * Fetches posts from each platform for each creator via Apify, upserts into
  * DB, creates daily metric snapshots.
@@ -171,9 +223,9 @@ export async function syncCampaign(campaignId: string) {
   let totalPostsUpserted = 0;
   const skipped: { creator: string; reason: string }[] = [];
 
-  // Build (creator, platform, handle) tasks — one per platform the creator has
-  // a handle for. Run all of them in parallel; each Apify run is independent
-  // and the actors rate-limit internally.
+  // Build (creator, platform, handle) tasks — one per platform the creator
+  // has a handle for. Run them through a bounded pool, NOT all at once — see
+  // SCRAPE_CONCURRENCY for the Apify account-wide memory cap this respects.
   type FetchTask = {
     cc: (typeof campaign.campaignCreators)[number];
     platform: SyncPlatform;
@@ -207,36 +259,38 @@ export async function syncCampaign(campaignId: string) {
     }
   }
 
-  const fetches = tasks.map(async (task) => {
-    try {
-      const fetched = await fetchForPlatform(task.platform, task.handle);
-      return {
-        task,
-        posts: HASHTAG_FILTERING_ENABLED
-          ? filterByHashtags(fetched, campaign.hashtags)
-          : fetched,
-        success: true,
-      };
-    } catch (error) {
-      console.error(
-        `Sync error for creator ${task.cc.creator.handle} on ${task.platform}:`,
-        error
-      );
-      skipped.push({
-        creator: task.cc.creator.handle,
-        reason: `${task.platform} @${task.handle}: ${
-          error instanceof Error ? error.message : "fetch failed"
-        }`,
-      });
-      return {
-        task,
-        posts: [] as SocialPost[],
-        success: false,
-      };
+  const fetchResults = await mapWithConcurrency(
+    tasks,
+    SCRAPE_CONCURRENCY,
+    async (task) => {
+      try {
+        const fetched = await fetchWithMemoryRetry(task.platform, task.handle);
+        return {
+          task,
+          posts: HASHTAG_FILTERING_ENABLED
+            ? filterByHashtags(fetched, campaign.hashtags)
+            : fetched,
+          success: true,
+        };
+      } catch (error) {
+        console.error(
+          `Sync error for creator ${task.cc.creator.handle} on ${task.platform}:`,
+          error
+        );
+        skipped.push({
+          creator: task.cc.creator.handle,
+          reason: `${task.platform} @${task.handle}: ${
+            error instanceof Error ? error.message : "fetch failed"
+          }`,
+        });
+        return {
+          task,
+          posts: [] as SocialPost[],
+          success: false,
+        };
+      }
     }
-  });
-
-  const fetchResults = await Promise.all(fetches);
+  );
 
   const existingByKey = await loadExistingMetrics(
     fetchResults.flatMap((r) => r.posts)

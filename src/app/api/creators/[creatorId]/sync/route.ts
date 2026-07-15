@@ -3,10 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { canAccessCreator } from "@/lib/visibility";
 import {
-  fetchForPlatform,
+  fetchWithMemoryRetry,
+  mapWithConcurrency,
   resolveSyncHandles,
   loadExistingMetrics,
   upsertPost,
+  SCRAPE_CONCURRENCY,
   type SyncPlatform,
 } from "@/lib/social/sync";
 import type { SocialPost } from "@/lib/social/types";
@@ -91,10 +93,12 @@ export async function POST(
 
   const failures: { platform: SyncPlatform; handle: string; error: string }[] =
     [];
-  const fetchResults = await Promise.all(
-    handleTasks.map(async (t) => ({
+  const fetchResults = await mapWithConcurrency(
+    handleTasks,
+    SCRAPE_CONCURRENCY,
+    async (t) => ({
       ...t,
-      posts: await fetchForPlatform(t.platform, t.handle).catch((e) => {
+      posts: await fetchWithMemoryRetry(t.platform, t.handle).catch((e) => {
         console.error(`${t.platform.toLowerCase()} scrape failed`, e);
         failures.push({
           platform: t.platform,
@@ -103,7 +107,7 @@ export async function POST(
         });
         return [] as SocialPost[];
       }),
-    }))
+    })
   );
 
   const allPosts = fetchResults.flatMap((r) => r.posts);
