@@ -5,7 +5,7 @@ export interface CreatorProgress {
   creatorId: string;
   creatorName: string;
   creatorHandle: string;
-  /** False = cut from the campaign: kept for history, not expected to post. */
+  /** False = deactivated on the campaign: unmanaged, still syncing. */
   isActive: boolean;
   videosPerDay: number;
   weeklyTarget: number;
@@ -87,8 +87,11 @@ export function CreatorProgressCard({
               @{progress.creatorHandle}
             </span>
             {!progress.isActive && (
-              <span className="shrink-0 rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                Cut
+              <span
+                title="Deactivated on this campaign — not managed, no posts expected, but their accounts still sync"
+                className="shrink-0 cursor-help rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+              >
+                Deactivated
               </span>
             )}
           </div>

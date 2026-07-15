@@ -8,7 +8,7 @@ export interface CampaignCreatorRow {
   creatorName: string;
   creatorHandle: string;
   tier: string;
-  /** Still active on THIS campaign (false = cut). */
+  /** Still active on THIS campaign (false = deactivated: unmanaged, still syncing). */
   onCampaign: boolean;
   /** Active on the roster at all (false = deactivated agency-wide). */
   creatorActive: boolean;
@@ -116,17 +116,17 @@ export function CampaignCreatorsTable({
                     <div className="flex flex-wrap gap-1">
                       {!c.creatorActive ? (
                         <span
-                          title="Deactivated from the whole roster — syncing STOPPED, history kept"
+                          title="Deactivated from the whole roster — hidden from every tracking page, but their accounts STILL SYNC so viral videos are caught. Syncing only stops when a handle is deactivated in Social accounts."
                           className="cursor-help rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
                         >
-                          Deactivated
+                          Deactivated (roster)
                         </span>
                       ) : !c.onCampaign ? (
                         <span
-                          title="Cut from this campaign — hidden from pacing/progress, but posts STILL SYNC so viral videos are caught"
+                          title="Deactivated on this campaign — no longer managed, so they're hidden from Needs attention / On track and pacing, but their posts STILL SYNC so viral videos are caught"
                           className="cursor-help rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700"
                         >
-                          Cut
+                          Deactivated
                         </span>
                       ) : (
                         <span

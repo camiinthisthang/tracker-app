@@ -18,7 +18,7 @@ export interface ContractCreatorRow {
   creatorId: string;
   creatorName: string;
   creatorHandle: string;
-  /** False = cut from the campaign: kept for history, not expected to post. */
+  /** False = deactivated on the campaign: unmanaged, still syncing. */
   isActive: boolean;
   contractedTiktok: number | null;
   contractedInstagram: number | null;
@@ -644,8 +644,11 @@ export function ContractTracker({
                       <span className="flex items-center gap-1.5 truncate text-sm font-medium text-slate-800">
                         @{row.creatorHandle}
                         {!row.isActive && (
-                          <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            Cut
+                          <span
+                            title="Deactivated on this campaign — not managed, no posts expected, but their accounts still sync"
+                            className="cursor-help rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                          >
+                            Deactivated
                           </span>
                         )}
                       </span>
@@ -734,8 +737,11 @@ export function ContractTracker({
                     {row.isActive ? (
                       <PaceBadge pace={pace} />
                     ) : (
-                      <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 ring-1 ring-inset ring-slate-200">
-                        Cut
+                      <span
+                        title="Deactivated on this campaign — pace isn't scored, but their accounts still sync"
+                        className="inline-block cursor-help rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 ring-1 ring-inset ring-slate-200"
+                      >
+                        Deactivated
                       </span>
                     )}
                   </td>

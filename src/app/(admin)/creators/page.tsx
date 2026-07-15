@@ -289,9 +289,10 @@ export default async function CreatorsPage({
   }
 
   // Pacing cards = active creators on an active campaign (plus brand-new
-  // unassigned ones, so they don't vanish before assignment). Creators cut
-  // from every campaign, or whose campaigns all ended, drop to the pill list
-  // — cut means "off the main pages", their data still syncs.
+  // unassigned ones, so they don't vanish before assignment). Deactivated
+  // creators (per campaign or whole roster) and ended campaigns drop to the
+  // pill list — deactivation means "not managed here anymore"; their data
+  // always keeps syncing.
   const activeCards = cards.filter(
     (c) => c.isActive && (c.onActiveCampaign || !c.hasMemberships),
   );
@@ -315,7 +316,7 @@ export default async function CreatorsPage({
       tag: !c.isActive
         ? "deactivated"
         : c.cutFromActive
-          ? "cut"
+          ? "deactivated on campaign"
           : "campaign ended",
     }));
 
