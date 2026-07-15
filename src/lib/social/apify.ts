@@ -89,6 +89,24 @@ function stripHandle(raw: string | null | undefined): string | null {
   return cleaned.length > 0 ? cleaned : null;
 }
 
+/** Every field name the Instagram actors are known to report plays/views
+ * under, across versions of apify/instagram-scraper and
+ * apify/instagram-reel-scraper. */
+const IG_VIEW_KEYS = [
+  "videoViewCount",
+  "videoPlayCount",
+  "igPlayCount",
+  "playCount",
+  "playsCount",
+  "viewsCount",
+  "videoViews",
+  "reelPlayCount",
+] as const;
+
+function igViews(p: Record<string, unknown>): number {
+  return Math.max(0, ...IG_VIEW_KEYS.map((k) => toInt(p[k])));
+}
+
 /**
  * Fetch a creator's recent TikTok videos via the clockworks/tiktok-scraper
  * actor. Returns normalized SocialPost objects ready to upsert.
@@ -245,22 +263,16 @@ function mapInstagramItems(items: unknown[], clean: string): SocialPost[] {
     if (!id) continue;
 
     // Reels expose a play/view count under several keys depending on the
-    // actor version (videoViewCount / videoPlayCount / igPlayCount), and the
-    // actor often returns a stale-or-partial videoViewCount ALONGSIDE the
-    // real igPlayCount — `??` never falls through on a present-but-low
-    // number (Annie's 672 vs the real 5,308; Claire's single-digit Reels).
-    // Take the highest candidate instead. Feed posts expose none → 0.
-    const views = Math.max(
-      toInt(p.videoViewCount),
-      toInt(p.videoPlayCount),
-      toInt(p.igPlayCount)
-    );
+    // actor and version, and the actors often return a stale-or-partial
+    // videoViewCount ALONGSIDE the real play count — `??` never falls
+    // through on a present-but-low number (Annie's 672 vs the real 5,308;
+    // Aspen's 2.8K vs the real 30.1K). Take the highest candidate across
+    // every alias either actor is known to use. Feed photos expose none → 0.
+    const views = igViews(p);
     console.log(
       `[ig-sync] @${clean} ${id} type=${p.type ?? p.productType ?? "?"} ` +
-        `videoViewCount=${String(p.videoViewCount)} ` +
-        `videoPlayCount=${String(p.videoPlayCount)} ` +
-        `igPlayCount=${String(p.igPlayCount)} ` +
-        `likesCount=${String(p.likesCount)} -> views=${views}`
+        IG_VIEW_KEYS.map((k) => `${k}=${String(p[k])}`).join(" ") +
+        ` likesCount=${String(p.likesCount)} -> views=${views}`
     );
 
     posts.push({
@@ -358,6 +370,66 @@ export async function fetchYouTubeShortsViaApify(
     });
   }
   return posts;
+}
+
+/**
+ * Read-only diagnostic: run BOTH Instagram actors for one handle and return
+ * the raw view-related fields per item, plus any actor error verbatim.
+ * Powers /api/creators/[id]/scrape-debug so "what is Apify actually
+ * returning?" is answerable from the browser instead of server logs.
+ */
+export async function debugScrapeInstagram(handle: string, limit = 10) {
+  const clean = stripHandle(handle);
+  if (!clean) return { handle, error: "empty handle" };
+
+  const describeItems = (items: unknown[]) =>
+    items.map((raw) => {
+      const p = raw as Record<string, unknown>;
+      return {
+        id: String(p.id ?? ""),
+        shortCode: String(p.shortCode ?? ""),
+        type: String(p.type ?? p.productType ?? "?"),
+        timestamp: String(p.timestamp ?? p.takenAtTimestamp ?? ""),
+        caption:
+          typeof p.caption === "string" ? p.caption.slice(0, 60) : null,
+        likesCount: toInt(p.likesCount),
+        computedViews: igViews(p),
+        rawViewFields: Object.fromEntries(
+          IG_VIEW_KEYS.filter((k) => p[k] !== undefined).map((k) => [
+            k,
+            p[k],
+          ])
+        ),
+      };
+    });
+
+  const run = async (label: string, actor: string, input: Record<string, unknown>) => {
+    try {
+      const items = await runActorSync(actor, input);
+      return { label, actor, ok: true, count: items.length, items: describeItems(items) };
+    } catch (e) {
+      return {
+        label,
+        actor,
+        ok: false as const,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  };
+
+  const [feed, reels] = await Promise.all([
+    run("feed", "apify~instagram-scraper", {
+      directUrls: [`https://www.instagram.com/${clean}/`],
+      resultsType: "posts",
+      resultsLimit: limit,
+      addParentData: false,
+    }),
+    run("reels", "apify~instagram-reel-scraper", {
+      username: [clean],
+      resultsLimit: limit,
+    }),
+  ]);
+  return { handle: clean, feed, reels };
 }
 
 // YouTube sometimes reports relative dates ("2 weeks ago") instead of ISO

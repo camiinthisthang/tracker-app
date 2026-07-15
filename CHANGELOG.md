@@ -3,6 +3,17 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-15 — Aspen 30.1K investigation round 2: broader view-field aliases + scrape-debug endpoint (branch, NOT merged — awaiting Jackie's approval)
+- New evidence: the "Insane." reel ticked 2,881 → 2,882, so the scrape IS returning it and writing updates — the actor itself is reporting ~2.8K. Suspects: the Reels-tab scrape failing silently (its errors were console-only), the play count living under an unread field name, or IG's views-vs-plays metric split.
+- IG mapper now takes the max across EVERY known play/view alias of both actors (`videoViewCount, videoPlayCount, igPlayCount, playCount, playsCount, viewsCount, videoViews, reelPlayCount`) — was only the first three.
+- New read-only diagnostic `GET /api/creators/[creatorId]/scrape-debug`: runs both IG actors for the creator's syncable IG handles and returns raw per-item view fields + any actor error verbatim, no DB writes. Costs a few cents of Apify credits per call. This answers "what is Apify actually returning for that reel" from the browser.
+- Tested: `npm test` 47/47, `npx next build` green. No schema change.
+
+## 2026-07-15 — Title column follow-up: fixed width, not max-width (branch claude/drop-deck-ugc-data-issues-waql9p, NOT merged — awaiting Jackie's approval)
+- Jackie's report after the first fix deployed: the page no longer stretches, but the Title column still ballooned inside the scroll container, pushing Views/Posted-at off-screen. Root cause: auto table layout ignores `max-width` on cell content when sizing columns. Switched both posts tables to a fixed `w-[200px]`/`w-[220px]` block — always honored, so all columns fit the viewport with no horizontal scrolling. Caption still on hover.
+- Per Jackie: no merges to main without her approval from here on — this sits on the branch until she confirms.
+- Tested: `npm test` 47/47, `npx next build` green.
+
 ## 2026-07-15 — Stretched-page fix (unbreakable captions) + sortable posts card on the creator page (branch claude/drop-deck-ugc-data-issues-waql9p)
 - **The posts page / Adriel's pages stretching way past the window** — root cause found: the posts tables' Title cell put `truncate max-w-[200px]` on an inline `<span>`, where neither applies, while table cells force `whitespace-nowrap` — so a long hashtag caption rendered as one unbreakable line and stretched the whole table/page to the caption's width. Fixed with `block` + truncate in both tables (`posts-table-client`, `creator-posts-table`, full caption on hover) and `overflow-x-auto` on the shared DataTable card so wide content scrolls inside the card, never the page.
 - **Creator page "Recent posts" is now a sortable "Posts" card** — Recent / Top views / Top engagement pills (?posts= param, preserved across the week/chart/campaign controls); every row shows views AND engagement (likes+comments+shares+saves, tooltip on the label); top-10 under the selected sort from a 500-post recency superset.
