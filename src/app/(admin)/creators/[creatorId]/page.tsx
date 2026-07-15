@@ -117,6 +117,12 @@ export default async function CreatorDetailPage({
   const chartParam = Number(Array.isArray(sp.chart) ? sp.chart[0] : sp.chart);
   const chartDays = CHART_WINDOWS.includes(chartParam) ? chartParam : 28;
   const chartStart = startOfDay(subDays(now, chartDays));
+  // Posts card sort: newest first, or top performers by views / engagement.
+  const postSortParam = Array.isArray(sp.posts) ? sp.posts[0] : sp.posts;
+  const postSort =
+    postSortParam === "views" || postSortParam === "engagement"
+      ? postSortParam
+      : "recent";
 
   // Viral = the campaign's configured threshold; across all campaigns use
   // the lowest so nothing viral is missed.
@@ -177,10 +183,12 @@ export default async function CreatorDetailPage({
       select: { id: true, name: true, isActive: true },
       orderBy: { name: "asc" },
     }),
+    // Pull a recency-bounded superset once; the card sorts it three ways
+    // (recent / top views / top engagement) without extra queries.
     prisma.post.findMany({
       where: postWhere,
       orderBy: { postedAt: "desc" },
-      take: 10,
+      take: 500,
       include: { campaign: { select: { id: true, name: true } } },
     }),
     prisma.post.count({
@@ -387,16 +395,48 @@ export default async function CreatorDetailPage({
     })),
   );
 
-  // Weekly-card arrow links: step through past weeks, preserving the
-  // campaign + chart filters.
-  const weekHref = (offset: number) => {
+  // Page links: every control (week arrows, chart window, posts sort) changes
+  // one param and preserves the rest.
+  const pageHref = (overrides: {
+    week?: number;
+    chart?: number;
+    posts?: string;
+  }) => {
+    const week = overrides.week ?? weekOffset;
+    const chart = overrides.chart ?? chartDays;
+    const posts = overrides.posts ?? postSort;
     const qs = new URLSearchParams({
       ...(campaignFilter ? { campaign: campaignFilter.id } : {}),
-      ...(chartDays !== 28 ? { chart: String(chartDays) } : {}),
-      ...(offset > 0 ? { week: String(offset) } : {}),
+      ...(chart !== 28 ? { chart: String(chart) } : {}),
+      ...(week > 0 ? { week: String(week) } : {}),
+      ...(posts !== "recent" ? { posts } : {}),
     }).toString();
     return `/creators/${creator.id}${qs ? `?${qs}` : ""}`;
   };
+  const weekHref = (offset: number) => pageHref({ week: offset });
+
+  // Posts card: top-10 under the selected sort.
+  const engagementOf = (p: {
+    likes: number;
+    comments: number;
+    shares: number;
+    saves: number;
+  }) => p.likes + p.comments + p.shares + p.saves;
+  const shownPosts =
+    postSort === "recent"
+      ? recentPosts.slice(0, 10)
+      : [...recentPosts]
+          .sort((a, b) =>
+            postSort === "views"
+              ? b.views - a.views
+              : engagementOf(b) - engagementOf(a),
+          )
+          .slice(0, 10);
+  const POST_SORTS = [
+    { value: "recent", label: "Recent" },
+    { value: "views", label: "Top views" },
+    { value: "engagement", label: "Top engagement" },
+  ] as const;
 
   return (
     <div>
@@ -658,10 +698,7 @@ export default async function CreatorDetailPage({
               {CHART_WINDOWS.map((d) => (
                 <Link
                   key={d}
-                  href={`/creators/${creator.id}?${new URLSearchParams({
-                    ...(campaignFilter ? { campaign: campaignFilter.id } : {}),
-                    ...(d !== 28 ? { chart: String(d) } : {}),
-                  }).toString()}`}
+                  href={pageHref({ chart: d })}
                   className={`rounded-full px-3 py-1 text-xs font-medium ${
                     chartDays === d
                       ? "bg-slate-800 text-white"
@@ -745,10 +782,27 @@ export default async function CreatorDetailPage({
         />
       </div>
 
-      {/* Recent posts */}
+      {/* Posts — recent or top performers, sortable */}
       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-800">Recent posts</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-semibold text-slate-800">Posts</h3>
+            <div className="flex gap-1.5">
+              {POST_SORTS.map((s) => (
+                <Link
+                  key={s.value}
+                  href={pageHref({ posts: s.value })}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    postSort === s.value
+                      ? "bg-slate-800 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {s.label}
+                </Link>
+              ))}
+            </div>
+          </div>
           {recentPosts.length > 0 && (
             <Link
               href={`/posts?creatorId=${creator.id}`}
@@ -768,7 +822,7 @@ export default async function CreatorDetailPage({
           </p>
         ) : (
           <ul className="mt-3 divide-y divide-slate-100">
-            {recentPosts.map((p) => (
+            {shownPosts.map((p) => (
               <li
                 key={p.id}
                 className="flex items-center gap-3 py-2"
@@ -799,13 +853,26 @@ export default async function CreatorDetailPage({
                     {format(p.postedAt, "MMM d, yyyy")} · {p.campaign.name}
                   </p>
                 </div>
-                <div className="ml-3 shrink-0 text-right text-xs">
-                  <p className="font-semibold text-slate-800">
-                    {p.views.toLocaleString()}
-                  </p>
-                  <p className="text-[10px] uppercase tracking-wide text-slate-400">
-                    views
-                  </p>
+                <div className="ml-3 flex shrink-0 items-baseline gap-4 text-right text-xs">
+                  <div>
+                    <p className="font-semibold text-slate-800">
+                      {p.views.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                      views
+                    </p>
+                  </div>
+                  <div className="w-14">
+                    <p className="font-semibold text-slate-800">
+                      {engagementOf(p).toLocaleString()}
+                    </p>
+                    <p
+                      className="text-[10px] uppercase tracking-wide text-slate-400"
+                      title="Likes + comments + shares + saves"
+                    >
+                      eng.
+                    </p>
+                  </div>
                 </div>
               </li>
             ))}

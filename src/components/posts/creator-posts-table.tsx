@@ -40,7 +40,13 @@ const columns: ColumnDef<PostRow>[] = [
     accessorKey: "title",
     header: "Title",
     cell: ({ row }) => (
-      <span className="max-w-[220px] truncate text-sm text-slate-600">
+      // block, not inline: truncate/max-w don't apply to inline spans, so long
+      // hashtag captions rendered as one unbreakable line and stretched the
+      // whole page. Full caption stays readable on hover.
+      <span
+        title={row.original.title ?? undefined}
+        className="block max-w-[220px] truncate text-sm text-slate-600"
+      >
         {row.original.title || "—"}
       </span>
     ),
