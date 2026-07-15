@@ -4,10 +4,11 @@ import {
   creatorFlags,
   creatorCommonPeriod,
   effectiveMonthlyGoal,
+  governingContractGoal,
   pacingPeriod,
   commonPacingPeriod,
 } from "@/lib/pacing";
-import { addDays } from "date-fns";
+import { addDays, min as minDate } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import {
   getRequiredSession,
@@ -104,9 +105,18 @@ export default async function CreatorsPage({
   const creatorIds = creators.map((c) => c.id);
   const postScope = campaignFilter ? { campaignId: campaignFilter.id } : {};
 
-  // Pacing periods are per creator now (contract-anchored when set), so pull
-  // a superset window — no cycle is longer than 31 days — and slice each
-  // creator's own period out of it below.
+  // Pacing windows are per creator: a contract-goal creator is measured over
+  // their WHOLE contract, a monthly-pacing creator over a ≤31-day cycle. Pull
+  // one superset window that covers both — back to the earliest active
+  // contract start (or 32 days, whichever is older).
+  const earliestContractStart = minDate([
+    addDays(now, -32),
+    ...creators.flatMap((c) =>
+      c.campaignCreators
+        .filter((cc) => cc.isActive && cc.campaign.isActive && cc.contractStart)
+        .map((cc) => cc.contractStart!),
+    ),
+  ]);
   const [aggregates, monthPosts] = creatorIds.length
     ? await Promise.all([
         prisma.post.groupBy({
@@ -120,7 +130,7 @@ export default async function CreatorsPage({
           where: {
             creatorId: { in: creatorIds },
             ...postScope,
-            postedAt: { gte: addDays(now, -32) },
+            postedAt: { gte: earliestContractStart },
           },
           select: {
             creatorId: true,
@@ -206,13 +216,32 @@ export default async function CreatorsPage({
     const ccByCampaign = new Map(
       relevantCCs.map((cc) => [cc.campaign.id, cc]),
     );
-    const postsThisMonth = (monthPostsByCreator.get(creator.id) ?? []).filter(
+    const countsForGoal = (p: {
+      platform: string;
+      campaignId: string | null;
+    }) =>
+      (p.campaignId != null &&
+        ccByCampaign.get(p.campaignId)?.countAllPlatforms) ||
+      p.platform === goalPlatform;
+
+    // Campaign-goal pacing wins when this creator has contract dates + a
+    // contracted total: measured over the WHOLE contract (warm-up week
+    // excluded from expectations), not a rolling month.
+    const governing = governingContractGoal(relevantCCs, now);
+    const creatorPosts = monthPostsByCreator.get(creator.id) ?? [];
+    const delivered = governing
+      ? creatorPosts.filter(
+          (p) =>
+            p.postedAt >= governing.goal.start &&
+            p.postedAt < governing.goal.endExclusive &&
+            countsForGoal(p),
+        ).length
+      : 0;
+    const postsThisMonth = creatorPosts.filter(
       (p) =>
         p.postedAt >= creatorPeriod.start &&
         p.postedAt < creatorPeriod.end &&
-        ((p.campaignId != null &&
-          ccByCampaign.get(p.campaignId)?.countAllPlatforms) ||
-          p.platform === goalPlatform),
+        countsForGoal(p),
     ).length;
     const agg = aggByCreator.get(creator.id);
 
@@ -234,12 +263,23 @@ export default async function CreatorsPage({
         thresholds,
         isShadowbanned: creator.isShadowbanned,
         period: creatorPeriod,
-        notStarted: creatorPeriod.notStarted,
+        notStarted: governing
+          ? governing.goal.notStarted
+          : creatorPeriod.notStarted,
+        contract: governing
+          ? {
+              delivered,
+              expectedToDate: governing.goal.expectedToDate,
+              inWarmup: governing.goal.inWarmup,
+            }
+          : undefined,
         now,
       }),
-      postsThisMonth,
-      monthlyGoal,
-      periodLabel: creatorPeriod.label,
+      postsThisMonth: governing ? delivered : postsThisMonth,
+      monthlyGoal: governing ? governing.goal.totalGoal : monthlyGoal,
+      periodLabel: governing
+        ? `contract ${governing.goal.label}${governing.goal.inWarmup ? " · warm-up week" : ""}`
+        : creatorPeriod.label,
       thresholds,
       views: agg?._sum.views ?? 0,
       likes: agg?._sum.likes ?? 0,
@@ -286,7 +326,7 @@ export default async function CreatorsPage({
     <div>
       <PageHeader
         title="Creators"
-        description="Monthly pacing across your roster — who needs attention, who's on track"
+        description="Campaign-goal pacing across your roster — who needs attention, who's on track"
       >
         <AddCreatorButton
           canPickTeam={canPickTeam}
@@ -347,11 +387,13 @@ export default async function CreatorsPage({
                 </>
               ) : (
                 <>
-                  Off-pace = behind the cumulative month-to-date goal · Quiet =
-                  no post in several days · New = no posts yet · Shadow-banned
-                  = excluded from pacing. Thresholds and the month start day
-                  are set per campaign (Campaigns → Edit → Posting
-                  requirements); hover any flag for exact numbers.
+                  Off-pace = behind the cumulative goal — the creator&apos;s
+                  contract (contracted videos over their contract dates,
+                  first week is warm-up) when set, month-to-date otherwise ·
+                  Quiet = no post in several days · New = no posts yet ·
+                  Shadow-banned = excluded from pacing. Contract dates and
+                  totals live in each campaign&apos;s Contract Tracker; hover
+                  any flag for exact numbers.
                 </>
               )
             }

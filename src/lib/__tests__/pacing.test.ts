@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   commonPacingPeriod,
+  contractGoal,
   creatorCommonPeriod,
   creatorFlags,
   creatorPacingPeriod,
   effectiveMonthlyGoal,
+  governingContractGoal,
   isOffPace,
   pacingPeriod,
 } from "@/lib/pacing";
@@ -302,6 +304,157 @@ describe("creatorFlags", () => {
         postsAllTime: 0,
         lastPostAt: null,
         notStarted: true,
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("contractGoal", () => {
+  // Stored like prod: midnight UTC.
+  const utc = (y: number, m: number, d: number) => new Date(Date.UTC(y, m, d));
+  const base = {
+    contractStart: utc(2026, 6, 1), // Jul 1
+    contractEnd: utc(2026, 8, 22), // Sep 22 inclusive → 84 days
+    hasWarmupWeek: true,
+    contractedTiktok: 22,
+    contractedInstagram: 22,
+  };
+
+  it("is null without contract dates or a contracted total", () => {
+    expect(contractGoal({ ...base, contractStart: null }, JUL_15)).toBeNull();
+    expect(contractGoal({ ...base, contractEnd: null }, JUL_15)).toBeNull();
+    expect(
+      contractGoal(
+        { ...base, contractedTiktok: null, contractedInstagram: null },
+        JUL_15,
+      ),
+    ).toBeNull();
+    expect(
+      contractGoal(
+        { ...base, contractedTiktok: 0, contractedInstagram: 0 },
+        JUL_15,
+      ),
+    ).toBeNull();
+  });
+
+  it("divides the total across contract weeks AFTER the warm-up", () => {
+    const g = contractGoal(base, JUL_15)!;
+    expect(g.totalGoal).toBe(44);
+    expect(g.effectiveStart).toEqual(new Date(2026, 6, 8));
+    // 84 days - 7 warm-up = 77 usable days = 11 weeks → 4/week
+    expect(g.weeklyGoal).toBeCloseTo(4, 5);
+    expect(g.label).toBe("Jul 1 – Sep 22");
+  });
+
+  it("counts the warm-up week in the denominator when the toggle is off", () => {
+    const g = contractGoal({ ...base, hasWarmupWeek: false }, JUL_15)!;
+    expect(g.effectiveStart).toEqual(new Date(2026, 6, 1));
+    expect(g.weeklyGoal).toBeCloseTo(44 / 12, 5);
+  });
+
+  it("expects nothing during the warm-up week", () => {
+    const g = contractGoal(base, new Date(2026, 6, 3, 12))!;
+    expect(g.inWarmup).toBe(true);
+    expect(g.notStarted).toBe(false);
+    expect(g.expectedToDate).toBe(0);
+  });
+
+  it("accrues expected linearly from the end of the warm-up", () => {
+    const g = contractGoal(base, JUL_15)!;
+    expect(g.inWarmup).toBe(false);
+    // Jul 8 → Jul 15 = 8 elapsed usable days of 77
+    expect(g.expectedToDate).toBeCloseTo((44 * 8) / 77, 5);
+  });
+
+  it("flags notStarted before the contract begins", () => {
+    const g = contractGoal(base, new Date(2026, 5, 20))!;
+    expect(g.notStarted).toBe(true);
+    expect(g.expectedToDate).toBe(0);
+  });
+
+  it("skips the warm-up when the contract is shorter than a week", () => {
+    const g = contractGoal(
+      { ...base, contractEnd: utc(2026, 6, 5) },
+      new Date(2026, 6, 2),
+    )!;
+    expect(g.effectiveStart).toEqual(new Date(2026, 6, 1));
+  });
+});
+
+describe("governingContractGoal", () => {
+  const utc = (y: number, m: number, d: number) => new Date(Date.UTC(y, m, d));
+  const mk = (start: Date, end: Date) => ({
+    contractStart: start,
+    contractEnd: end,
+    hasWarmupWeek: true,
+    contractedTiktok: 40,
+    contractedInstagram: 0,
+  });
+
+  it("picks the latest already-started contract over a future one", () => {
+    const live = mk(utc(2026, 6, 1), utc(2026, 8, 30));
+    const future = mk(utc(2026, 7, 1), utc(2026, 9, 30));
+    const g = governingContractGoal([future, live], JUL_15);
+    expect(g?.cc).toBe(live);
+  });
+
+  it("falls back to the soonest upcoming contract when none started", () => {
+    const aug = mk(utc(2026, 7, 1), utc(2026, 9, 30));
+    const sep = mk(utc(2026, 8, 1), utc(2026, 10, 30));
+    const g = governingContractGoal([sep, aug], JUL_15);
+    expect(g?.cc).toBe(aug);
+    expect(g?.goal.notStarted).toBe(true);
+  });
+
+  it("is null when no membership has a usable contract", () => {
+    expect(
+      governingContractGoal(
+        [mk(utc(2026, 6, 1), utc(2026, 8, 30))].map((m) => ({
+          ...m,
+          contractedTiktok: null,
+        })),
+        JUL_15,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("creatorFlags with contract pacing", () => {
+  const period = pacingPeriod(JUL_15, 1);
+  const baseInput = {
+    postsThisMonth: 3,
+    postsAllTime: 10,
+    lastPostAt: new Date(2026, 6, 14),
+    monthlyGoal: 40,
+    thresholds: { offPacePct: 80, quietDays: 4 },
+    isShadowbanned: false,
+    period,
+    now: JUL_15,
+  };
+
+  it("judges off-pace against the contract expectation, not the month", () => {
+    // Monthly math would flag 3/40 mid-month; contract expectation of 3.5
+    // with 3 delivered is ≥ 80% of pace → no flag.
+    expect(
+      creatorFlags({
+        ...baseInput,
+        contract: { delivered: 3, expectedToDate: 3.5 },
+      }),
+    ).toEqual([]);
+    expect(
+      creatorFlags({
+        ...baseInput,
+        contract: { delivered: 1, expectedToDate: 3.5 },
+      }),
+    ).toEqual(["off_pace"]);
+  });
+
+  it("suppresses quiet and off-pace during the warm-up week", () => {
+    expect(
+      creatorFlags({
+        ...baseInput,
+        lastPostAt: null,
+        contract: { delivered: 0, expectedToDate: 0, inWarmup: true },
       }),
     ).toEqual([]);
   });

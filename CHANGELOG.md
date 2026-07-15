@@ -3,6 +3,29 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-15 — Campaign goal replaces monthly goal; weekly view with arrows; warm-up leeway (branch claude/drop-deck-ugc-data-issues-waql9p)
+Per Jacqueline's decisions (2026-07-15):
+- **Pacing engine** (`contractGoal` / `governingContractGoal` in pacing.ts): when a creator has contract dates + contracted totals (both already editable in the Contract Tracker), their goal is the contracted total over their contract window. Weekly goal = total ÷ contract weeks AFTER the 1-week warm-up (e.g. 44 videos over 12 weeks → 11 usable weeks → 4/week). Expected-to-date accrues linearly from the end of warm-up; during warm-up nothing is expected and Quiet/Off-pace flags are suppressed, but posts made then still count as delivered. Falls back to the existing monthly-goal behavior when no contract is set.
+- **Creators page**: cards now show delivered / contracted with the contract range as the label ("contract Jul 8 – Sep 30"), off-pace judged against the contract expectation. Monthly framing remains only for creators without contracts.
+- **Creator detail page**: the "Monthly goal" card becomes **"Campaign goal"** (delivered / contracted across the whole contract, "expected ~N by today", warm-up/starts notes). The weekly card gains **← → arrows** (?week=N) to step back through past weeks; its target is the contract weekly goal.
+- **Contract Tracker** (campaign → Creator Progress): new "Warm-up wk" checkbox per creator (drives `hasWarmupWeek`, PATCH accepts it); pace expectation now starts a week after the contract start when it's on. Legend updated.
+- Tests: 12 new pacing tests (47 total). `npm test` 47/47, `tsc --noEmit` + `npx next build` green.
+- Drive-by observation (not done): the creator-facing pages (/home, /creator-progress) still derive weekly targets from the monthly goal ÷ 4 — should switch to the contract weekly goal for consistency once the admin-side numbers are confirmed right.
+
+## 2026-07-15 — Schema change: per-creator warm-up toggle (branch claude/drop-deck-ugc-data-issues-waql9p-db)
+- **Schema change** (migration `20260715120000_warmup_week`, additive-only, on its own branch per Jacqueline's "DB changes in an additional branch" request): `CampaignCreator.hasWarmupWeek Boolean @default(true)` — the 1-week leeway after contractStart that doesn't count against pacing. On by default for everyone; per-creator opt-out.
+- Not run locally (no DATABASE_URL); single additive ALTER with a default, applies on deploy via `prisma migrate deploy`. No data touched.
+- Tested: `npx prisma generate`, `npx next build`, `npm test` 35/35 all green.
+
+## 2026-07-15 — Sync accuracy: keep everything, never auto-delete, guarded manual sync, IG Reels tab (branch claude/drop-deck-ugc-data-issues-waql9p)
+Per Jacqueline's decisions (2026-07-15) after the Aspen 30.1K-reel / Adriel missing-videos report:
+- **Keep every post we can scrape.** Campaign date-window filtering removed from both sync paths — posts outside the campaign start/end dates are no longer skipped at write time, and the "out-of-range prune" that hard-deleted them on every sync is gone. Goal/pacing math still applies its own windows at read time.
+- **Never auto-delete a post that's missing from a scrape** (forced or scheduled). The actors routinely return partial sets (IG runs returning 11–30 items while under the 60 cap), and trusting a single run made post counts bounce — very likely Adriel's 20-30 → 10-12. A really-deleted video keeps its last-known metrics. The only deletion left is the stale-handle prune (posts under a username that was never the creator's).
+- **Manual "Sync now" goes through the shared guarded write path.** The per-creator route had its own upsert WITHOUT the suspicious-metric-drop guard, so a manual sync could still overwrite a stored 30.1K with a bogus low scrape — likely why manual syncing didn't fix Aspen. `upsertPost` + `loadExistingMetrics` are now exported from sync.ts and used by both paths.
+- **Instagram now scrapes the Reels tab too** (`apify/instagram-reel-scraper`) and merges with the feed scrape by post id, keeping the highest view count. A reel not shared to the feed grid only exists on the Reels tab and was invisible before — the likely reason the 30.1K reel never came in at all. One scrape failing is tolerated when the other succeeds. Cost: roughly doubles IG scrape spend (~$1/1K results per actor run); still small at current volume.
+- Also diagnosed (no code change needed): hashtag filtering has been OFF since June 18 — not the cause; Apify itself is healthy (runs green, $11/$29 used) — **no Apify support ticket needed**; all of the July 13 observations predate the July 14 fix batch, so a re-sync on the deployed build should re-create the wrongly-deleted posts.
+- Tested: `npm test` 35/35, `npx next build` green. No schema/DB change in this chunk.
+
 ## 2026-07-14 — Post-review fixes: 6 findings from an adversarial review of the branch
 An independent review pass over the whole branch surfaced 6 real bugs; all fixed:
 1. **Contract dates paced a day early in prod** — contract dates are stored midnight UTC but pacing math ran in server-local time (prod pins America/Chicago), so `getDate()`/`format()`/comparisons were off by one day west of UTC. New `contractDate()` normalizer in pacing.ts (same pattern as the existing `calendarDate()` gotcha). Tests now pass under both UTC and TZ=America/Chicago.

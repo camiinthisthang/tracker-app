@@ -27,6 +27,8 @@ export interface ContractCreatorRow {
   /** Contract window (YYYY-MM-DD or null = campaign start/end). */
   contractStart: string | null;
   contractEnd: string | null;
+  /** 1-week warm-up leeway after the contract start (pace-exempt). */
+  hasWarmupWeek: boolean;
   /** Fraction of THIS creator's contract window elapsed (0–1) — a creator
    * who signed mid-campaign is paced against their own dates, not the whole
    * campaign's. */
@@ -302,6 +304,59 @@ function DateInput({
   );
 }
 
+/** Warm-up leeway toggle: the first contract week is pace-exempt when on. */
+function WarmupToggle({
+  campaignId,
+  creatorId,
+  initial,
+}: {
+  campaignId: string;
+  creatorId: string;
+  initial: boolean;
+}) {
+  const router = useRouter();
+  const [checked, setChecked] = useState(initial);
+  const [saving, setSaving] = useState(false);
+
+  async function save(next: boolean) {
+    setChecked(next);
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/creators`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creatorId, hasWarmupWeek: next }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(j?.error ?? "Save failed");
+      }
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+      setChecked(!next);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <label
+      className="flex cursor-pointer items-center gap-1 text-[10px] font-medium uppercase text-slate-400"
+      title="1-week warm-up: the first week after the contract start doesn't count against pace (posts made during it still count as delivered)"
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={saving}
+        onChange={(e) => save(e.target.checked)}
+        className="h-3 w-3 cursor-pointer accent-[color:var(--brand-blue)] disabled:opacity-50"
+      />
+      Warm-up wk
+    </label>
+  );
+}
+
 /** Format a USD amount: whole dollars when even, else 2 decimals. */
 function fmtUSD(n: number): string {
   return n.toLocaleString("en-US", {
@@ -351,8 +406,9 @@ function PaceLegend({
         <span className="block leading-relaxed">
           Expected = contracted × % of the creator&apos;s contract window
           elapsed (their dates in the Contract dates column, or the campaign
-          window when unset). The bands are a tolerance around that pace —
-          drag the sliders to adjust.
+          window when unset). With &quot;Warm-up wk&quot; on, the first week
+          after the start is leeway — expected stays at 0 until it ends. The
+          bands are a tolerance around that pace — drag the sliders to adjust.
         </span>
         <span className="mt-2 flex items-center gap-1.5">
           <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-emerald-700 ring-1 ring-inset ring-emerald-200">
@@ -634,6 +690,11 @@ export function ContractTracker({
                         field="contractEnd"
                         label="To"
                         initial={row.contractEnd}
+                      />
+                      <WarmupToggle
+                        campaignId={campaignId}
+                        creatorId={row.creatorId}
+                        initial={row.hasWarmupWeek}
                       />
                     </div>
                   </td>

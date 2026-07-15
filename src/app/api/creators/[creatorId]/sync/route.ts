@@ -5,6 +5,8 @@ import { canAccessCreator } from "@/lib/visibility";
 import {
   fetchForPlatform,
   resolveSyncHandles,
+  loadExistingMetrics,
+  upsertPost,
   type SyncPlatform,
 } from "@/lib/social/sync";
 import type { SocialPost } from "@/lib/social/types";
@@ -12,8 +14,12 @@ import type { SocialPost } from "@/lib/social/types";
 /**
  * Manual per-creator sync. Scrapes TikTok + Instagram + YouTube Shorts via
  * Apify for every active handle the creator has (primary columns plus extra
- * CreatorAccount rows) and upserts into Post + PostMetricsSnapshot.
+ * CreatorAccount rows) and upserts into Post + PostMetricsSnapshot through the
+ * same guarded write path as the campaign sync — so a partial scrape can't
+ * overwrite real view counts here either.
  *
+ * Keeps every post it can scrape (no campaign date-window filtering, no
+ * deletion of posts missing from the scrape — per Jacqueline, 2026-07-15).
  * Attaches posts to the creator's most recent active campaign if any,
  * otherwise only creates a fresh PostMetricsSnapshot against existing posts.
  */
@@ -40,7 +46,7 @@ export async function POST(
         take: 1,
         select: {
           campaign: {
-            select: { id: true, startDate: true, endDate: true },
+            select: { id: true },
           },
         },
       },
@@ -58,36 +64,7 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const targetCampaign = creator.campaignCreators[0]?.campaign;
-  const campaignId = targetCampaign?.id;
-
-  // Campaign date window — inclusive of the full endDate day.
-  const windowStart = targetCampaign?.startDate;
-  const windowEnd = targetCampaign
-    ? (() => {
-        const d = new Date(targetCampaign.endDate);
-        d.setDate(d.getDate() + 1);
-        return d;
-      })()
-    : null;
-
-  // Self-healing prune: drop any existing posts for this creator on the
-  // target campaign whose postedAt is outside the campaign's window. Cleans
-  // up legacy bad data from before the date filter was added at write time.
-  let prunedOutOfRange = 0;
-  if (campaignId && windowStart && windowEnd) {
-    const pruned = await prisma.post.deleteMany({
-      where: {
-        campaignId,
-        creatorId,
-        OR: [
-          { postedAt: { lt: windowStart } },
-          { postedAt: { gte: windowEnd } },
-        ],
-      },
-    });
-    prunedOutOfRange = pruned.count;
-  }
+  const campaignId = creator.campaignCreators[0]?.campaign?.id;
 
   // The historical TikTok fallback to the generic `handle` is preserved here
   // (the campaign-wide sync only falls back to tiktokUsername).
@@ -122,117 +99,23 @@ export async function POST(
   );
 
   const allPosts = fetchResults.flatMap((r) => r.posts);
-  const inWindow = (p: SocialPost) =>
-    !!windowStart && !!windowEnd && p.postedAt >= windowStart && p.postedAt < windowEnd;
-  const inWindowPosts = allPosts.filter(inWindow);
-  const droppedOutOfRange = allPosts.length - inWindowPosts.length;
   let upserted = 0;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const upsertQueue = fetchResults.flatMap((r) =>
-    r.posts.filter(inWindow).map((post) => ({
-      post,
-      // Posts from a campaign-scoped account belong to this campaign even if
-      // another campaign's sync created the row first.
-      reassignCampaign: r.scopedToCampaign,
-    }))
-  );
-  for (const { post, reassignCampaign } of upsertQueue) {
-    // Prefer the creator's active campaign to attach the post. If there is
-    // none, skip creating — Post requires campaignId.
-    if (!campaignId) continue;
-
-    const dbPost = await prisma.post.upsert({
-      where: {
-        platform_externalId: {
-          platform: post.platform,
-          externalId: post.externalId,
-        },
-      },
-      create: {
-        campaignId,
-        creatorId,
-        platform: post.platform,
-        username: post.username,
-        title: post.title,
-        externalId: post.externalId,
-        link: post.link,
-        thumbnailUrl: post.thumbnailUrl,
-        postedAt: post.postedAt,
-        views: post.views,
-        likes: post.likes,
-        shares: post.shares,
-        saves: post.saves,
-        comments: post.comments,
-        musicTitle: post.musicTitle ?? null,
-        musicAuthor: post.musicAuthor ?? null,
-        musicOriginal: post.musicOriginal ?? null,
-      },
-      update: {
-        views: post.views,
-        likes: post.likes,
-        shares: post.shares,
-        saves: post.saves,
-        comments: post.comments,
-        title: post.title,
-        thumbnailUrl: post.thumbnailUrl,
-        musicTitle: post.musicTitle ?? null,
-        musicAuthor: post.musicAuthor ?? null,
-        musicOriginal: post.musicOriginal ?? null,
-        ...(reassignCampaign ? { campaignId } : {}),
-      },
-    });
-
-    await prisma.postMetricsSnapshot.upsert({
-      where: { postId_date: { postId: dbPost.id, date: today } },
-      create: {
-        postId: dbPost.id,
-        date: today,
-        views: post.views,
-        likes: post.likes,
-        shares: post.shares,
-        saves: post.saves,
-        comments: post.comments,
-      },
-      update: {
-        views: post.views,
-        likes: post.likes,
-        shares: post.shares,
-        saves: post.saves,
-        comments: post.comments,
-      },
-    });
-
-    upserted++;
-  }
-
-  // Reconcile deletions: for each account that returned results, drop in-window
-  // posts whose externalId no longer appears on the platform (deleted videos —
-  // e.g. a creator who took down 8 of 12 reels). Guarded by a non-empty live
-  // set so a failed or soft-empty scrape can't wipe real posts. Scoped to the
-  // campaign window AND this account's username, so one account's scrape can't
-  // delete a sibling account's posts (inactive/banned accounts keep history).
-  let prunedDeleted = 0;
-  if (campaignId && windowStart && windowEnd) {
-    for (const { platform, handle, posts } of fetchResults) {
-      const liveIds = posts
-        .filter((p) => p.postedAt >= windowStart && p.postedAt < windowEnd)
-        .map((p) => p.externalId);
-      if (liveIds.length === 0) continue;
-      const clean = handle.trim().replace(/^@+/, "");
-      const del = await prisma.post.deleteMany({
-        where: {
+  if (campaignId) {
+    const existingByKey = await loadExistingMetrics(allPosts);
+    for (const r of fetchResults) {
+      for (const post of r.posts) {
+        // Posts from a campaign-scoped account belong to this campaign even
+        // if another campaign's sync created the row first.
+        await upsertPost(
+          post,
           campaignId,
           creatorId,
-          platform,
-          username: { equals: clean, mode: "insensitive" },
-          postedAt: { gte: windowStart, lt: windowEnd },
-          externalId: { notIn: liveIds },
-        },
-      });
-      prunedDeleted += del.count;
+          r.scopedToCampaign,
+          existingByKey.get(`${post.platform}:${post.externalId}`)
+        );
+        upserted++;
+      }
     }
   }
 
@@ -245,9 +128,6 @@ export async function POST(
     ok: true,
     fetched: allPosts.length,
     upserted,
-    prunedDeleted,
-    droppedOutOfRange,
-    prunedOutOfRange,
     tiktokPosts: countByPlatform("TIKTOK"),
     instagramPosts: countByPlatform("INSTAGRAM"),
     youtubePosts: countByPlatform("YOUTUBE"),
@@ -255,23 +135,6 @@ export async function POST(
     failures,
     accountsAttempted: handleTasks.length,
     attachedToCampaign: campaignId ?? null,
-    window:
-      windowStart && windowEnd
-        ? {
-            start: windowStart.toISOString(),
-            // windowEnd is endDate + 1 day (exclusive); report the inclusive
-            // endDate the user actually set.
-            end: new Date(windowEnd.getTime() - 86_400_000).toISOString(),
-          }
-        : null,
-    droppedPosts: allPosts
-      .filter((p) => !inWindowPosts.includes(p))
-      .map((p) => ({
-        platform: p.platform,
-        postedAt: p.postedAt.toISOString(),
-        title: p.title?.slice(0, 80) ?? null,
-        views: p.views,
-      })),
     warning:
       !campaignId && allPosts.length > 0
         ? "Fetched posts but creator has no active campaign — nothing was written. Assign this creator to a campaign first."
