@@ -35,6 +35,7 @@ export async function PATCH(
     isShadowbanned?: boolean;
     note?: string | null;
     handle?: string;
+    campaignId?: string | null;
   } = {};
   if (typeof body?.isActive === "boolean") data.isActive = body.isActive;
   if (typeof body?.isShadowbanned === "boolean")
@@ -96,12 +97,61 @@ export async function PATCH(
     data.handle = handle;
   }
 
+  // Move the handle to a different campaign (or null = shared across all).
+  // The creator must be on the target campaign. Already-synced posts under
+  // this handle MOVE WITH IT so the active campaign gets the full history —
+  // the whole point of the move (creators tracked under an old campaign
+  // whose views belong to the current one).
+  if ("campaignId" in (body ?? {})) {
+    const raw = body.campaignId;
+    if (raw === null || raw === "" || raw === "all") {
+      data.campaignId = null;
+    } else if (typeof raw === "string") {
+      const membership = await prisma.campaignCreator.findUnique({
+        where: { campaignId_creatorId: { campaignId: raw, creatorId } },
+        select: { id: true },
+      });
+      if (!membership) {
+        return NextResponse.json(
+          {
+            error:
+              "The creator isn't on that campaign — assign them to it first, then move the handle.",
+          },
+          { status: 400 }
+        );
+      }
+      data.campaignId = raw;
+    } else {
+      return NextResponse.json(
+        { error: "campaignId must be a campaign id or null" },
+        { status: 400 }
+      );
+    }
+  }
+
   const updated = await prisma.creatorAccount.update({
     where: { id: accountId },
     data,
   });
 
-  return NextResponse.json(updated);
+  let movedPosts = 0;
+  if (
+    data.campaignId !== undefined &&
+    data.campaignId !== null &&
+    data.campaignId !== account.campaignId
+  ) {
+    const moved = await prisma.post.updateMany({
+      where: {
+        creatorId,
+        platform: account.platform,
+        username: { equals: account.handle, mode: "insensitive" },
+      },
+      data: { campaignId: data.campaignId },
+    });
+    movedPosts = moved.count;
+  }
+
+  return NextResponse.json({ ...updated, movedPosts });
 }
 
 /**
