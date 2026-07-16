@@ -3,6 +3,13 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-15 — Move a handle between campaigns, posts come along (branch, awaiting merge approval)
+- Per Jacqueline: creators tracked under an older campaign need their views counted for the active one. Each account row in Social accounts now has a campaign selector — pick the target campaign (or "All campaigns (shared)") and the handle is rescoped, **and all its already-synced posts move to the target campaign** so the history counts there immediately. Toast reports how many posts moved.
+- API: PATCH `/api/creators/[id]/accounts/[accountId]` accepts `campaignId` (must be a campaign the creator is on; clear 400 otherwise). Posts only move when rescoping TO a campaign; moving to shared leaves them.
+- Also answered in-session: cut/deactivated poncho members ARE being tracked (since today's rework, only handle-level deactivation stops a scrape).
+- Known nuance: historical CampaignDailyMetric rows aren't rebuilt on move — posts-based pages (dashboard ranges, creator pages, contract tracker) are correct immediately; the daily aggregate table catches up from the next sync forward.
+- Tested: `npm test` 47/47, `npx next build` green. No schema change.
+
 ## 2026-07-15 — ROOT CAUSE: Apify 64GB concurrent-memory cap was silently killing most fetches; sync now throttled (branch, awaiting merge approval)
 - Jackie's poncho banner (13 failed fetches, "Apify error 402 ... exceed the memory limit of 65536MB for all your Actor runs") exposed the real systemic bug: Apify caps CONCURRENT actor-run memory at 64GB account-wide, each run reserves ~4GB, and our sync launched every (creator × platform) scrape at once — 16 creators ≈ 30-45 parallel runs ≈ 120-180GB requested. The first ~15 ran; everything else silently fetched nothing, every sync. This, not credits and not the scrapers, explains most of the stale/missing data across creators.
 - Fix: all scrape fan-outs (campaign sync + manual creator sync) now run through a bounded pool (`SCRAPE_CONCURRENCY = 8` ≈ 32GB peak), with one 10s-delayed retry when a memory-402 still slips through (someone else's run hogging the account).

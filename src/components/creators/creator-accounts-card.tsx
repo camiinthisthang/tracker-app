@@ -280,6 +280,40 @@ export function CreatorAccountsCard({
     }
   }
 
+  async function moveAccount(account: Account, newCampaignId: string | null) {
+    setTogglingId(account.id);
+    try {
+      const res = await fetch(
+        `/api/creators/${creatorId}/accounts/${account.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ campaignId: newCampaignId }),
+        }
+      );
+      const j = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(j?.error ?? "Could not move the handle");
+        return;
+      }
+      const moved = typeof j?.movedPosts === "number" ? j.movedPosts : 0;
+      toast.success(
+        newCampaignId
+          ? `Moved @${account.handle}${
+              moved
+                ? ` and its ${moved} tracked post${moved === 1 ? "" : "s"}`
+                : ""
+            } — future syncs count it under the new campaign`
+          : `@${account.handle} is now shared across campaigns`
+      );
+      router.refresh();
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   // Plain render helpers (NOT nested components): calling a function inline
   // keeps the element type the stable top-level AccountRowItem, so its edit
   // state survives parent re-renders. A nested `function Row()` used as
@@ -288,11 +322,13 @@ export function CreatorAccountsCard({
     <AccountRowItem
       key={a.id}
       a={a}
+      campaigns={campaigns}
       togglingId={togglingId}
       saveHandleEdit={saveHandleEdit}
       toggleShadowban={toggleShadowban}
       toggleAccount={toggleAccount}
       deleteAccount={deleteAccount}
+      moveAccount={moveAccount}
     />
   );
 
@@ -548,18 +584,22 @@ export function CreatorAccountsCard({
  * card) so its edit state survives parent re-renders. */
 function AccountRowItem({
   a,
+  campaigns,
   togglingId,
   saveHandleEdit,
   toggleShadowban,
   toggleAccount,
   deleteAccount,
+  moveAccount,
 }: {
   a: Account;
+  campaigns: CampaignRef[];
   togglingId: string | null;
   saveHandleEdit: (a: Account, h: string) => Promise<boolean>;
   toggleShadowban: (a: Account) => void;
   toggleAccount: (a: Account) => void;
   deleteAccount: (a: Account) => void;
+  moveAccount: (a: Account, campaignId: string | null) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(a.handle);
@@ -641,6 +681,39 @@ function AccountRowItem({
           {a.note && !editing && (
             <p className="truncate text-xs text-slate-400">{a.note}</p>
           )}
+        </div>
+        <div className="w-44">
+          <Select
+            value={a.campaignId ?? "all"}
+            onValueChange={(v) => {
+              if (!v) return;
+              const next = v === "all" ? null : v;
+              if (next !== (a.campaignId ?? null)) moveAccount(a, next);
+            }}
+          >
+            <SelectTrigger
+              className="h-8 text-xs"
+              disabled={togglingId === a.id}
+              title="Which campaign this handle is tracked under. Moving it also moves its already-synced posts, so the new campaign gets the full history."
+            >
+              <SelectValue>
+                {a.campaignId
+                  ? (campaigns.find((c) => c.id === a.campaignId)?.name ??
+                    a.campaignName ??
+                    "Campaign")
+                  : "All campaigns"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {campaigns.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                  {!c.isActive && " (ended)"}
+                </SelectItem>
+              ))}
+              <SelectItem value="all">All campaigns (shared)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         {a.isShadowbanned && (
           <span
