@@ -3,6 +3,15 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-20 — FIX: data frozen since Jul 15 — sync died at Vercel's 300s wall before its first DB write
+- Root cause of the Jul 16–19 data freeze (all campaigns stale, dashboards showing zero recent views): the Jul 15 `SCRAPE_CONCURRENCY = 8` throttle (correct fix for the Apify memory-402s) stretched the fetch phase from "slowest single scrape" (≤ ~2–4 min, everything parallel) to ~`ceil(tasks / 8) × per-scrape time` — routinely past the cron/manual-sync `maxDuration = 300`. Vercel kills the function at that wall, and because `syncCampaign` buffered ALL fetches and only wrote to the DB afterwards, a mid-fetch kill persisted **nothing**: no posts, no snapshots, no `lastSyncAt`, no error in the sync summary. Every nightly run since Jul 16 06:00 UTC died this way, invisibly.
+- Fix, three parts in `src/lib/social/sync.ts`:
+  - **Incremental writes**: each scrape's posts + snapshots are upserted the moment that scrape finishes (same guarded write path), so a killed invocation keeps everything fetched so far.
+  - **Time budget**: cron + manual campaign sync pass `deadline = now + SYNC_FETCH_BUDGET_MS` (240s, i.e. 60s before the wall). Workers stop starting scrapes at the deadline; in-flight scrapes get 15s grace then are abandoned; finalization (stale-handle prune for completed pairs, daily metrics, `lastSyncAt`, sync summary) always runs. Unfetched handles are recorded in the summary as deferred — visible in the campaign banner instead of silent.
+  - **Fair rotation**: cron syncs campaigns least-recently-synced first, and each campaign's task list rotates daily, so a roster too big for one budget round-robins across nights instead of starving the same handles.
+- Not verified against prod logs (no Vercel access to the tracker-app project from this session — it's not on the jaxmax team). If data is still stale after the next 06:00 UTC cron, the fallback suspect is Apify credit exhaustion — which the sync summary/banner will now actually surface, since the summary gets written even on a bad night.
+- Tested: `npm test` 47/47, `npx next build` green (build's `prisma migrate deploy` step skipped locally — no DB URL in this environment). No schema change.
+
 ## 2026-07-15 — Move a handle between campaigns, posts come along (branch, awaiting merge approval)
 - Per Jacqueline: creators tracked under an older campaign need their views counted for the active one. Each account row in Social accounts now has a campaign selector — pick the target campaign (or "All campaigns (shared)") and the handle is rescoped, **and all its already-synced posts move to the target campaign** so the history counts there immediately. Toast reports how many posts moved.
 - API: PATCH `/api/creators/[id]/accounts/[accountId]` accepts `campaignId` (must be a campaign the creator is on; clear 400 otherwise). Posts only move when rescoping TO a campaign; moving to shared leaves them.

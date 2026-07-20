@@ -149,6 +149,21 @@ export function fetchForPlatform(
  */
 export const SCRAPE_CONCURRENCY = 8;
 
+/**
+ * Time budget for the scrape phase of a sync invocation. Vercel kills the
+ * cron/manual-sync functions at maxDuration (300s) with no chance to clean
+ * up; when that happened mid-fetch, nothing at all was written — the Jul
+ * 16–19 data freeze: the 8-way throttle stretched the fetch phase past 300s,
+ * so every nightly run died before its first DB write. Callers pass
+ * Date.now() + SYNC_FETCH_BUDGET_MS as `deadline`; syncCampaign stops
+ * STARTING scrapes at the deadline, abandons in-flight ones
+ * SYNC_DEADLINE_GRACE_MS later, and always reaches finalization (daily
+ * metrics, lastSyncAt, sync summary) well before the wall. Whatever wasn't
+ * fetched is reported as deferred and picked up by the next run.
+ */
+export const SYNC_FETCH_BUDGET_MS = 240_000;
+export const SYNC_DEADLINE_GRACE_MS = 15_000;
+
 export async function mapWithConcurrency<T, R>(
   items: T[],
   limit: number,
@@ -195,7 +210,7 @@ export async function fetchWithMemoryRetry(
  * Fetches posts from each platform for each creator via Apify, upserts into
  * DB, creates daily metric snapshots.
  */
-export async function syncCampaign(campaignId: string) {
+export async function syncCampaign(campaignId: string, deadline?: number) {
   // EVERY membership syncs — deactivated creators included (per Jacqueline,
   // 2026-07-15): deactivating a creator (per campaign or whole roster) only
   // hides them from the tracking/attention pages, it never stops data
@@ -259,54 +274,102 @@ export async function syncCampaign(campaignId: string) {
     }
   }
 
-  const fetchResults = await mapWithConcurrency(
-    tasks,
-    SCRAPE_CONCURRENCY,
-    async (task) => {
-      try {
-        const fetched = await fetchWithMemoryRetry(task.platform, task.handle);
-        return {
-          task,
-          posts: HASHTAG_FILTERING_ENABLED
-            ? filterByHashtags(fetched, campaign.hashtags)
-            : fetched,
-          success: true,
-        };
-      } catch (error) {
-        console.error(
-          `Sync error for creator ${task.cc.creator.handle} on ${task.platform}:`,
-          error
+  // Rotate the task order by day so a campaign too big for one time budget
+  // doesn't starve the same handles every night — a different slice of the
+  // roster goes first on each run.
+  const rotation =
+    tasks.length > 1 ? Math.floor(Date.now() / 86_400_000) % tasks.length : 0;
+  const ordered =
+    rotation === 0
+      ? tasks
+      : [...tasks.slice(rotation), ...tasks.slice(0, rotation)];
+
+  // Each task writes its own posts the moment its scrape finishes (instead of
+  // buffering every fetch and writing at the end): if the invocation still
+  // dies at the platform wall, everything fetched so far is already saved.
+  type FetchOutcome = { task: FetchTask; success: boolean };
+  const outcomes: (FetchOutcome | undefined)[] = new Array(ordered.length);
+  let deferredCount = 0;
+
+  const runTask = async (task: FetchTask, i: number) => {
+    try {
+      const fetched = await fetchWithMemoryRetry(task.platform, task.handle);
+      const posts = HASHTAG_FILTERING_ENABLED
+        ? filterByHashtags(fetched, campaign.hashtags)
+        : fetched;
+      const known = await loadExistingMetrics(posts);
+      for (const post of posts) {
+        await upsertPost(
+          post,
+          campaignId,
+          task.cc.creatorId,
+          task.scopedToCampaign,
+          known.get(`${post.platform}:${post.externalId}`)
         );
-        skipped.push({
-          creator: task.cc.creator.handle,
-          reason: `${task.platform} @${task.handle}: ${
-            error instanceof Error ? error.message : "fetch failed"
-          }`,
-        });
-        return {
-          task,
-          posts: [] as SocialPost[],
-          success: false,
-        };
+        totalPostsUpserted++;
+      }
+      outcomes[i] = { task, success: true };
+    } catch (error) {
+      console.error(
+        `Sync error for creator ${task.cc.creator.handle} on ${task.platform}:`,
+        error
+      );
+      skipped.push({
+        creator: task.cc.creator.handle,
+        reason: `${task.platform} @${task.handle}: ${
+          error instanceof Error ? error.message : "fetch failed"
+        }`,
+      });
+      outcomes[i] = { task, success: false };
+    }
+  };
+
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(SCRAPE_CONCURRENCY, ordered.length)) },
+    async () => {
+      while (true) {
+        const i = next++;
+        if (i >= ordered.length) return;
+        if (deadline != null && Date.now() >= deadline) {
+          deferredCount++;
+          skipped.push({
+            creator: ordered[i].cc.creator.handle,
+            reason: `${ordered[i].platform} @${ordered[i].handle}: deferred — sync hit its time budget; next run picks it up`,
+          });
+          outcomes[i] = { task: ordered[i], success: false };
+          continue;
+        }
+        await runTask(ordered[i], i);
       }
     }
   );
 
-  const existingByKey = await loadExistingMetrics(
-    fetchResults.flatMap((r) => r.posts)
-  );
-
-  // DB writes are sequential to avoid overwhelming the connection pool.
-  for (const { task, posts } of fetchResults) {
-    for (const post of posts) {
-      await upsertPost(
-        post,
-        campaignId,
-        task.cc.creatorId,
-        task.scopedToCampaign,
-        existingByKey.get(`${post.platform}:${post.externalId}`)
-      );
-      totalPostsUpserted++;
+  // Wait for the pool, but never past deadline + grace: finalization below
+  // must run before the function's maxDuration kill.
+  const pool = Promise.all(workers).then(() => undefined);
+  if (deadline == null) {
+    await pool;
+  } else {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      pool,
+      new Promise<void>((resolve) => {
+        timer = setTimeout(
+          resolve,
+          Math.max(0, deadline + SYNC_DEADLINE_GRACE_MS - Date.now())
+        );
+      }),
+    ]);
+    if (timer) clearTimeout(timer);
+    for (let i = 0; i < ordered.length; i++) {
+      if (i < next && outcomes[i] == null) {
+        deferredCount++;
+        skipped.push({
+          creator: ordered[i].cc.creator.handle,
+          reason: `${ordered[i].platform} @${ordered[i].handle}: scrape still running when the time budget expired; next run picks it up`,
+        });
+      }
     }
   }
 
@@ -323,8 +386,9 @@ export async function syncCampaign(campaignId: string) {
   // video the creator really deleted keeps its last-known metrics.
   let totalPrunedStale = 0;
   const prunedPairs = new Set<string>();
-  for (const { task, success } of fetchResults) {
-    if (!success) continue;
+  for (const outcome of outcomes) {
+    if (!outcome?.success) continue;
+    const { task } = outcome;
 
     const pairKey = `${task.cc.creatorId}:${task.platform}`;
     if (prunedPairs.has(pairKey)) continue;
@@ -355,6 +419,7 @@ export async function syncCampaign(campaignId: string) {
         at: new Date().toISOString(),
         postsUpserted: totalPostsUpserted,
         platformAttempts: tasks.length,
+        deferred: deferredCount,
         failures: skipped,
       },
     },
@@ -365,6 +430,7 @@ export async function syncCampaign(campaignId: string) {
     prunedStale: totalPrunedStale,
     creatorsAttempted: campaign.campaignCreators.length,
     platformAttempts: tasks.length,
+    deferred: deferredCount,
     skipped,
   };
 }
@@ -597,7 +663,7 @@ async function updateCampaignDailyMetrics(campaignId: string, date: Date) {
  * Sync all active campaigns for a team, or all teams if no teamId specified.
  * Used by the cron job.
  */
-export async function syncAllCampaigns(teamId?: string) {
+export async function syncAllCampaigns(teamId?: string, deadline?: number) {
   const where = teamId
     ? { isActive: true, teamId }
     : { isActive: true };
@@ -605,14 +671,24 @@ export async function syncAllCampaigns(teamId?: string) {
   const campaigns = await prisma.campaign.findMany({
     where,
     select: { id: true, name: true },
+    // Least-recently-synced first: if the time budget runs out mid-list, the
+    // campaigns that were skipped today go first tomorrow.
+    orderBy: { lastSyncAt: { sort: "asc", nulls: "first" } },
   });
 
   const results = [];
 
   for (const campaign of campaigns) {
+    if (deadline != null && Date.now() >= deadline) {
+      console.warn(
+        `Deferring campaign ${campaign.name} (${campaign.id}) — sync time budget exhausted; it goes first next run`
+      );
+      results.push({ campaignId: campaign.id, deferred: true });
+      continue;
+    }
     try {
       console.log(`Syncing campaign: ${campaign.name} (${campaign.id})`);
-      const result = await syncCampaign(campaign.id);
+      const result = await syncCampaign(campaign.id, deadline);
       results.push({ campaignId: campaign.id, ...result });
     } catch (error) {
       console.error(`Failed to sync campaign ${campaign.id}:`, error);
