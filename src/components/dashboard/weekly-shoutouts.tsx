@@ -103,6 +103,7 @@ export async function WeeklyShoutouts({
     posts: number;
     views: number;
     engagements: number;
+    postViews: number[];
     days: Set<string>;
   };
   const byCreator = new Map<string, Agg>();
@@ -114,6 +115,7 @@ export async function WeeklyShoutouts({
         posts: 0,
         views: 0,
         engagements: 0,
+        postViews: [],
         days: new Set(),
       };
       byCreator.set(p.creatorId, agg);
@@ -121,6 +123,7 @@ export async function WeeklyShoutouts({
     agg.posts++;
     agg.views += p.views;
     agg.engagements += p.likes + p.comments + p.shares + p.saves;
+    agg.postViews.push(p.views);
     agg.days.add(p.postedAt.toDateString());
   }
   const aggs = [...byCreator.values()];
@@ -150,9 +153,18 @@ export async function WeeklyShoutouts({
     }
   }
 
+  // Engagement rate only means something on posts with real reach: a creator
+  // whose typical post is tiny can rack up friend-likes and top the rate
+  // board on likes alone (no comments/shares/saves). So qualify on BOTH the
+  // week's total views and the median post's views.
+  const medianViews = (xs: number[]) => {
+    const sorted = [...xs].sort((x, y) => x - y);
+    return sorted[Math.floor(sorted.length / 2)] ?? 0;
+  };
   let mostEngaged: { agg: Agg; rate: number } | null = null;
   for (const a of aggs) {
     if (a.views < minEngagedViews) continue;
+    if (medianViews(a.postViews) < minEngagedViews) continue;
     const rate = (a.engagements / a.views) * 100;
     if (!mostEngaged || rate > mostEngaged.rate) mostEngaged = { agg: a, rate };
   }
@@ -202,7 +214,7 @@ export async function WeeklyShoutouts({
     },
     {
       title: "Most engaged",
-      tooltip: `Highest (likes + comments + shares + saves) ÷ views this week — needs ${minEngagedViews}+ views to qualify (adjustable in Settings)`,
+      tooltip: `Highest (likes + comments + shares + saves) ÷ views this week — needs ${minEngagedViews}+ total views and a typical (median) post of ${minEngagedViews}+ views to qualify (adjustable in Settings)`,
       icon: HeartHandshake,
       creator: mostEngaged?.agg.creator ?? null,
       stat: mostEngaged ? `${mostEngaged.rate.toFixed(1)}% engagement` : "",
