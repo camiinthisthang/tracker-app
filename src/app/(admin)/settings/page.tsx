@@ -147,7 +147,7 @@ export default function SettingsPage() {
               </Label>
               <p className="text-xs text-slate-400">
                 &quot;Most engaged&quot; needs at least this many views for the
-                week, so one tiny post can&apos;t win with a misleading rate.
+                week AND on the typical (median) post, so tiny-reach posts can&apos;t win with a misleading rate.
               </p>
               <Input
                 type="number"
