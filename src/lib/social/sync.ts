@@ -406,8 +406,13 @@ export async function syncCampaign(campaignId: string, deadline?: number) {
     }
   }
 
-  // Update campaign daily metrics
-  await updateCampaignDailyMetrics(campaignId, today);
+  // Update campaign daily metrics — today plus any missing day in the chart
+  // window. A day with no sync at all never got its row (the Jul 16–19 cron
+  // outage), which left permanent gaps in the campaign views chart. Missing
+  // days are reconstructed from the posts published that day at their
+  // current metrics; rows that already exist keep the values captured on
+  // their own day.
+  await backfillCampaignDailyMetrics(campaignId, today, campaign.startDate);
 
   // Update lastSyncAt + persist the outcome so failures are visible in the
   // UI (campaign overview banner) instead of only in server logs.
@@ -601,6 +606,32 @@ export async function upsertPost(
   });
 
   return dbPost;
+}
+
+// The campaign overview chart reads the last 28 days of CampaignDailyMetric.
+const DAILY_METRICS_BACKFILL_DAYS = 28;
+
+async function backfillCampaignDailyMetrics(
+  campaignId: string,
+  today: Date,
+  campaignStart: Date
+) {
+  const windowStart = new Date(today);
+  windowStart.setDate(windowStart.getDate() - DAILY_METRICS_BACKFILL_DAYS);
+  const start = campaignStart > windowStart ? new Date(campaignStart) : windowStart;
+  start.setHours(0, 0, 0, 0);
+
+  const existing = await prisma.campaignDailyMetric.findMany({
+    where: { campaignId, date: { gte: start, lt: today } },
+    select: { date: true },
+  });
+  const have = new Set(existing.map((r) => r.date.getTime()));
+  for (const d = new Date(start); d < today; d.setDate(d.getDate() + 1)) {
+    if (!have.has(d.getTime())) {
+      await updateCampaignDailyMetrics(campaignId, new Date(d));
+    }
+  }
+  await updateCampaignDailyMetrics(campaignId, today);
 }
 
 /**
