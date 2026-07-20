@@ -46,6 +46,10 @@ export async function middleware(request: NextRequest) {
     pathname === "/apply" ||
     pathname.startsWith("/invite/") ||
     pathname.startsWith("/api/auth") ||
+    // Vercel cron requests carry no session cookie — gating them here 307'd
+    // every nightly sync to /login since launch. The routes authenticate
+    // themselves via the CRON_SECRET bearer header.
+    pathname.startsWith("/api/cron/") ||
     pathname === "/api/applications" ||
     pathname === "/api/inquiries" ||
     pathname === "/api/invite/team/accept" ||

@@ -3,6 +3,13 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-20 — ACTUAL ROOT CAUSE (from prod logs): the nightly cron has NEVER run — middleware 307'd it to /login; plus campaign-chart gap backfill
+- With production Vercel access (Jacqueline's account) the logs settle it: every request to `/api/cron/*` — sync-posts at 06:00, posthog-sync at 06:30, viral-notifications at 15:00 — returns **307 → /login** from the edge middleware, every day, as far back as logs reach. The middleware's public-route allowlist never included `/api/cron/`, and Vercel cron requests carry no session cookie. The nightly sync **never ran once**; data looked fresh through Jul 15 only because the Jul 11–15 working sessions were constantly triggering manual syncs. Zero Apify credit errors in the logs — every 402 is the (already fixed) concurrent-memory cap, last seen Jul 15 19:30.
+- Fix 1: `/api/cron/` added to the middleware public-route list. Safe: all four cron routes already authenticate the `CRON_SECRET` bearer header themselves.
+- Fix 2 (Jackie's "home shows Jul 20 but campaign chart stops at Jul 15"): the home chart is computed from posts directly, but the campaign chart reads `campaign_daily_metrics`, whose rows are only written on a day a sync actually runs — Jul 16–19 rows just don't exist. Sync finalization now backfills any missing day in the 28-day chart window (bounded by campaign start), reconstructing from posts published that day at current metrics; existing rows are never rewritten. The Jul 16–19 gap fills itself on the next sync of each campaign.
+- The earlier 300s-timeout hardening (incremental writes + time budget) stands: it's what made this morning's manual sync land data, and the cron — running for real for the first time — will need it.
+- Tested: `npm test` 47/47, `npx next build` green. No schema change.
+
 ## 2026-07-20 — FIX: data frozen since Jul 15 — sync died at Vercel's 300s wall before its first DB write
 - Root cause of the Jul 16–19 data freeze (all campaigns stale, dashboards showing zero recent views): the Jul 15 `SCRAPE_CONCURRENCY = 8` throttle (correct fix for the Apify memory-402s) stretched the fetch phase from "slowest single scrape" (≤ ~2–4 min, everything parallel) to ~`ceil(tasks / 8) × per-scrape time` — routinely past the cron/manual-sync `maxDuration = 300`. Vercel kills the function at that wall, and because `syncCampaign` buffered ALL fetches and only wrote to the DB afterwards, a mid-fetch kill persisted **nothing**: no posts, no snapshots, no `lastSyncAt`, no error in the sync summary. Every nightly run since Jul 16 06:00 UTC died this way, invisibly.
 - Fix, three parts in `src/lib/social/sync.ts`:
