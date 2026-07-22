@@ -9,6 +9,9 @@ notable manual changes. Newest entries on top.
 - This commit exists to mint a fresh PREVIEW deployment that bakes in the Preview-scoped token; preview shares the production DATABASE_URL, so syncs run from the preview URL land in the real dashboard data.
 - **Still open before tonight's 06:00 UTC cron: tick Production on `APIFY_TOKEN` and redeploy prod, or the nightly sync fails again with "not set".**
 
+### Blocked — needs Cami
+- **10-second Vercel change: scope `APIFY_TOKEN` to Production.** Vercel → tracker-app → Settings → Environment Variables → edit `APIFY_TOKEN` → tick Production → save. Jacqueline added the new token on 2026-07-22 but only has Preview scope access, so production (and the 06:00 UTC nightly cron) fails with "APIFY_TOKEN is not set" until this is done. After ticking the box, merge PR #80 (any merge to main works) to rebuild production with the var. Interim workaround in use: syncs run from the branch preview URL (which has the Preview-scoped token and shares the prod DB).
+
 ## 2026-07-22 — Reports tab: full-campaign coverage by default, client-ready public link (for MERIT)
 - Per Jackie (prepping a report for client MERIT): the report defaulted to the trailing 7 days, so it never showed the whole campaign. The Reports tab and the campaign report view now default to the FULL window — campaign start or the earliest tracked post (whichever is first, since pre-campaign viral posts deliberately count) through now. The date pickers still narrow it; new "Full campaign" / "All time" preset button resets to the default.
 - Week-over-week delta pills now hide when the previous comparison period has no posts (a full-campaign window compares against pre-campaign nothingness — "+2.1M (+100%)" pills read as noise on a client report). The "vs. previous period" header hides with them.
