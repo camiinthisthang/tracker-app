@@ -3,6 +3,7 @@ import {
   fetchTikTokPostsViaApify,
   fetchInstagramPostsViaApify,
   fetchYouTubeShortsViaApify,
+  isApifyMonthlyLimitError,
 } from "./apify";
 import type { SocialPost } from "./types";
 import type { Platform } from "@/generated/prisma/enums";
@@ -210,7 +211,20 @@ export async function fetchWithMemoryRetry(
  * Fetches posts from each platform for each creator via Apify, upserts into
  * DB, creates daily metric snapshots.
  */
-export async function syncCampaign(campaignId: string, deadline?: number) {
+/**
+ * Shared across every campaign in one cron run: once Apify reports the
+ * monthly usage hard limit, all remaining scrapes in the run are guaranteed
+ * to fail, so they're skipped instead of attempted — one clear banner line
+ * per campaign instead of a wall of identical 403s, and no pointless
+ * launch attempts against a capped account.
+ */
+export type ApifyLimitState = { monthlyLimitHit: boolean };
+
+export async function syncCampaign(
+  campaignId: string,
+  deadline?: number,
+  limitState: ApifyLimitState = { monthlyLimitHit: false }
+) {
   // EVERY membership syncs — deactivated creators included (per Jacqueline,
   // 2026-07-15): deactivating a creator (per campaign or whole roster) only
   // hides them from the tracking/attention pages, it never stops data
@@ -310,6 +324,7 @@ export async function syncCampaign(campaignId: string, deadline?: number) {
       }
       outcomes[i] = { task, success: true };
     } catch (error) {
+      if (isApifyMonthlyLimitError(error)) limitState.monthlyLimitHit = true;
       console.error(
         `Sync error for creator ${task.cc.creator.handle} on ${task.platform}:`,
         error
@@ -325,12 +340,18 @@ export async function syncCampaign(campaignId: string, deadline?: number) {
   };
 
   let next = 0;
+  let cappedCount = 0;
   const workers = Array.from(
     { length: Math.max(1, Math.min(SCRAPE_CONCURRENCY, ordered.length)) },
     async () => {
       while (true) {
         const i = next++;
         if (i >= ordered.length) return;
+        if (limitState.monthlyLimitHit) {
+          cappedCount++;
+          outcomes[i] = { task: ordered[i], success: false };
+          continue;
+        }
         if (deadline != null && Date.now() >= deadline) {
           deferredCount++;
           skipped.push({
@@ -384,6 +405,13 @@ export async function syncCampaign(campaignId: string, deadline?: number) {
   // never auto-deleted (per Jacqueline, 2026-07-15): the actors routinely
   // return partial sets, and trusting one run made post counts bounce. A
   // video the creator really deleted keeps its last-known metrics.
+  if (cappedCount > 0) {
+    skipped.push({
+      creator: "all remaining creators",
+      reason: `Apify monthly usage hard limit reached — ${cappedCount} scrapes were not attempted (they cannot succeed until the limit resets or is raised at console.apify.com/billing). Re-running the sync will not use extra credits, but it also cannot fetch anything until then.`,
+    });
+  }
+
   let totalPrunedStale = 0;
   const prunedPairs = new Set<string>();
   for (const outcome of outcomes) {
@@ -425,6 +453,7 @@ export async function syncCampaign(campaignId: string, deadline?: number) {
         postsUpserted: totalPostsUpserted,
         platformAttempts: tasks.length,
         deferred: deferredCount,
+        monthlyLimitHit: limitState.monthlyLimitHit,
         failures: skipped,
       },
     },
@@ -436,6 +465,7 @@ export async function syncCampaign(campaignId: string, deadline?: number) {
     creatorsAttempted: campaign.campaignCreators.length,
     platformAttempts: tasks.length,
     deferred: deferredCount,
+    monthlyLimitHit: limitState.monthlyLimitHit,
     skipped,
   };
 }
@@ -708,6 +738,10 @@ export async function syncAllCampaigns(teamId?: string, deadline?: number) {
   });
 
   const results = [];
+  // One shared limit flag for the whole run: after the first "monthly usage
+  // hard limit" 403, later campaigns still finalize (banner + daily-metric
+  // backfill) but launch zero scrapes.
+  const limitState: ApifyLimitState = { monthlyLimitHit: false };
 
   for (const campaign of campaigns) {
     if (deadline != null && Date.now() >= deadline) {
@@ -719,7 +753,7 @@ export async function syncAllCampaigns(teamId?: string, deadline?: number) {
     }
     try {
       console.log(`Syncing campaign: ${campaign.name} (${campaign.id})`);
-      const result = await syncCampaign(campaign.id, deadline);
+      const result = await syncCampaign(campaign.id, deadline, limitState);
       results.push({ campaignId: campaign.id, ...result });
     } catch (error) {
       console.error(`Failed to sync campaign ${campaign.id}:`, error);

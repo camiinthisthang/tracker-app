@@ -3,6 +3,13 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-22 — Apify monthly usage limit: circuit breaker + clear banner
+- Jackie's banner (20 failed fetches, "Apify error 403: Monthly usage hard limit exceeded") is real credit/budget exhaustion — the account's monthly platform budget is spent, every launch is refused until the billing cycle resets or the limit is raised in Apify Console → Billing. Distinct from the (fixed) 402 concurrent-memory cap. Note: capped launch attempts cost $0 — re-running doesn't burn credits, it just can't fetch.
+- Circuit breaker: the first monthly-limit 403 in a sync run flips a flag shared across ALL campaigns in that run — remaining scrapes are skipped instead of attempted (they're guaranteed to fail), each campaign still finalizes (summary, daily-metric backfill), and the summary carries one aggregate "N scrapes not attempted" line + `monthlyLimitHit` instead of a wall of identical 403s.
+- SyncHealthBanner: dedicated message for the monthly-limit case (points at console.apify.com → Billing, notes re-syncing is free but futile) — takes precedence over the memory-cap and generic-credit hints.
+- Cost context for Cami: ~40–50 actor runs and ~2,500+ results per full sync (IG runs 2 actors/handle, 60 results/scrape), × nightly cron + manual syncs ≈ plausibly $5–10/day. Options if this recurs: raise limit/upgrade plan, or reduce burn in code (shallow daily scrapes ~15 results + weekly deep 60; skip re-scraping a handle synced <20h ago). Neither implemented — needs a product call on data freshness.
+- Tested: `npm test` 47/47, `npx next build` green. No schema change.
+
 ## 2026-07-20 — ACTUAL ROOT CAUSE (from prod logs): the nightly cron has NEVER run — middleware 307'd it to /login; plus campaign-chart gap backfill
 - With production Vercel access (Jacqueline's account) the logs settle it: every request to `/api/cron/*` — sync-posts at 06:00, posthog-sync at 06:30, viral-notifications at 15:00 — returns **307 → /login** from the edge middleware, every day, as far back as logs reach. The middleware's public-route allowlist never included `/api/cron/`, and Vercel cron requests carry no session cookie. The nightly sync **never ran once**; data looked fresh through Jul 15 only because the Jul 11–15 working sessions were constantly triggering manual syncs. Zero Apify credit errors in the logs — every 402 is the (already fixed) concurrent-memory cap, last seen Jul 15 19:30.
 - Fix 1: `/api/cron/` added to the middleware public-route list. Safe: all four cron routes already authenticate the `CRON_SECRET` bearer header themselves.

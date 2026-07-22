@@ -89,6 +89,17 @@ export function describeApifyError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+/**
+ * True when the account's monthly platform-usage budget is exhausted (Apify
+ * 403 "Monthly usage hard limit exceeded"). Every launch is refused until the
+ * billing cycle resets or the limit is raised, so once one scrape fails this
+ * way there is no point attempting the rest of the run.
+ */
+export function isApifyMonthlyLimitError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /monthly usage hard limit/i.test(msg);
+}
+
 function stripHandle(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const cleaned = raw.trim().replace(/^@+/, "");
