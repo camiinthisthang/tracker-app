@@ -346,6 +346,23 @@ model CreatorAccount {
   @@map("creator_accounts")
 }
 
+// Apify burn control: per-(platform, handle) scrape bookkeeping. Sync skips
+// handles scraped successfully within the freshness window and runs cheap
+// shallow scrapes between weekly deep passes (src/lib/social/scrape-plan.ts).
+// Handles are stored lowercase; failures never update lastSuccessAt.
+model HandleSyncState {
+  id            String    @id @default(cuid())
+  platform      Platform
+  handle        String
+  lastSuccessAt DateTime?
+  lastDeepAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([platform, handle])
+  @@map("handle_sync_states")
+}
+
 model CampaignCreator {
   id              String   @id @default(cuid())
   campaignId      String

@@ -2,6 +2,7 @@ import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequiredSession, hasAgencyWideAccess } from "@/lib/auth";
 import { syncCampaign, SYNC_FETCH_BUDGET_MS } from "@/lib/social/sync";
+import { HANDLE_FRESH_WINDOW_MANUAL_MS } from "@/lib/social/scrape-plan";
 
 // syncCampaign fans out Apify scrapes for every (creator, platform) on the
 // campaign — a real-world 10-creator campaign can easily take 2–4 minutes.
@@ -56,7 +57,14 @@ export async function POST(
       try {
         // Budget the scrape phase so the sync finalizes (summary, daily
         // metrics) before the maxDuration wall instead of dying write-less.
-        await syncCampaign(campaignId, Date.now() + SYNC_FETCH_BUDGET_MS);
+        // The short manual freshness window means handles shared with a
+        // just-synced campaign aren't re-scraped back-to-back.
+        await syncCampaign(
+          campaignId,
+          Date.now() + SYNC_FETCH_BUDGET_MS,
+          undefined,
+          HANDLE_FRESH_WINDOW_MANUAL_MS
+        );
       } catch (err) {
         console.error(
           `Background sync failed for campaign ${campaignId}:`,

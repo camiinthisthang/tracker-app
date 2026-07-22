@@ -5,6 +5,7 @@ import { canAccessCreator } from "@/lib/visibility";
 import {
   fetchWithMemoryRetry,
   mapWithConcurrency,
+  recordHandleScrapeSuccess,
   resolveSyncHandles,
   loadExistingMetrics,
   upsertPost,
@@ -112,6 +113,15 @@ export async function POST(
 
   const allPosts = fetchResults.flatMap((r) => r.posts);
   let upserted = 0;
+
+  // This manual sync always scrapes at full depth, so a success counts as a
+  // deep pass in the freshness/deep-pass schedule the campaign sync reads.
+  const failedKeys = new Set(failures.map((f) => `${f.platform}:${f.handle}`));
+  for (const r of fetchResults) {
+    if (!failedKeys.has(`${r.platform}:${r.handle}`)) {
+      await recordHandleScrapeSuccess(r.platform, r.handle, "deep");
+    }
+  }
 
   if (campaignId) {
     const existingByKey = await loadExistingMetrics(allPosts);

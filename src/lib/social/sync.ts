@@ -4,7 +4,14 @@ import {
   fetchInstagramPostsViaApify,
   fetchYouTubeShortsViaApify,
   isApifyMonthlyLimitError,
+  SCRAPE_RESULTS_LIMIT,
+  SHALLOW_SCRAPE_RESULTS_LIMIT,
 } from "./apify";
+import {
+  planHandleScrape,
+  HANDLE_FRESH_WINDOW_CRON_MS,
+  type ScrapeDepth,
+} from "./scrape-plan";
 import type { SocialPost } from "./types";
 import type { Platform } from "@/generated/prisma/enums";
 
@@ -132,11 +139,13 @@ export function knownHandlesFor(
 
 export function fetchForPlatform(
   platform: SyncPlatform,
-  handle: string
+  handle: string,
+  limit = SCRAPE_RESULTS_LIMIT
 ): Promise<SocialPost[]> {
-  if (platform === "TIKTOK") return fetchTikTokPostsViaApify(handle);
-  if (platform === "INSTAGRAM") return fetchInstagramPostsViaApify(handle);
-  return fetchYouTubeShortsViaApify(handle);
+  if (platform === "TIKTOK") return fetchTikTokPostsViaApify(handle, limit);
+  if (platform === "INSTAGRAM")
+    return fetchInstagramPostsViaApify(handle, limit);
+  return fetchYouTubeShortsViaApify(handle, limit);
 }
 
 /**
@@ -193,17 +202,74 @@ export async function mapWithConcurrency<T, R>(
  */
 export async function fetchWithMemoryRetry(
   platform: SyncPlatform,
-  handle: string
+  handle: string,
+  limit = SCRAPE_RESULTS_LIMIT
 ): Promise<SocialPost[]> {
   try {
-    return await fetchForPlatform(platform, handle);
+    return await fetchForPlatform(platform, handle, limit);
   } catch (e) {
     if (e instanceof Error && /memory limit/i.test(e.message)) {
       await new Promise((r) => setTimeout(r, 10_000));
-      return fetchForPlatform(platform, handle);
+      return fetchForPlatform(platform, handle, limit);
     }
     throw e;
   }
+}
+
+/**
+ * Record a successful scrape for the freshness-skip / deep-pass schedule.
+ * Only success updates the state — a failed handle keeps retrying at full
+ * cadence and depth.
+ */
+export async function recordHandleScrapeSuccess(
+  platform: SyncPlatform,
+  handle: string,
+  depth: ScrapeDepth
+) {
+  const key = handle.toLowerCase();
+  const now = new Date();
+  await prisma.handleSyncState.upsert({
+    where: { platform_handle: { platform, handle: key } },
+    create: {
+      platform,
+      handle: key,
+      lastSuccessAt: now,
+      lastDeepAt: depth === "deep" ? now : null,
+    },
+    update: {
+      lastSuccessAt: now,
+      ...(depth === "deep" ? { lastDeepAt: now } : {}),
+    },
+  });
+}
+
+/** Sync states for a set of (platform, handle) tasks, keyed
+ * `PLATFORM:handle-lowercase`. */
+export async function loadHandleSyncStates(
+  tasks: { platform: SyncPlatform; handle: string }[]
+): Promise<Map<string, { lastSuccessAt: Date | null; lastDeepAt: Date | null }>> {
+  const byKey = new Map<
+    string,
+    { lastSuccessAt: Date | null; lastDeepAt: Date | null }
+  >();
+  const pairs = new Map<string, { platform: SyncPlatform; handle: string }>();
+  for (const t of tasks) {
+    pairs.set(`${t.platform}:${t.handle.toLowerCase()}`, {
+      platform: t.platform,
+      handle: t.handle.toLowerCase(),
+    });
+  }
+  if (pairs.size === 0) return byKey;
+  const rows = await prisma.handleSyncState.findMany({
+    where: { OR: [...pairs.values()] },
+  });
+  for (const r of rows) {
+    byKey.set(`${r.platform}:${r.handle}`, {
+      lastSuccessAt: r.lastSuccessAt,
+      lastDeepAt: r.lastDeepAt,
+    });
+  }
+  return byKey;
 }
 
 /**
@@ -223,7 +289,11 @@ export type ApifyLimitState = { monthlyLimitHit: boolean };
 export async function syncCampaign(
   campaignId: string,
   deadline?: number,
-  limitState: ApifyLimitState = { monthlyLimitHit: false }
+  limitState: ApifyLimitState = { monthlyLimitHit: false },
+  // Handles successfully scraped within this window are skipped entirely
+  // (0 = never skip). Cron passes HANDLE_FRESH_WINDOW_CRON_MS, the manual
+  // sync button HANDLE_FRESH_WINDOW_MANUAL_MS — see scrape-plan.ts.
+  freshWindowMs = 0
 ) {
   // EVERY membership syncs — deactivated creators included (per Jacqueline,
   // 2026-07-15): deactivating a creator (per campaign or whole roster) only
@@ -260,6 +330,7 @@ export async function syncCampaign(
     platform: SyncPlatform;
     handle: string;
     scopedToCampaign: boolean;
+    depth: ScrapeDepth;
   };
   const tasks: FetchTask[] = [];
   for (const cc of campaign.campaignCreators) {
@@ -276,6 +347,7 @@ export async function syncCampaign(
         platform: h.platform,
         handle: h.handle,
         scopedToCampaign: h.scopedToCampaign,
+        depth: "deep",
       });
     }
     // A deactivated member with no handles isn't a problem worth flagging —
@@ -288,15 +360,39 @@ export async function syncCampaign(
     }
   }
 
+  // Burn control (see scrape-plan.ts): skip handles scraped successfully
+  // within the freshness window — dedupes handles shared across campaigns in
+  // one cron run and absorbs back-to-back manual re-syncs — and scrape the
+  // rest shallow unless their weekly deep pass is due. Failed handles have no
+  // fresh lastSuccessAt, so they always retry (deep if their pass is due).
+  const stateByKey = await loadHandleSyncStates(tasks);
+  const planNow = Date.now();
+  let freshSkips = 0;
+  const runnable: FetchTask[] = [];
+  for (const t of tasks) {
+    const plan = planHandleScrape(
+      stateByKey.get(`${t.platform}:${t.handle.toLowerCase()}`),
+      planNow,
+      freshWindowMs
+    );
+    if (plan === "skip") {
+      freshSkips++;
+      continue;
+    }
+    runnable.push({ ...t, depth: plan });
+  }
+
   // Rotate the task order by day so a campaign too big for one time budget
   // doesn't starve the same handles every night — a different slice of the
   // roster goes first on each run.
   const rotation =
-    tasks.length > 1 ? Math.floor(Date.now() / 86_400_000) % tasks.length : 0;
+    runnable.length > 1
+      ? Math.floor(Date.now() / 86_400_000) % runnable.length
+      : 0;
   const ordered =
     rotation === 0
-      ? tasks
-      : [...tasks.slice(rotation), ...tasks.slice(0, rotation)];
+      ? runnable
+      : [...runnable.slice(rotation), ...runnable.slice(0, rotation)];
 
   // Each task writes its own posts the moment its scrape finishes (instead of
   // buffering every fetch and writing at the end): if the invocation still
@@ -307,7 +403,13 @@ export async function syncCampaign(
 
   const runTask = async (task: FetchTask, i: number) => {
     try {
-      const fetched = await fetchWithMemoryRetry(task.platform, task.handle);
+      const fetched = await fetchWithMemoryRetry(
+        task.platform,
+        task.handle,
+        task.depth === "shallow"
+          ? SHALLOW_SCRAPE_RESULTS_LIMIT
+          : SCRAPE_RESULTS_LIMIT
+      );
       const posts = HASHTAG_FILTERING_ENABLED
         ? filterByHashtags(fetched, campaign.hashtags)
         : fetched;
@@ -322,6 +424,7 @@ export async function syncCampaign(
         );
         totalPostsUpserted++;
       }
+      await recordHandleScrapeSuccess(task.platform, task.handle, task.depth);
       outcomes[i] = { task, success: true };
     } catch (error) {
       if (isApifyMonthlyLimitError(error)) limitState.monthlyLimitHit = true;
@@ -452,6 +555,7 @@ export async function syncCampaign(
         at: new Date().toISOString(),
         postsUpserted: totalPostsUpserted,
         platformAttempts: tasks.length,
+        freshSkips,
         deferred: deferredCount,
         monthlyLimitHit: limitState.monthlyLimitHit,
         failures: skipped,
@@ -464,6 +568,7 @@ export async function syncCampaign(
     prunedStale: totalPrunedStale,
     creatorsAttempted: campaign.campaignCreators.length,
     platformAttempts: tasks.length,
+    freshSkips,
     deferred: deferredCount,
     monthlyLimitHit: limitState.monthlyLimitHit,
     skipped,
@@ -753,7 +858,12 @@ export async function syncAllCampaigns(teamId?: string, deadline?: number) {
     }
     try {
       console.log(`Syncing campaign: ${campaign.name} (${campaign.id})`);
-      const result = await syncCampaign(campaign.id, deadline, limitState);
+      const result = await syncCampaign(
+        campaign.id,
+        deadline,
+        limitState,
+        HANDLE_FRESH_WINDOW_CRON_MS
+      );
       results.push({ campaignId: campaign.id, ...result });
     } catch (error) {
       console.error(`Failed to sync campaign ${campaign.id}:`, error);

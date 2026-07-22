@@ -26,9 +26,15 @@ import type { SocialPost } from "./types";
 
 const APIFY_BASE = "https://api.apify.com/v2";
 
-/** Per-handle scrape cap. Sync's deletion-reconciliation uses this to tell
- * "we saw the whole account" from "the scrape hit the cap". */
+/** Deep per-handle scrape cap — the full refresh used for brand-new handles
+ * and the roughly-weekly deep pass (see src/lib/social/scrape-plan.ts). */
 export const SCRAPE_RESULTS_LIMIT = 60;
+
+/** Shallow per-handle scrape cap for the nightly runs between deep passes.
+ * New posts always surface at the top of a profile, so 15 results catch
+ * every new post plus recent metric movement at a quarter of the per-result
+ * actor cost. */
+export const SHALLOW_SCRAPE_RESULTS_LIMIT = 15;
 
 function getToken() {
   const t = process.env.APIFY_TOKEN;
