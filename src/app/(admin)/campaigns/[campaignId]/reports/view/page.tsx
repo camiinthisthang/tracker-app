@@ -22,7 +22,9 @@ export default async function CampaignReportViewPage({
   if (!campaign) notFound();
 
   const range = parseReportRange(await searchParams);
-  const data = await computeReport({ type: "campaign", campaignId }, range);
+  const data = await computeReport({ type: "campaign", campaignId }, range, {
+    defaultWindow: "full",
+  });
 
   return <ClientReport data={data} />;
 }

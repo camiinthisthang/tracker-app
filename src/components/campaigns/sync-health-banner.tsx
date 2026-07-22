@@ -5,6 +5,7 @@ export interface SyncSummary {
   at?: string;
   postsUpserted?: number;
   platformAttempts?: number;
+  monthlyLimitHit?: boolean;
   failures?: { creator: string; reason: string }[];
 }
 
@@ -17,11 +18,18 @@ export function SyncHealthBanner({ summary }: { summary: SyncSummary | null }) {
   const failures = summary?.failures ?? [];
   if (!summary || failures.length === 0) return null;
 
+  // Monthly-usage 403s mean the Apify account's budget for the billing cycle
+  // is spent — nothing syncs until it resets or the limit is raised.
+  const monthlyLimit =
+    summary.monthlyLimitHit ||
+    failures.some((f) => /monthly usage hard limit/i.test(f.reason));
   // Memory-cap 402s ("memory limit ... for all your Actor runs") are a
   // concurrency problem, not billing — check them first so they don't
   // trigger the buy-credits hint.
-  const memoryIssue = failures.some((f) => /memory limit/i.test(f.reason));
+  const memoryIssue =
+    !monthlyLimit && failures.some((f) => /memory limit/i.test(f.reason));
   const creditIssue =
+    !monthlyLimit &&
     !memoryIssue &&
     failures.some((f) => /credit|quota|payment|402/i.test(f.reason));
 
@@ -38,6 +46,14 @@ export function SyncHealthBanner({ summary }: { summary: SyncSummary | null }) {
               : ""}{" "}
             — some views may be stale or missing
           </p>
+          {monthlyLimit && (
+            <p className="mt-1 text-xs font-medium text-amber-700">
+              The Apify account has hit its monthly usage hard limit — no
+              scrape can run until the billing cycle resets or the limit is
+              raised at console.apify.com → Billing. Re-syncing doesn&apos;t
+              use extra credits, but it can&apos;t fetch anything until then.
+            </p>
+          )}
           {memoryIssue && (
             <p className="mt-1 text-xs font-medium text-amber-700">
               Too many scrapes ran at once and Apify&apos;s concurrent-memory
