@@ -336,6 +336,12 @@ export function ClientReport({
               <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.07em] text-ink-500">
                 viral posts
               </p>
+              {data.hero.viralThreshold > 0 && (
+                <p className="mt-1 font-mono text-[10px] text-ink-300">
+                  over {compact(data.hero.viralThreshold)} views — 3× the
+                  typical post this period
+                </p>
+              )}
               {data.wow && (
                 <div className="mt-2.5">
                   <DeltaPill
