@@ -3,6 +3,12 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-22 — Apify token swap timeline (ops note, no code change)
+- 15:55 UTC: PR #79 merge auto-deployed production. At build time `APIFY_TOKEN` was absent from Vercel Production env (old token removed during the swap) → Jackie's 16:01 force sync failed with 37 × "APIFY_TOKEN is not set".
+- 15:57 UTC: new token saved in Vercel — scoped to **Preview only** for now (per Jackie, production env intentionally untouched today).
+- This commit exists to mint a fresh PREVIEW deployment that bakes in the Preview-scoped token; preview shares the production DATABASE_URL, so syncs run from the preview URL land in the real dashboard data.
+- **Still open before tonight's 06:00 UTC cron: tick Production on `APIFY_TOKEN` and redeploy prod, or the nightly sync fails again with "not set".**
+
 ## 2026-07-22 — Reports tab: full-campaign coverage by default, client-ready public link (for MERIT)
 - Per Jackie (prepping a report for client MERIT): the report defaulted to the trailing 7 days, so it never showed the whole campaign. The Reports tab and the campaign report view now default to the FULL window — campaign start or the earliest tracked post (whichever is first, since pre-campaign viral posts deliberately count) through now. The date pickers still narrow it; new "Full campaign" / "All time" preset button resets to the default.
 - Week-over-week delta pills now hide when the previous comparison period has no posts (a full-campaign window compares against pre-campaign nothingness — "+2.1M (+100%)" pills read as noise on a client report). The "vs. previous period" header hides with them.
