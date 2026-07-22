@@ -24,7 +24,8 @@ export default async function ReportsPage({
   if (!hasAgencyWideAccess(session)) {
     const data = await computeReport(
       { type: "client", teamId: session.user.teamId },
-      range
+      range,
+      { defaultWindow: "full" }
     );
     return (
       <>
@@ -58,7 +59,8 @@ export default async function ReportsPage({
     sp.team && teams.some((t) => t.id === sp.team) ? sp.team : teams[0].id;
   const data = await computeReport(
     { type: "client", teamId: selectedId },
-    range
+    range,
+    { defaultWindow: "full" }
   );
 
   return (

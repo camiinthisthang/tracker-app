@@ -173,15 +173,19 @@ export function parseReportRange(sp: {
 
 export async function computeReport(
   scope: ReportScope,
-  // Reporting window. Defaults to the trailing 7 days (weekly report). Pass an
-  // explicit range to widen it (e.g. a full month) later.
-  range?: { start: Date; end: Date }
+  // Reporting window. When absent, `defaultWindow` picks the fallback:
+  // "full" covers everything the tracker counts for the scope (campaign
+  // start or earliest post, whichever is first, through now) — the
+  // client-facing default; "week" is the trailing 7 days.
+  range?: { start: Date; end: Date },
+  opts?: { defaultWindow?: "week" | "full" }
 ): Promise<ReportData> {
   // Resolve scope → the set of campaigns + display title + campaign bounds.
   let title: string;
   let subtitle: string;
   let campaignIds: string[];
   let campaignEnd: Date;
+  let campaignStart: Date | null = null;
 
   if (scope.type === "campaign") {
     const campaign = await prisma.campaign.findUnique({
@@ -193,6 +197,7 @@ export async function computeReport(
     subtitle = campaign.team.name;
     campaignIds = [campaign.id];
     campaignEnd = campaign.endDate;
+    campaignStart = campaign.startDate;
   } else {
     const team = await prisma.team.findUnique({
       where: { id: scope.teamId },
@@ -213,19 +218,10 @@ export async function computeReport(
     campaignEnd = campaigns.length
       ? new Date(Math.max(...campaigns.map((c) => c.endDate.getTime())))
       : new Date();
+    campaignStart = campaigns.length
+      ? new Date(Math.min(...campaigns.map((c) => c.startDate.getTime())))
+      : null;
   }
-
-  // Reporting window: explicit range if given, else the trailing 7 days. The
-  // window end is anchored to min(now, campaignEnd) so a report viewed after a
-  // campaign wraps shows its final week instead of an empty trailing window.
-  const windowEnd =
-    range?.end ?? new Date(Math.min(Date.now(), campaignEnd.getTime()));
-  const windowStart = range?.start ?? new Date(windowEnd.getTime() - WEEK_MS);
-  // Previous comparison period is the same length immediately before the window
-  // (so a month compares to the prior month, a week to the prior week).
-  const windowMs = Math.max(windowEnd.getTime() - windowStart.getTime(), WEEK_MS);
-  const prevWindowStart = new Date(windowStart.getTime() - windowMs);
-  const inWindow = (d: Date) => d >= windowStart && d <= windowEnd;
 
   const allPosts: PostRow[] =
     campaignIds.length === 0
@@ -248,6 +244,37 @@ export async function computeReport(
             creator: { select: { name: true, handle: true } },
           },
         });
+
+  // Reporting window: explicit range if given, else per defaultWindow.
+  // "full" starts at the campaign start OR the earliest tracked post,
+  // whichever is first — posts published before the campaign window are
+  // deliberately kept (per Jacqueline, 2026-07-15: a pre-campaign viral video
+  // still counts), so a full-campaign report must not clip them — and runs
+  // through now. "week" (trailing 7 days) anchors its end to
+  // min(now, campaignEnd) so a report viewed after a campaign wraps shows its
+  // final week instead of an empty trailing window.
+  let windowEnd: Date;
+  let windowStart: Date;
+  if (range) {
+    windowEnd = range.end;
+    windowStart = range.start;
+  } else if (opts?.defaultWindow === "full") {
+    windowEnd = new Date();
+    const earliestPost = allPosts.length
+      ? Math.min(...allPosts.map((p) => p.postedAt.getTime()))
+      : Date.now();
+    windowStart = new Date(
+      Math.min(earliestPost, campaignStart?.getTime() ?? Infinity)
+    );
+  } else {
+    windowEnd = new Date(Math.min(Date.now(), campaignEnd.getTime()));
+    windowStart = new Date(windowEnd.getTime() - WEEK_MS);
+  }
+  // Previous comparison period is the same length immediately before the window
+  // (so a month compares to the prior month, a week to the prior week).
+  const windowMs = Math.max(windowEnd.getTime() - windowStart.getTime(), WEEK_MS);
+  const prevWindowStart = new Date(windowStart.getTime() - windowMs);
+  const inWindow = (d: Date) => d >= windowStart && d <= windowEnd;
 
   // The report body covers the reporting window; allPosts is kept for the
   // week-over-week comparison (this window vs. the one before it).
@@ -433,7 +460,10 @@ export async function computeReport(
   const countViral = (rows: PostRow[]) =>
     rows.filter((p) => p.views >= viralThreshold).length;
 
-  const wow = allPosts.length
+  // No comparison when the previous period has nothing in it (e.g. a
+  // full-campaign window, whose "previous period" is pre-campaign) — a
+  // "+everything vs. nothing" delta reads as noise on a client report.
+  const wow = postsLastWeek.length
     ? {
         posts: mkDelta(postsThisWeek.length, postsLastWeek.length),
         views: mkDelta(sumViews(postsThisWeek), sumViews(postsLastWeek)),

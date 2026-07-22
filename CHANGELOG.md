@@ -3,6 +3,12 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-22 — Reports tab: full-campaign coverage by default, client-ready public link (for MERIT)
+- Per Jackie (prepping a report for client MERIT): the report defaulted to the trailing 7 days, so it never showed the whole campaign. The Reports tab and the campaign report view now default to the FULL window — campaign start or the earliest tracked post (whichever is first, since pre-campaign viral posts deliberately count) through now. The date pickers still narrow it; new "Full campaign" / "All time" preset button resets to the default.
+- Week-over-week delta pills now hide when the previous comparison period has no posts (a full-campaign window compares against pre-campaign nothingness — "+2.1M (+100%)" pills read as noise on a client report). The "vs. previous period" header hides with them.
+- Public share link (`/reports/[slug]`, from Campaign → Reports → public link) now renders the same branded report as the internal view — full campaign window, hero KPIs, platform leaderboard, top posts, creator breakdown, print/PDF — instead of the old plain slate summary page. Date-range controls are hidden on the public variant (link is pinned to full campaign); the internal creator-tier badges from the old page are gone from client view. Weekly email digest cron untouched (it uses computeWeeklyDigest, not computeReport).
+- Tested: `npm test` 57/57, `npx next build` green.
+
 ## 2026-07-22 — Apify burn reduction: shallow daily / deep weekly scrapes + freshness skip (builds on the circuit-breaker branch)
 - Per Jackie: the monthly hard limit keeps getting hit because every handle was scraped at full depth (60 results, IG ×2 actors) on every nightly cron AND every manual re-sync. This implements the burn-reduction options the previous entry left as "needs a product call", tuned to keep data effectively as fresh as before.
 - **Shallow/deep schedule** (`src/lib/social/scrape-plan.ts`): nightly scrapes now pull 15 results per handle (new posts always surface at the top of a profile, so nothing new is ever missed); a full 60-result deep pass runs per handle every ~6.5 days to refresh older posts' view counts. Weekly actor-results cost drops to ~36% of before. Brand-new and never-deep-scraped handles always go deep.

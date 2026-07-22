@@ -127,9 +127,11 @@ function SectionCard({
 function RangeControl({
   startDate,
   endDate,
+  scopeType,
 }: {
   startDate: string;
   endDate: string;
+  scopeType: "campaign" | "client";
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -151,6 +153,16 @@ function RangeControl({
     const end = new Date();
     const start = new Date(end.getTime() - days * 86_400_000);
     apply(start.toISOString().slice(0, 10), end.toISOString().slice(0, 10));
+  };
+
+  // Clearing the bounds falls back to the server default — the full
+  // campaign/client history window.
+  const resetToFull = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("from");
+    params.delete("to");
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
   };
 
   // Rendered on the royal-blue header, so the controls read on a dark surface.
@@ -183,11 +195,22 @@ function RangeControl({
       <button type="button" onClick={() => preset(30)} className={presetCls}>
         Month
       </button>
+      <button type="button" onClick={resetToFull} className={presetCls}>
+        {scopeType === "campaign" ? "Full campaign" : "All time"}
+      </button>
     </div>
   );
 }
 
-export function ClientReport({ data }: { data: ReportData }) {
+// `publicView` renders the shareable client-facing variant: no date-range
+// controls (the link is pinned to the full campaign), print/PDF stays.
+export function ClientReport({
+  data,
+  publicView = false,
+}: {
+  data: ReportData;
+  publicView?: boolean;
+}) {
   const dateRange = `${format(new Date(data.startDate), "MMM d, yyyy")} – ${format(
     new Date(data.endDate),
     "MMM d, yyyy"
@@ -224,7 +247,13 @@ export function ClientReport({ data }: { data: ReportData }) {
                 <Download className="h-4 w-4" />
                 Download PDF
               </button>
-              <RangeControl startDate={data.startDate} endDate={data.endDate} />
+              {!publicView && (
+                <RangeControl
+                  startDate={data.startDate}
+                  endDate={data.endDate}
+                  scopeType={data.scope.type}
+                />
+              )}
             </div>
           </div>
           <div>
@@ -249,7 +278,7 @@ export function ClientReport({ data }: { data: ReportData }) {
         <div className="rounded-2xl bg-bone-100 px-12 py-10">
           <div className="mb-0 flex justify-between font-mono text-[11px] tracking-[0.02em] text-ink-900/45">
             <span>performance overview</span>
-            <span>vs. previous period</span>
+            {data.wow && <span>vs. previous period</span>}
           </div>
           <div className="mt-7 grid grid-cols-4 border-t border-bone-200">
             <div className="border-r border-bone-200 py-6 pr-8">
