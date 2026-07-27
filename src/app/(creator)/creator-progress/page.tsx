@@ -6,7 +6,11 @@ import {
   WeekSelector,
   type WeekOption,
 } from "@/components/campaigns/week-selector";
-import { goalPlatformFor } from "@/lib/social/goal-counting";
+import {
+  goalPlatformFor,
+  platformCounts,
+  uniqueVideoCount,
+} from "@/lib/social/goal-counting";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const WEEK_OPTS = { weekStartsOn: 1 as const };
@@ -111,25 +115,40 @@ export default async function CreatorProgressPage({
   }, 0);
   const dailyTarget = weeklyTarget / DAY_LABELS.length;
 
-  // Goal counting: only count posts on the creator's goal platform so
-  // cross-posts don't double up. See lib/social/goal-counting.ts.
+  // Goal counting: memberships with countAllPlatforms (the default) count
+  // every platform, deduped to UNIQUE videos (max per platform — a
+  // cross-posted video is one deliverable); otherwise goal platform only.
   const goalPlatform = goalPlatformFor(creator);
-  const weekPosts = await prisma.post.findMany({
+  const ccByCampaignId = new Map(
+    creator.campaignCreators.map((cc) => [cc.campaign.id, cc])
+  );
+  const weekPostsAll = await prisma.post.findMany({
     where: {
       creatorId,
-      platform: goalPlatform,
       postedAt: { gte: selectedWeekStart, lt: selectedWeekEnd },
     },
-    select: { postedAt: true },
+    select: { postedAt: true, platform: true, campaignId: true },
   });
+  const weekPosts = weekPostsAll.filter(
+    (p) =>
+      (p.campaignId != null &&
+        ccByCampaignId.get(p.campaignId)?.countAllPlatforms) ||
+      p.platform === goalPlatform
+  );
 
   const postsPerDay = DAY_LABELS.map((label, i) => {
     const dayStart = addDays(selectedWeekStart, i);
     const dayEnd = addDays(dayStart, 1);
-    const count = weekPosts.filter(
+    const dayPosts = weekPosts.filter(
       (p) => p.postedAt >= dayStart && p.postedAt < dayEnd
-    ).length;
-    return { day: label, count };
+    );
+    return {
+      day: label,
+      count: uniqueVideoCount(dayPosts),
+      platforms: Object.entries(platformCounts(dayPosts)).map(
+        ([platform, count]) => ({ platform, count: count ?? 0 })
+      ),
+    };
   });
 
   const options: WeekOption[] = [...weekStarts].reverse().map((w) => {
@@ -159,7 +178,7 @@ export default async function CreatorProgressPage({
         <WeekSelector weeks={options} current={selectedISO} />
       </div>
       <CreatorWeeklyProgress
-        postsThisWeek={weekPosts.length}
+        postsThisWeek={uniqueVideoCount(weekPosts)}
         weeklyTarget={weeklyTarget}
         postsPerDay={postsPerDay}
         dailyTarget={dailyTarget}

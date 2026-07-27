@@ -3,6 +3,12 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-27 — Unique-video delivery counting + per-day platform markers
+- Per Jackie: contracts are "N UNIQUE videos, each cross-posted to every platform" (e.g. 40 unique). Summing platform copies would triple-count, so delivered/pacing now counts unique videos ≈ MAX per-platform count in the window (`uniqueVideoCount` in goal-counting.ts) — exact whenever every video reaches the creator's most-posted platform; identical to the old count for single-platform (countAllPlatforms-off) memberships. Applied to: creator page (campaign-goal delivered, monthly pacing, weekly card), creators list cards, campaign overview rings, creator home + weekly-progress pages.
+- Weekly posts-per-day rings now show platform marker dots under each day (TikTok black / Instagram pink / YouTube red, with counts and a hover tooltip + legend) so you can see which platforms each day's videos hit.
+- Campaign-goal card shows cross-post coverage under the bar: "Unique videos · cross-posted: TikTok 38 · Instagram 36 · YouTube 31" — a lagging platform = missing cross-posts to chase.
+- Tests: 6 new (`goal-counting.test.ts`), 63/63 passing; `npx next build` green.
+
 ## 2026-07-27 — countAllPlatforms is now the default (all platforms count toward goals)
 - Per Jackie: creators deliver across TikTok, Instagram, AND YouTube — every platform's posts count toward delivery/pacing. She had toggled "count all platforms" on for the current roster by hand; this makes it the system default so new memberships start that way.
 - Schema change: `campaign_creators.countAllPlatforms` default flips to true, migration `20260727200000_count_all_platforms_default` backfills all existing memberships to true. The per-creator toggle stays as the opt-out for any future contract that counts one canonical platform only.

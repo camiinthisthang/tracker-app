@@ -9,7 +9,11 @@ import {
 import { prisma } from "@/lib/prisma";
 import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 import { getRequiredSession } from "@/lib/auth";
-import { goalPlatformFor } from "@/lib/social/goal-counting";
+import {
+  goalPlatformFor,
+  platformCounts,
+  uniqueVideoCount,
+} from "@/lib/social/goal-counting";
 import { StatCard } from "@/components/shared/stat-card";
 import { CreatorWeeklyProgress } from "@/components/creators/creator-weekly-progress";
 import { CreatorViewsChart } from "@/components/creators/creator-views-chart";
@@ -119,13 +123,21 @@ export default async function CreatorHomePage() {
       p.platform === goalPlatform
   );
 
+  // Ring count is UNIQUE videos (max per platform — a cross-posted video is
+  // one deliverable); the dots under each ring show which platforms it hit.
   const postsPerDay = DAY_LABELS.map((label, i) => {
     const dayStart = addDays(weekStart, i);
     const dayEnd = addDays(dayStart, 1);
-    const count = weekPosts.filter(
+    const dayPosts = weekPosts.filter(
       (p) => p.postedAt >= dayStart && p.postedAt < dayEnd
-    ).length;
-    return { day: label, count };
+    );
+    return {
+      day: label,
+      count: uniqueVideoCount(dayPosts),
+      platforms: Object.entries(platformCounts(dayPosts)).map(
+        ([platform, count]) => ({ platform, count: count ?? 0 })
+      ),
+    };
   });
 
   // Overall stats
@@ -317,7 +329,7 @@ export default async function CreatorHomePage() {
       {/* Progress + Messages row */}
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
         <CreatorWeeklyProgress
-          postsThisWeek={weekPosts.length}
+          postsThisWeek={uniqueVideoCount(weekPosts)}
           weeklyTarget={weeklyTarget}
           postsPerDay={postsPerDay}
           dailyTarget={dailyTarget}

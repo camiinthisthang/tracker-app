@@ -2,10 +2,20 @@ import Link from "next/link";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** Per-day platform breakdown for the marker dots, e.g.
+ * [{ platform: "TIKTOK", count: 1 }, { platform: "INSTAGRAM", count: 2 }]. */
+export type DayPlatformCount = { platform: string; count: number };
+
+const PLATFORM_DOT: Record<string, { color: string; label: string }> = {
+  TIKTOK: { color: "bg-slate-900", label: "TikTok" },
+  INSTAGRAM: { color: "bg-pink-500", label: "Instagram" },
+  YOUTUBE: { color: "bg-red-500", label: "YouTube" },
+};
+
 interface CreatorWeeklyProgressProps {
   postsThisWeek: number;
   weeklyTarget: number;
-  postsPerDay: { day: string; count: number }[];
+  postsPerDay: { day: string; count: number; platforms?: DayPlatformCount[] }[];
   dailyTarget: number;
   /**
    * When provided, the header becomes a link to a historical-weeks view at
@@ -178,9 +188,46 @@ export function CreatorWeeklyProgress({
             <span className="text-[10px] font-medium uppercase text-slate-400">
               {d.day}
             </span>
+            {d.platforms && d.platforms.length > 0 && (
+              <span
+                className="flex items-center gap-1"
+                title={d.platforms
+                  .map(
+                    (p) =>
+                      `${p.count} ${PLATFORM_DOT[p.platform]?.label ?? p.platform}`
+                  )
+                  .join(" · ")}
+              >
+                {d.platforms.map((p) => (
+                  <span key={p.platform} className="flex items-center gap-px">
+                    <span
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        PLATFORM_DOT[p.platform]?.color ?? "bg-slate-300"
+                      )}
+                    />
+                    {p.count > 1 && (
+                      <span className="text-[9px] font-medium text-slate-400">
+                        {p.count}
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </span>
+            )}
           </div>
         ))}
       </div>
+      {postsPerDay.some((d) => d.platforms && d.platforms.length > 0) && (
+        <div className="mt-3 flex items-center justify-end gap-3">
+          {Object.entries(PLATFORM_DOT).map(([key, v]) => (
+            <span key={key} className="flex items-center gap-1">
+              <span className={cn("h-1.5 w-1.5 rounded-full", v.color)} />
+              <span className="text-[10px] text-slate-400">{v.label}</span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -23,7 +23,10 @@ import { AddCreatorButton } from "@/components/creators/add-creator-button";
 import { type CreatorPacingCardData } from "@/components/creators/creator-pacing-card";
 import { CreatorsCardsClient } from "@/components/creators/creators-cards-client";
 import { CampaignSwitcher } from "@/components/dashboard/campaign-switcher";
-import { goalPlatformFor } from "@/lib/social/goal-counting";
+import {
+  goalPlatformFor,
+  uniqueVideoCount,
+} from "@/lib/social/goal-counting";
 
 export default async function CreatorsPage({
   searchParams,
@@ -229,20 +232,26 @@ export default async function CreatorsPage({
     // excluded from expectations), not a rolling month.
     const governing = governingContractGoal(relevantCCs, now);
     const creatorPosts = monthPostsByCreator.get(creator.id) ?? [];
+    // Delivered/pacing counts are UNIQUE videos (max per platform) — a video
+    // cross-posted to three platforms is one deliverable, not three.
     const delivered = governing
-      ? creatorPosts.filter(
-          (p) =>
-            p.postedAt >= governing.goal.start &&
-            p.postedAt < governing.goal.endExclusive &&
-            countsForGoal(p),
-        ).length
+      ? uniqueVideoCount(
+          creatorPosts.filter(
+            (p) =>
+              p.postedAt >= governing.goal.start &&
+              p.postedAt < governing.goal.endExclusive &&
+              countsForGoal(p),
+          ),
+        )
       : 0;
-    const postsThisMonth = creatorPosts.filter(
-      (p) =>
-        p.postedAt >= creatorPeriod.start &&
-        p.postedAt < creatorPeriod.end &&
-        countsForGoal(p),
-    ).length;
+    const postsThisMonth = uniqueVideoCount(
+      creatorPosts.filter(
+        (p) =>
+          p.postedAt >= creatorPeriod.start &&
+          p.postedAt < creatorPeriod.end &&
+          countsForGoal(p),
+      ),
+    );
     const agg = aggByCreator.get(creator.id);
 
     cards.push({

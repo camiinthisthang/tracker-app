@@ -22,6 +22,7 @@ export function CreatorMonthlyProgress({
   title = "Monthly goal",
   expected,
   note,
+  platformSummary,
 }: {
   postsThisMonth: number;
   monthlyGoal: number;
@@ -35,6 +36,10 @@ export function CreatorMonthlyProgress({
   expected?: number;
   /** e.g. warm-up week or not-started explanation. */
   note?: string | null;
+  /** Per-platform delivered counts, e.g. "TikTok 38 · Instagram 36 ·
+   * YouTube 31" — the goal number counts unique videos, this line shows
+   * cross-post coverage (a lagging platform = missing cross-posts). */
+  platformSummary?: string | null;
 }) {
   const pct =
     monthlyGoal > 0 ? Math.min(100, (postsThisMonth / monthlyGoal) * 100) : 0;
@@ -95,6 +100,11 @@ export function CreatorMonthlyProgress({
       {expected !== undefined && expected > 0 && (
         <p className="mt-1.5 text-xs text-slate-400">
           Expected ~{Math.round(expected)} by today to stay on pace
+        </p>
+      )}
+      {platformSummary && (
+        <p className="mt-1.5 text-xs text-slate-400">
+          Unique videos · cross-posted: {platformSummary}
         </p>
       )}
       {note && <p className="mt-1.5 text-xs text-blue-500">{note}</p>}
