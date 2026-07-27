@@ -3,14 +3,15 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
-## 2026-07-22 — Apify token swap timeline (ops note, no code change)
-- 15:55 UTC: PR #79 merge auto-deployed production. At build time `APIFY_TOKEN` was absent from Vercel Production env (old token removed during the swap) → Jackie's 16:01 force sync failed with 37 × "APIFY_TOKEN is not set".
-- 15:57 UTC: new token saved in Vercel — scoped to **Preview only** for now (per Jackie, production env intentionally untouched today).
-- This commit exists to mint a fresh PREVIEW deployment that bakes in the Preview-scoped token; preview shares the production DATABASE_URL, so syncs run from the preview URL land in the real dashboard data.
-- **Still open before tonight's 06:00 UTC cron: tick Production on `APIFY_TOKEN` and redeploy prod, or the nightly sync fails again with "not set".**
+## 2026-07-27 — Sync banner: time-budget deferrals are no longer "failed fetches"
+- Per Jackie: a lone "@kamryn.may YOUTUBE @kamtalkstech: scrape still running when the time budget expired" rendered as an amber "1 failed fetch" banner and read as broken data. Deferrals are the safety net working (scrape abandoned before Vercel's kill wall, handle goes first next run) — the banner now shows them as a neutral slate note ("ran out of time before finishing N scrapes — they run first on the next sync. No action needed"), and only real failures stay amber. Mixed case: amber banner counts real failures only, with a muted "+N deferred" line.
+- Diagnosis notes from today (no code): Joe's weekly card counts only his goal platform (TikTok — IG handle isn't in the primary profile field and countAllPlatforms is off on his membership), so his daily IG posts don't show in posts-per-day; his TikTok/IG/YT are all scraped and view totals are complete. Aspen (bia.* handles) is fully tracked — shadow-ban badges are informational only; her low ranking reflects genuinely suppressed reach on SB handles + new replacement accounts.
+- Tested: `npm test` 57/57, `npx next build` green.
 
-### Blocked — needs Cami
-- **10-second Vercel change: scope `APIFY_TOKEN` to Production.** Vercel → tracker-app → Settings → Environment Variables → edit `APIFY_TOKEN` → tick Production → save. Jacqueline added the new token on 2026-07-22 but only has Preview scope access, so production (and the 06:00 UTC nightly cron) fails with "APIFY_TOKEN is not set" until this is done. After ticking the box, merge PR #80 (any merge to main works) to rebuild production with the var. Interim workaround in use: syncs run from the branch preview URL (which has the Preview-scoped token and shares the prod DB).
+## 2026-07-22 — Apify token swap timeline (ops note, no code change) — RESOLVED Jul 22 ~18:18 UTC
+- 15:55 UTC: PR #79 merge auto-deployed production. At build time `APIFY_TOKEN` was absent from Vercel Production env (old token removed during the swap) → Jackie's 16:01 force sync failed with 37 × "APIFY_TOKEN is not set".
+- 15:57 UTC: new token saved in Vercel — scoped to Preview only at first; syncs ran from the branch preview URL (shares the prod DATABASE_URL) as an interim workaround.
+- RESOLVED: the token was scoped to Production and prod redeployed Jul 22 ~18:18 UTC — nightly crons have run clean since (verified in runtime logs Jul 27). The former "Blocked — needs Cami" item here is done.
 
 ## 2026-07-22 — Reports tab: full-campaign coverage by default, client-ready public link (for MERIT)
 - Per Jackie (prepping a report for client MERIT): the report defaulted to the trailing 7 days, so it never showed the whole campaign. The Reports tab and the campaign report view now default to the FULL window — campaign start or the earliest tracked post (whichever is first, since pre-campaign viral posts deliberately count) through now. The date pickers still narrow it; new "Full campaign" / "All time" preset button resets to the default.
