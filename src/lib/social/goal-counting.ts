@@ -37,3 +37,28 @@ export function countsTowardGoalCc(
 ): boolean {
   return (cc?.countAllPlatforms ?? false) || countsTowardGoal(post, creator);
 }
+
+/** Post count per platform, e.g. { TIKTOK: 5, INSTAGRAM: 7 }. Accepts loose
+ * string platforms so pages with untyped selects can use it directly. */
+export function platformCounts(
+  posts: { platform: string }[]
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const p of posts) counts[p.platform] = (counts[p.platform] ?? 0) + 1;
+  return counts;
+}
+
+/**
+ * Contracted deliverables are UNIQUE videos, each cross-posted to every
+ * platform (per Jacqueline, 2026-07-27: "40 unique videos, but they must be
+ * cross-posted"). Platforms share no video id, so the unique count is
+ * approximated as the MAX per-platform count in the window — exact whenever
+ * every unique video reaches the creator's most-posted platform, and never
+ * the 2–3× inflation that summing platform copies gives. Reduces to plain
+ * length when the posts are single-platform (countAllPlatforms off, posts
+ * pre-filtered to the goal platform).
+ */
+export function uniqueVideoCount(posts: { platform: string }[]): number {
+  const counts = Object.values(platformCounts(posts));
+  return counts.length ? Math.max(...counts) : 0;
+}

@@ -373,7 +373,10 @@ model CampaignCreator {
   // platform only (cross-posters — avoids double-counting the same video);
   // true = every post on every platform/handle counts (unique content per
   // account).
-  countAllPlatforms Boolean @default(false)
+  // Per Jackie (2026-07-27): creators deliver across TikTok, Instagram, and
+  // YouTube — posts on every platform count toward goals by default. Off is
+  // the opt-out for a contract that counts one canonical platform only.
+  countAllPlatforms Boolean @default(true)
   // Canvas UGC model: creators make fresh handles per campaign, so their
   // profile-level default handles are NOT synced for a campaign unless this
   // is on. Off = only this campaign's own accounts are tracked.

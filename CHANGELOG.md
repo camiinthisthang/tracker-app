@@ -3,6 +3,28 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-27 — Unique-video delivery counting + per-day platform markers
+- Per Jackie: contracts are "N UNIQUE videos, each cross-posted to every platform" (e.g. 40 unique). Summing platform copies would triple-count, so delivered/pacing now counts unique videos ≈ MAX per-platform count in the window (`uniqueVideoCount` in goal-counting.ts) — exact whenever every video reaches the creator's most-posted platform; identical to the old count for single-platform (countAllPlatforms-off) memberships. Applied to: creator page (campaign-goal delivered, monthly pacing, weekly card), creators list cards, campaign overview rings, creator home + weekly-progress pages.
+- Weekly posts-per-day rings now show platform marker dots under each day (TikTok black / Instagram pink / YouTube red, with counts and a hover tooltip + legend) so you can see which platforms each day's videos hit.
+- Campaign-goal card shows cross-post coverage under the bar: "Unique videos · cross-posted: TikTok 38 · Instagram 36 · YouTube 31" — a lagging platform = missing cross-posts to chase.
+- Tests: 6 new (`goal-counting.test.ts`), 63/63 passing; `npx next build` green.
+
+## 2026-07-27 — countAllPlatforms is now the default (all platforms count toward goals)
+- Per Jackie: creators deliver across TikTok, Instagram, AND YouTube — every platform's posts count toward delivery/pacing. She had toggled "count all platforms" on for the current roster by hand; this makes it the system default so new memberships start that way.
+- Schema change: `campaign_creators.countAllPlatforms` default flips to true, migration `20260727200000_count_all_platforms_default` backfills all existing memberships to true. The per-creator toggle stays as the opt-out for any future contract that counts one canonical platform only.
+- Also: form + validation defaults flipped to match. Root cause of the "Joe posted daily but the weekly card shows 3" confusion — his handles live as campaign accounts (profile defaults empty after the Jul 13 handle migration), so his goal platform resolved to TikTok and daily IG posts didn't count toward cadence.
+- Tested: `npm test` 57/57, `npx next build` green.
+
+## 2026-07-27 — Sync banner: time-budget deferrals are no longer "failed fetches"
+- Per Jackie: a lone "@kamryn.may YOUTUBE @kamtalkstech: scrape still running when the time budget expired" rendered as an amber "1 failed fetch" banner and read as broken data. Deferrals are the safety net working (scrape abandoned before Vercel's kill wall, handle goes first next run) — the banner now shows them as a neutral slate note ("ran out of time before finishing N scrapes — they run first on the next sync. No action needed"), and only real failures stay amber. Mixed case: amber banner counts real failures only, with a muted "+N deferred" line.
+- Diagnosis notes from today (no code): Joe's weekly card counts only his goal platform (TikTok — IG handle isn't in the primary profile field and countAllPlatforms is off on his membership), so his daily IG posts don't show in posts-per-day; his TikTok/IG/YT are all scraped and view totals are complete. Aspen (bia.* handles) is fully tracked — shadow-ban badges are informational only; her low ranking reflects genuinely suppressed reach on SB handles + new replacement accounts.
+- Tested: `npm test` 57/57, `npx next build` green.
+
+## 2026-07-22 — Apify token swap timeline (ops note, no code change) — RESOLVED Jul 22 ~18:18 UTC
+- 15:55 UTC: PR #79 merge auto-deployed production. At build time `APIFY_TOKEN` was absent from Vercel Production env (old token removed during the swap) → Jackie's 16:01 force sync failed with 37 × "APIFY_TOKEN is not set".
+- 15:57 UTC: new token saved in Vercel — scoped to Preview only at first; syncs ran from the branch preview URL (shares the prod DATABASE_URL) as an interim workaround.
+- RESOLVED: the token was scoped to Production and prod redeployed Jul 22 ~18:18 UTC — nightly crons have run clean since (verified in runtime logs Jul 27). The former "Blocked — needs Cami" item here is done.
+
 ## 2026-07-22 — Reports tab: full-campaign coverage by default, client-ready public link (for MERIT)
 - Per Jackie (prepping a report for client MERIT): the report defaulted to the trailing 7 days, so it never showed the whole campaign. The Reports tab and the campaign report view now default to the FULL window — campaign start or the earliest tracked post (whichever is first, since pre-campaign viral posts deliberately count) through now. The date pickers still narrow it; new "Full campaign" / "All time" preset button resets to the default.
 - Week-over-week delta pills now hide when the previous comparison period has no posts (a full-campaign window compares against pre-campaign nothingness — "+2.1M (+100%)" pills read as noise on a client report). The "vs. previous period" header hides with them.

@@ -29,7 +29,10 @@ import {
   CrosspostAudit,
   type CrosspostAuditRow,
 } from "@/components/campaigns/crosspost-audit";
-import { goalPlatformFor } from "@/lib/social/goal-counting";
+import {
+  goalPlatformFor,
+  uniqueVideoCount,
+} from "@/lib/social/goal-counting";
 import { YtAuditToggle } from "@/components/campaigns/yt-audit-toggle";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -150,12 +153,16 @@ export default async function CampaignOverviewPage({
           (cc.countAllPlatforms || p.platform === goalPlatform)
       );
 
+      // Ring counts are UNIQUE videos per day (max per platform) — a video
+      // cross-posted everywhere is one deliverable.
       const postsPerDay = DAY_LABELS.map((label, i) => {
         const dayStart = addDays(weekStart, i);
         const dayEnd = addDays(dayStart, 1);
-        const count = creatorPosts.filter(
-          (p) => p.postedAt >= dayStart && p.postedAt < dayEnd
-        ).length;
+        const count = uniqueVideoCount(
+          creatorPosts.filter(
+            (p) => p.postedAt >= dayStart && p.postedAt < dayEnd
+          )
+        );
         return { day: label, count };
       });
 

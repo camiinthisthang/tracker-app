@@ -15,8 +15,31 @@ export interface SyncSummary {
  * stuck at zero" with no explanation anywhere in the UI.
  */
 export function SyncHealthBanner({ summary }: { summary: SyncSummary | null }) {
-  const failures = summary?.failures ?? [];
-  if (!summary || failures.length === 0) return null;
+  const all = summary?.failures ?? [];
+  if (!summary || all.length === 0) return null;
+
+  // Time-budget deferrals are routine, not failures: the scrape is abandoned
+  // before Vercel's kill wall and automatically goes first on the next run.
+  // Splitting them out keeps the amber banner for things that actually need
+  // attention — a lone deferral used to read as "failed fetch" and made
+  // healthy data look broken.
+  const deferred = all.filter((f) => /time budget/i.test(f.reason));
+  const failures = all.filter((f) => !/time budget/i.test(f.reason));
+
+  if (failures.length === 0) {
+    return (
+      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 print:hidden">
+        <p className="text-sm text-slate-600">
+          Last sync ran out of time before finishing {deferred.length} scrape
+          {deferred.length === 1 ? "" : "s"}
+          {summary.at
+            ? ` (${format(new Date(summary.at), "MMM d, h:mm a")})`
+            : ""}{" "}
+          — they run first on the next sync. No action needed.
+        </p>
+      </div>
+    );
+  }
 
   // Monthly-usage 403s mean the Apify account's budget for the billing cycle
   // is spent — nothing syncs until it resets or the limit is raised.
@@ -80,6 +103,12 @@ export function SyncHealthBanner({ summary }: { summary: SyncSummary | null }) {
               </li>
             )}
           </ul>
+          {deferred.length > 0 && (
+            <p className="mt-1.5 text-xs text-amber-600/80">
+              Plus {deferred.length} scrape{deferred.length === 1 ? "" : "s"}{" "}
+              deferred to the next run (time budget — not a failure).
+            </p>
+          )}
         </div>
       </div>
     </div>

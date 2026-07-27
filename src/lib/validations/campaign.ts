@@ -17,7 +17,7 @@ export const campaignCreatorSchema = z.object({
     .transform((v) => (v ? v : null)),
   // Unique content on every handle → all posts count toward pacing;
   // false = canonical platform only (cross-posters).
-  countAllPlatforms: z.boolean().default(false),
+  countAllPlatforms: z.boolean().default(true),
   // Per-creator contract start (YYYY-MM-DD, "" = unset). Anchors their
   // pacing month and excludes warm-up posts before it.
   contractStart: z

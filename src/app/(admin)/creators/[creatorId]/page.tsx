@@ -27,7 +27,11 @@ import {
 import { getWeekWindow, parseWeekOffset } from "@/lib/weeks";
 import { computeViewBonuses } from "@/lib/view-bonus";
 import { ThumbnailImage } from "@/components/campaigns/thumbnail-image";
-import { goalPlatformFor } from "@/lib/social/goal-counting";
+import {
+  goalPlatformFor,
+  platformCounts,
+  uniqueVideoCount,
+} from "@/lib/social/goal-counting";
 import { Badge } from "@/components/ui/badge";
 import { PLATFORM_LABELS, ATTRIBUTION_ENABLED } from "@/lib/constants";
 
@@ -331,13 +335,22 @@ export default async function CreatorDetailPage({
       ccByCampaignId.get(p.campaignId)?.countAllPlatforms) ||
     p.platform === goalPlatform;
   const goalWeekPosts = weekPosts.filter(countsForGoal);
+  // Ring count is UNIQUE videos (max per platform — cross-posts of one video
+  // aren't separate deliverables); the platform dots under each ring show
+  // where the copies landed.
   const postsPerDay = DAY_LABELS.map((label, i) => {
     const dayStart = addDays(weekStart, i);
     const dayEnd = addDays(dayStart, 1);
-    const count = goalWeekPosts.filter(
+    const dayPosts = goalWeekPosts.filter(
       (p) => p.postedAt >= dayStart && p.postedAt < dayEnd,
-    ).length;
-    return { day: label, count };
+    );
+    return {
+      day: label,
+      count: uniqueVideoCount(dayPosts),
+      platforms: Object.entries(platformCounts(dayPosts)).map(
+        ([platform, count]) => ({ platform, count: count ?? 0 }),
+      ),
+    };
   });
 
   // Cumulative monthly pacing — mirrors the creators list page exactly.
@@ -357,8 +370,15 @@ export default async function CreatorDetailPage({
         quietDays: Math.max(...activeCCs.map((cc) => cc.campaign.quietDays)),
       }
     : { offPacePct: 80, quietDays: 4 };
-  const monthGoalPosts = monthPosts.filter(countsForGoal).length;
-  const delivered = contractPosts.filter(countsForGoal).length;
+  // Delivered/pacing counts are UNIQUE videos: contracts are written as "N
+  // unique videos, cross-posted to every platform", so platform copies of one
+  // video aren't separate deliverables (unique ≈ max per-platform count).
+  const monthGoalPosts = uniqueVideoCount(monthPosts.filter(countsForGoal));
+  const goalContractPosts = contractPosts.filter(countsForGoal);
+  const delivered = uniqueVideoCount(goalContractPosts);
+  const deliveredByPlatform = Object.entries(
+    platformCounts(goalContractPosts),
+  );
   const flags = creatorFlags({
     postsThisMonth: monthGoalPosts,
     postsAllTime: totalViews._count,
@@ -655,6 +675,13 @@ export default async function CreatorDetailPage({
                   ? `Warm-up week — pacing starts ${format(governing.goal.effectiveStart, "MMM d")}; posts already count toward the goal.`
                   : null
             }
+            platformSummary={
+              deliveredByPlatform.length > 1
+                ? deliveredByPlatform
+                    .map(([p, n]) => `${PLATFORM_LABELS[p] ?? p} ${n}`)
+                    .join(" · ")
+                : null
+            }
           />
         ) : (
           <CreatorMonthlyProgress
@@ -669,7 +696,7 @@ export default async function CreatorDetailPage({
       </div>
       <div className="mt-4">
         <CreatorWeeklyProgress
-          postsThisWeek={goalWeekPosts.length}
+          postsThisWeek={uniqueVideoCount(goalWeekPosts)}
           weeklyTarget={weeklyTarget}
           postsPerDay={postsPerDay}
           dailyTarget={dailyTarget}
