@@ -140,7 +140,7 @@ export function CampaignForm({
         platform: "TIKTOK",
         videosPerDay: 1,
         monthlyPostGoal: null,
-        countAllPlatforms: false,
+        countAllPlatforms: true,
         contractStart: null,
         isActive: true,
       },
