@@ -3,6 +3,11 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-28 — Posts tab: filters query the DB (cut creators' posts no longer vanish)
+- Per Jackie: filtering Posts by a cut creator showed "No results found". Cause: the page loaded only the newest 500 posts and filtered them in the BROWSER — a cut creator stops producing new posts, so their history ages out of the newest-500 window and the filter finds nothing, even though every post is still in the DB.
+- Fix: creator/campaign/date filters are now URL params applied in the Prisma query, so selecting a creator fetches THAT creator's newest 500 posts. Filter URLs are also shareable/bookmarkable now. CSV export unchanged (exports the filtered rows).
+- Tested: `npm test` 65/65, `npx next build` green.
+
 ## 2026-07-28 — Apify burn cuts round 2: weekly cadence for deactivated creators, reels-only shallow IG
 - Context: the NEW Apify account hit its monthly usage hard limit on the Jul 28 cron after ~6 days of use (banner: 9 failed fetches, circuit breaker held). The plan's monthly platform budget is too small for our current burn — needs a limit raise / plan upgrade at console.apify.com → Billing, plus these cuts.
 - **Deactivated creators: weekly pulls** (per Jackie): a deactivated membership or creator still tracks (viral videos keep counting) but on a ~weekly full-depth cadence instead of nightly — `DEACTIVATED_FRESH_WINDOW_MS` (6 days) applies even to manual Sync Data. Active roster unchanged.

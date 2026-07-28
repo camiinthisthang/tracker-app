@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ExternalLink, Download } from "lucide-react";
@@ -38,6 +39,11 @@ interface PostsTableClientProps {
   posts: PostRow[];
   campaigns: { id: string; name: string }[];
   creators: { id: string; handle: string }[];
+  // Current filter values from the URL. Filtering happens in the page's DB
+  // query — the client only navigates. (Filtering the newest-500 rows in the
+  // browser made cut creators, whose posts age out of that window, look like
+  // they had no posts at all.)
+  filters: { campaign: string; creator: string; from: string; to: string };
 }
 
 const columns: ColumnDef<PostRow>[] = [
@@ -182,11 +188,22 @@ export function PostsTableClient({
   posts,
   campaigns,
   creators,
+  filters,
 }: PostsTableClientProps) {
-  const [campaignFilter, setCampaignFilter] = useState("all");
-  const [creatorFilter, setCreatorFilter] = useState("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+  const { campaign: campaignFilter, creator: creatorFilter, from: startDate, to: endDate } = filters;
+
+  const applyFilters = (next: Partial<PostsTableClientProps["filters"]>) => {
+    const merged = { ...filters, ...next };
+    const params = new URLSearchParams();
+    if (merged.campaign !== "all") params.set("campaign", merged.campaign);
+    if (merged.creator !== "all") params.set("creator", merged.creator);
+    if (merged.from) params.set("from", merged.from);
+    if (merged.to) params.set("to", merged.to);
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
+  };
 
   const creatorPills = useMemo(
     () => [
@@ -196,26 +213,8 @@ export function PostsTableClient({
     [creators]
   );
 
-  const filtered = useMemo(() => {
-    let result = posts;
-    if (campaignFilter !== "all") {
-      result = result.filter((p) => p.campaign.id === campaignFilter);
-    }
-    if (creatorFilter !== "all") {
-      result = result.filter((p) => p.creator.id === creatorFilter);
-    }
-    if (startDate) {
-      result = result.filter(
-        (p) => new Date(p.postedAt) >= new Date(startDate)
-      );
-    }
-    if (endDate) {
-      result = result.filter(
-        (p) => new Date(p.postedAt) <= new Date(endDate + "T23:59:59")
-      );
-    }
-    return result;
-  }, [posts, campaignFilter, creatorFilter, startDate, endDate]);
+  // The server query already applied the filters; the rows are ready as-is.
+  const filtered = posts;
 
   function handleExportCsv() {
     const headers = [
@@ -269,7 +268,10 @@ export function PostsTableClient({
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-4">
         <div>
-          <Select value={campaignFilter} onValueChange={(v) => v && setCampaignFilter(v)}>
+          <Select
+            value={campaignFilter}
+            onValueChange={(v) => v && applyFilters({ campaign: v })}
+          >
             <SelectTrigger className="w-[200px]">
               <SelectValue>
                 {campaignFilter === "all"
@@ -292,7 +294,7 @@ export function PostsTableClient({
           <Input
             type="date"
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={(e) => applyFilters({ from: e.target.value })}
             className="w-[150px]"
             placeholder="Start date"
           />
@@ -300,7 +302,7 @@ export function PostsTableClient({
           <Input
             type="date"
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={(e) => applyFilters({ to: e.target.value })}
             className="w-[150px]"
             placeholder="End date"
           />
@@ -315,7 +317,7 @@ export function PostsTableClient({
       <FilterPills
         options={creatorPills}
         value={creatorFilter}
-        onChange={setCreatorFilter}
+        onChange={(v) => applyFilters({ creator: v })}
       />
 
       {/* Table */}
