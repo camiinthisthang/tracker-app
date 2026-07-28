@@ -3,6 +3,13 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-28 — Apify burn cuts round 2: weekly cadence for deactivated creators, reels-only shallow IG
+- Context: the NEW Apify account hit its monthly usage hard limit on the Jul 28 cron after ~6 days of use (banner: 9 failed fetches, circuit breaker held). The plan's monthly platform budget is too small for our current burn — needs a limit raise / plan upgrade at console.apify.com → Billing, plus these cuts.
+- **Deactivated creators: weekly pulls** (per Jackie): a deactivated membership or creator still tracks (viral videos keep counting) but on a ~weekly full-depth cadence instead of nightly — `DEACTIVATED_FRESH_WINDOW_MS` (6 days) applies even to manual Sync Data. Active roster unchanged.
+- **Shallow IG = reels-only**: nightly shallow syncs skip the `apify~instagram-scraper` feed actor and run only the reel scraper — reels carry all the view counts (feed photos/carousels report none), and the weekly deep pass still merges the feed for thumbnails/non-reel posts. Halves IG actor runs ~6 of 7 nights; IG is the priciest platform (2 actors/handle, ~$1/1K results + heavy proxies).
+- Trade-offs accepted: deactivated creators' views can lag up to ~6 days; a brand-new IG photo/carousel post (no view count anyway) can take up to a week to appear. Views on reels — the metric that matters — stay nightly-fresh for the active roster.
+- Tests: 65/65 (`npm test`), `npx next build` green. No schema change.
+
 ## 2026-07-27 — Unique-video delivery counting + per-day platform markers
 - Per Jackie: contracts are "N UNIQUE videos, each cross-posted to every platform" (e.g. 40 unique). Summing platform copies would triple-count, so delivered/pacing now counts unique videos ≈ MAX per-platform count in the window (`uniqueVideoCount` in goal-counting.ts) — exact whenever every video reaches the creator's most-posted platform; identical to the old count for single-platform (countAllPlatforms-off) memberships. Applied to: creator page (campaign-goal delivered, monthly pacing, weekly card), creators list cards, campaign overview rings, creator home + weekly-progress pages.
 - Weekly posts-per-day rings now show platform marker dots under each day (TikTok black / Instagram pink / YouTube red, with counts and a hover tooltip + legend) so you can see which platforms each day's videos hit.

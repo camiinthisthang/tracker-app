@@ -10,6 +10,7 @@ import {
 import {
   planHandleScrape,
   HANDLE_FRESH_WINDOW_CRON_MS,
+  DEACTIVATED_FRESH_WINDOW_MS,
   type ScrapeDepth,
 } from "./scrape-plan";
 import type { SocialPost } from "./types";
@@ -140,11 +141,14 @@ export function knownHandlesFor(
 export function fetchForPlatform(
   platform: SyncPlatform,
   handle: string,
-  limit = SCRAPE_RESULTS_LIMIT
+  limit = SCRAPE_RESULTS_LIMIT,
+  depth: ScrapeDepth = "deep"
 ): Promise<SocialPost[]> {
   if (platform === "TIKTOK") return fetchTikTokPostsViaApify(handle, limit);
   if (platform === "INSTAGRAM")
-    return fetchInstagramPostsViaApify(handle, limit);
+    // Shallow runs skip the feed actor (reels-only): reels carry the view
+    // counts and the weekly deep pass still merges the feed.
+    return fetchInstagramPostsViaApify(handle, limit, depth === "deep");
   return fetchYouTubeShortsViaApify(handle, limit);
 }
 
@@ -203,14 +207,15 @@ export async function mapWithConcurrency<T, R>(
 export async function fetchWithMemoryRetry(
   platform: SyncPlatform,
   handle: string,
-  limit = SCRAPE_RESULTS_LIMIT
+  limit = SCRAPE_RESULTS_LIMIT,
+  depth: ScrapeDepth = "deep"
 ): Promise<SocialPost[]> {
   try {
-    return await fetchForPlatform(platform, handle, limit);
+    return await fetchForPlatform(platform, handle, limit, depth);
   } catch (e) {
     if (e instanceof Error && /memory limit/i.test(e.message)) {
       await new Promise((r) => setTimeout(r, 10_000));
-      return fetchForPlatform(platform, handle, limit);
+      return fetchForPlatform(platform, handle, limit, depth);
     }
     throw e;
   }
@@ -331,6 +336,9 @@ export async function syncCampaign(
     handle: string;
     scopedToCampaign: boolean;
     depth: ScrapeDepth;
+    // Deactivated membership or creator: still tracked (viral videos keep
+    // counting) but on a weekly full-depth cadence instead of nightly.
+    weeklyOnly: boolean;
   };
   const tasks: FetchTask[] = [];
   for (const cc of campaign.campaignCreators) {
@@ -348,6 +356,7 @@ export async function syncCampaign(
         handle: h.handle,
         scopedToCampaign: h.scopedToCampaign,
         depth: "deep",
+        weeklyOnly: !cc.isActive || !cc.creator.isActive,
       });
     }
     // A deactivated member with no handles isn't a problem worth flagging —
@@ -373,13 +382,19 @@ export async function syncCampaign(
     const plan = planHandleScrape(
       stateByKey.get(`${t.platform}:${t.handle.toLowerCase()}`),
       planNow,
-      freshWindowMs
+      // Weekly-only handles use the 6-day window regardless of caller — even
+      // a manual Sync Data doesn't re-pull a deactivated creator early.
+      t.weeklyOnly
+        ? Math.max(freshWindowMs, DEACTIVATED_FRESH_WINDOW_MS)
+        : freshWindowMs
     );
     if (plan === "skip") {
       freshSkips++;
       continue;
     }
-    runnable.push({ ...t, depth: plan });
+    // When a weekly-only handle does run, take the full-depth pass — it won't
+    // get another look for ~a week.
+    runnable.push({ ...t, depth: t.weeklyOnly ? "deep" : plan });
   }
 
   // Rotate the task order by day so a campaign too big for one time budget
@@ -408,7 +423,8 @@ export async function syncCampaign(
         task.handle,
         task.depth === "shallow"
           ? SHALLOW_SCRAPE_RESULTS_LIMIT
-          : SCRAPE_RESULTS_LIMIT
+          : SCRAPE_RESULTS_LIMIT,
+        task.depth
       );
       const posts = HASHTAG_FILTERING_ENABLED
         ? filterByHashtags(fetched, campaign.hashtags)

@@ -218,26 +218,39 @@ export async function fetchTikTokPostsViaApify(
  */
 export async function fetchInstagramPostsViaApify(
   handle: string,
-  limit = SCRAPE_RESULTS_LIMIT
+  limit = SCRAPE_RESULTS_LIMIT,
+  // Shallow nightly syncs pass false to skip the feed actor and run reels
+  // only: reels are where the view counts live (feed photos/carousels report
+  // none), and the weekly deep pass still merges the feed for thumbnails and
+  // non-reel posts. Halves IG actor spend on ~6 of 7 nights — IG is the most
+  // expensive platform (two actors per handle at ~$1/1K results).
+  includeFeed = true
 ): Promise<SocialPost[]> {
   const clean = stripHandle(handle);
   if (!clean) return [];
 
   const [feed, reels] = await Promise.allSettled([
-    runActorSync("apify~instagram-scraper", {
-      directUrls: [`https://www.instagram.com/${clean}/`],
-      resultsType: "posts",
-      resultsLimit: limit,
-      addParentData: false,
-    }),
+    includeFeed
+      ? runActorSync("apify~instagram-scraper", {
+          directUrls: [`https://www.instagram.com/${clean}/`],
+          resultsType: "posts",
+          resultsLimit: limit,
+          addParentData: false,
+        })
+      : Promise.resolve<unknown[]>([]),
     runActorSync("apify~instagram-reel-scraper", {
       username: [clean],
       resultsLimit: limit,
     }),
   ]);
 
-  if (feed.status === "rejected" && reels.status === "rejected") {
-    throw feed.reason;
+  // Reels-only mode has a single scrape to fail; dual mode tolerates one
+  // failure as long as the other actor succeeded.
+  if (
+    reels.status === "rejected" &&
+    (!includeFeed || feed.status === "rejected")
+  ) {
+    throw reels.reason;
   }
   for (const [label, r] of [
     ["feed", feed],

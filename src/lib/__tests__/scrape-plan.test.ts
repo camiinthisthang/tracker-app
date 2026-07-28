@@ -80,3 +80,29 @@ describe("planHandleScrape", () => {
     ).toBe("shallow");
   });
 });
+
+describe("deactivated-creator weekly cadence", () => {
+  it("window is under 7 days so the weekly pull cannot drift", async () => {
+    const { DEACTIVATED_FRESH_WINDOW_MS } = await import(
+      "@/lib/social/scrape-plan"
+    );
+    expect(DEACTIVATED_FRESH_WINDOW_MS).toBeLessThan(7 * 86_400_000);
+    expect(DEACTIVATED_FRESH_WINDOW_MS).toBeGreaterThan(
+      HANDLE_FRESH_WINDOW_CRON_MS
+    );
+  });
+
+  it("skips inside the window, runs after it", async () => {
+    const { DEACTIVATED_FRESH_WINDOW_MS } = await import(
+      "@/lib/social/scrape-plan"
+    );
+    const recent = { lastSuccessAt: daysAgo(3), lastDeepAt: daysAgo(3) };
+    const due = { lastSuccessAt: daysAgo(6.5), lastDeepAt: daysAgo(6.5) };
+    expect(
+      planHandleScrape(recent, NOW, DEACTIVATED_FRESH_WINDOW_MS)
+    ).toBe("skip");
+    expect(
+      planHandleScrape(due, NOW, DEACTIVATED_FRESH_WINDOW_MS)
+    ).not.toBe("skip");
+  });
+});

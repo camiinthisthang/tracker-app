@@ -37,6 +37,13 @@ export const HANDLE_FRESH_WINDOW_CRON_MS = 6 * 3_600_000;
  * handles back-to-back doesn't scrape the shared ones twice. */
 export const HANDLE_FRESH_WINDOW_MANUAL_MS = 30 * 60_000;
 
+/** Deactivated creators/memberships still track (per Jackie 2026-07-28: a
+ * deactivated creator's viral video keeps counting) but on a WEEKLY cadence
+ * instead of nightly — they're off the roster, so day-to-day freshness isn't
+ * worth the actor spend. 6 days, not 7, so the weekly pull can't drift. When
+ * they do run, the scrape is full-depth. */
+export const DEACTIVATED_FRESH_WINDOW_MS = 6 * 86_400_000;
+
 export type HandleScrapeState = {
   lastSuccessAt: Date | null;
   lastDeepAt: Date | null;
