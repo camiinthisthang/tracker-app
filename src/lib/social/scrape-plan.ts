@@ -44,6 +44,21 @@ export const HANDLE_FRESH_WINDOW_MANUAL_MS = 30 * 60_000;
  * they do run, the scrape is full-depth. */
 export const DEACTIVATED_FRESH_WINDOW_MS = 6 * 86_400_000;
 
+/** Posts published more than this many months before their campaign's start
+ * date are out of tracking scope (per Jackie, 2026-07-29: "don't track
+ * anything that is not within 4–6 months of the campaign" — we use the
+ * generous end so recent pre-campaign viral posts still count, while a
+ * handle's ancient history — e.g. techwithkam's Feb-2023 posts — doesn't
+ * inflate campaign totals). */
+export const PRE_CAMPAIGN_TRACKING_MONTHS = 6;
+
+/** Earliest postedAt that still counts for a campaign starting at `campaignStart`. */
+export function trackingCutoff(campaignStart: Date): Date {
+  const d = new Date(campaignStart);
+  d.setMonth(d.getMonth() - PRE_CAMPAIGN_TRACKING_MONTHS);
+  return d;
+}
+
 export type HandleScrapeState = {
   lastSuccessAt: Date | null;
   lastDeepAt: Date | null;

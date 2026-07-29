@@ -9,6 +9,7 @@ import {
 } from "./apify";
 import {
   planHandleScrape,
+  trackingCutoff,
   HANDLE_FRESH_WINDOW_CRON_MS,
   DEACTIVATED_FRESH_WINDOW_MS,
   type ScrapeDepth,
@@ -416,6 +417,11 @@ export async function syncCampaign(
   const outcomes: (FetchOutcome | undefined)[] = new Array(ordered.length);
   let deferredCount = 0;
 
+  // Posts older than the pre-campaign tracking window never enter the DB —
+  // a newly added handle's ancient history isn't campaign performance.
+  const cutoff = trackingCutoff(campaign.startDate);
+  let ancientSkipped = 0;
+
   const runTask = async (task: FetchTask, i: number) => {
     try {
       const fetched = await fetchWithMemoryRetry(
@@ -426,9 +432,11 @@ export async function syncCampaign(
           : SCRAPE_RESULTS_LIMIT,
         task.depth
       );
+      const inTrackingWindow = fetched.filter((p) => p.postedAt >= cutoff);
+      ancientSkipped += fetched.length - inTrackingWindow.length;
       const posts = HASHTAG_FILTERING_ENABLED
-        ? filterByHashtags(fetched, campaign.hashtags)
-        : fetched;
+        ? filterByHashtags(inTrackingWindow, campaign.hashtags)
+        : inTrackingWindow;
       const known = await loadExistingMetrics(posts);
       for (const post of posts) {
         await upsertPost(
@@ -572,6 +580,7 @@ export async function syncCampaign(
         postsUpserted: totalPostsUpserted,
         platformAttempts: tasks.length,
         freshSkips,
+        ancientSkipped,
         deferred: deferredCount,
         monthlyLimitHit: limitState.monthlyLimitHit,
         failures: skipped,
@@ -585,6 +594,7 @@ export async function syncCampaign(
     creatorsAttempted: campaign.campaignCreators.length,
     platformAttempts: tasks.length,
     freshSkips,
+    ancientSkipped,
     deferred: deferredCount,
     monthlyLimitHit: limitState.monthlyLimitHit,
     skipped,

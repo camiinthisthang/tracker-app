@@ -12,6 +12,7 @@ import {
   SCRAPE_CONCURRENCY,
   type SyncPlatform,
 } from "@/lib/social/sync";
+import { trackingCutoff } from "@/lib/social/scrape-plan";
 import type { SocialPost } from "@/lib/social/types";
 
 /**
@@ -50,7 +51,7 @@ export async function POST(
         select: {
           useDefaultHandles: true,
           campaign: {
-            select: { id: true },
+            select: { id: true, startDate: true },
           },
         },
       },
@@ -124,9 +125,13 @@ export async function POST(
   }
 
   if (campaignId) {
+    // Same pre-campaign tracking window as the campaign sync: a handle's
+    // ancient history isn't campaign performance and never enters the DB.
+    const cutoff = trackingCutoff(membership!.campaign.startDate);
     const existingByKey = await loadExistingMetrics(allPosts);
     for (const r of fetchResults) {
       for (const post of r.posts) {
+        if (post.postedAt < cutoff) continue;
         // Posts from a campaign-scoped account belong to this campaign even
         // if another campaign's sync created the row first.
         await upsertPost(
