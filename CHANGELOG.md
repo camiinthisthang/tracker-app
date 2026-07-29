@@ -3,6 +3,13 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-29 — Pre-campaign tracking window: posts older than 6 months before campaign start don't count
+- Product decision by Jackie (resolving the view-gap flag): "don't track anything that is not within 4–6 months of the campaign." Implemented at the generous end — posts published more than 6 MONTHS before their campaign's start date are out of scope. Recent pre-campaign viral posts (Kevin's ~60K reel) still count; a newly added handle's ancient history (techwithkam's Feb-2023 TikToks, 18K+ views) no longer inflates campaign totals.
+- Enforced at ingest in both sync paths (campaign sync + per-creator manual sync): too-old posts never enter the DB; sync summary records `ancientSkipped`. Constant `PRE_CAMPAIGN_TRACKING_MONTHS` in scrape-plan.ts if the window ever needs tightening to 4.
+- **Schema-data migration** `20260729200000_prune_pre_campaign_history`: one-time purge of already-stored posts older than the cutoff (snapshots cascade). Campaign totals, reports, and the All-time dashboard number will drop by the removed ancient views — that's the point.
+- Supersedes part of the Jul 15 "keep every scrapable post" rule; the within-window part of that rule (pre-campaign posts up to 6 months back still count) is unchanged.
+- Tested: `npm test` 67/67 (2 new cutoff tests), `npx next build` green.
+
 ## 2026-07-29 — Dashboard "All time" range + view-gap forensics
 - **All time** option on the dashboard date-range filter (per Jackie): drops the publish-date filter entirely so Home matches the campaign pages/reports exactly (1,048,469 vs the windowed 960,370). Period-over-period delta pills hide on all-time (no previous period to compare). Charts page inherits the option via the shared filter.
 - **View-gap forensics (no code)**: the ~88K gap between windowed Home and all-time totals decomposes as: Kevin's pre-campaign viral reel (~60–65K, @tryponcho.kevin), @techwithkam's ENTIRE Feb-2023 TikTok history swept in by the new-handle deep scrape (18,315+ views across 26+ posts from 2023-02-15..27), @sophia.aitips May 27–Jun 29 TikToks (5,464 views), plus smaller pre-window posts. Flag for a product call: 3-year-old off-topic account history inflating campaign totals may or may not be wanted — current standing rule (keep everything scrapable) is applied consistently; a per-handle or per-campaign "only count posts after X" cutoff is possible if the client-facing numbers should exclude ancient history.

@@ -106,3 +106,20 @@ describe("deactivated-creator weekly cadence", () => {
     ).not.toBe("skip");
   });
 });
+
+describe("pre-campaign tracking cutoff", () => {
+  it("is 6 months before campaign start", async () => {
+    const { trackingCutoff, PRE_CAMPAIGN_TRACKING_MONTHS } = await import(
+      "@/lib/social/scrape-plan"
+    );
+    expect(PRE_CAMPAIGN_TRACKING_MONTHS).toBe(6);
+    const cutoff = trackingCutoff(new Date(Date.UTC(2026, 6, 11)));
+    expect(cutoff.getTime()).toBe(Date.UTC(2026, 0, 11));
+  });
+
+  it("handles year wrap", async () => {
+    const { trackingCutoff } = await import("@/lib/social/scrape-plan");
+    const cutoff = trackingCutoff(new Date(Date.UTC(2026, 1, 1)));
+    expect(cutoff.getTime()).toBe(Date.UTC(2025, 7, 1));
+  });
+});
