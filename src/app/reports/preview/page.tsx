@@ -27,6 +27,7 @@ const MOCK: ReportData = {
     viralPosts: 9,
     viralThreshold: 240,
   },
+  engagementBreakdown: { likes: 98, comments: 22, shares: 15, saves: 7 },
   platforms: [
     {
       platform: "INSTAGRAM",

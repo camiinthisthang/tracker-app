@@ -103,6 +103,15 @@ export interface ReportData {
     viralPosts: number;
     viralThreshold: number;
   };
+  // What the engagement is made of. Platform caveats: Instagram never
+  // exposes share/save counts (reported as 0), and TikTok's share count
+  // includes reposts — there is no separate repost metric from any scraper.
+  engagementBreakdown: {
+    likes: number;
+    comments: number;
+    shares: number;
+    saves: number;
+  };
   platforms: PlatformStat[];
   leaderPlatform: Platform | null;
   underperformingPlatform: Platform | null;
@@ -491,6 +500,12 @@ export async function computeReport(
       viralThreshold: Number.isFinite(viralThreshold)
         ? Math.round(viralThreshold)
         : 0,
+    },
+    engagementBreakdown: {
+      likes: posts.reduce((s, p) => s + p.likes, 0),
+      comments: posts.reduce((s, p) => s + p.comments, 0),
+      shares: posts.reduce((s, p) => s + p.shares, 0),
+      saves: posts.reduce((s, p) => s + p.saves, 0),
     },
     platforms,
     leaderPlatform,

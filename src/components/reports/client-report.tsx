@@ -354,6 +354,36 @@ export function ClientReport({
           </div>
         </div>
 
+        {/* Engagement breakdown */}
+        <SectionCard title="Engagement breakdown" hint="what the engagement is made of">
+          <div className="grid grid-cols-4">
+            {(
+              [
+                ["Likes", data.engagementBreakdown.likes],
+                ["Comments", data.engagementBreakdown.comments],
+                ["Shares & reposts", data.engagementBreakdown.shares],
+                ["Saves", data.engagementBreakdown.saves],
+              ] as const
+            ).map(([label, value], i) => (
+              <div
+                key={label}
+                className={`py-2 ${i > 0 ? "border-l border-bone-200 pl-6" : ""}`}
+              >
+                <p className="font-display text-[24px] font-extrabold leading-none tracking-tight text-ink-900">
+                  {compact(value)}
+                </p>
+                <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.07em] text-ink-300">
+                  {label}
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 font-mono text-[10px] text-ink-300">
+            Shares include TikTok reposts. Instagram doesn&apos;t expose share
+            or save counts, so those columns reflect TikTok and YouTube only.
+          </p>
+        </SectionCard>
+
         {/* Trend */}
         <SectionCard title="Views over time" hint="cumulative">
           {trendData.length > 0 ? (

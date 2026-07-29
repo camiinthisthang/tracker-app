@@ -289,7 +289,7 @@ export default async function DashboardPage({
           label={`Posts · ${range.label}`}
           value={rangePosts.toLocaleString()}
           subtext={
-            <TrendDelta
+            range.key === "all" ? undefined : <TrendDelta
               current={rangePosts}
               previous={prevPosts}
               comparisonLabel={range.compareLabel}
@@ -300,7 +300,7 @@ export default async function DashboardPage({
           label={`Total Views · ${range.label}`}
           value={rangeViews.toLocaleString()}
           subtext={
-            <TrendDelta
+            range.key === "all" ? undefined : <TrendDelta
               current={rangeViews}
               previous={prevViews}
               comparisonLabel={range.compareLabel}
@@ -311,7 +311,7 @@ export default async function DashboardPage({
           label={`Total Likes · ${range.label}`}
           value={rangeLikes.toLocaleString()}
           subtext={
-            <TrendDelta
+            range.key === "all" ? undefined : <TrendDelta
               current={rangeLikes}
               previous={prevLikes}
               comparisonLabel={range.compareLabel}
@@ -322,7 +322,7 @@ export default async function DashboardPage({
           label={`Total Comments · ${range.label}`}
           value={rangeComments.toLocaleString()}
           subtext={
-            <TrendDelta
+            range.key === "all" ? undefined : <TrendDelta
               current={rangeComments}
               previous={prevComments}
               comparisonLabel={range.compareLabel}

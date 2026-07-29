@@ -66,6 +66,16 @@ export function DateRangeFilter({
       ))}
       <button
         type="button"
+        className={pill(rangeKey === "all" && !customOpen)}
+        onClick={() => {
+          setCustomOpen(false);
+          router.push(buildUrl(basePath, preserve, { range: "all" }));
+        }}
+      >
+        All time
+      </button>
+      <button
+        type="button"
         className={pill(customOpen || rangeKey === "custom")}
         onClick={() => setCustomOpen((v) => !v)}
       >
