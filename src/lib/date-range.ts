@@ -8,7 +8,7 @@ export const RANGE_PRESETS = [
   { key: "90d", label: "90d", days: 90 },
 ] as const;
 
-export type RangeKey = (typeof RANGE_PRESETS)[number]["key"] | "custom";
+export type RangeKey = (typeof RANGE_PRESETS)[number]["key"] | "custom" | "all";
 
 export const DEFAULT_RANGE_KEY: RangeKey = "7d";
 
@@ -41,6 +41,23 @@ export function parseDateRange(
   now = new Date(),
 ): DateRange {
   const key = single(params.range) ?? DEFAULT_RANGE_KEY;
+
+  // "All time": no publish-date filter at all — matches the campaign pages
+  // and reports, which count every tracked post including ones published
+  // before the campaign window (pre-campaign viral videos deliberately
+  // count). The comparison window is empty; delta components show their
+  // no-previous-data state.
+  if (key === "all") {
+    return {
+      key: "all",
+      start: new Date(0),
+      end: now,
+      prevStart: new Date(0),
+      prevEnd: new Date(0),
+      label: "All time",
+      compareLabel: "",
+    };
+  }
 
   if (key === "custom") {
     const from = single(params.from);

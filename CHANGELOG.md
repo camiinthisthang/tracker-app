@@ -3,6 +3,11 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-29 — Dashboard "All time" range + view-gap forensics
+- **All time** option on the dashboard date-range filter (per Jackie): drops the publish-date filter entirely so Home matches the campaign pages/reports exactly (1,048,469 vs the windowed 960,370). Period-over-period delta pills hide on all-time (no previous period to compare). Charts page inherits the option via the shared filter.
+- **View-gap forensics (no code)**: the ~88K gap between windowed Home and all-time totals decomposes as: Kevin's pre-campaign viral reel (~60–65K, @tryponcho.kevin), @techwithkam's ENTIRE Feb-2023 TikTok history swept in by the new-handle deep scrape (18,315+ views across 26+ posts from 2023-02-15..27), @sophia.aitips May 27–Jun 29 TikToks (5,464 views), plus smaller pre-window posts. Flag for a product call: 3-year-old off-topic account history inflating campaign totals may or may not be wanted — current standing rule (keep everything scrapable) is applied consistently; a per-handle or per-campaign "only count posts after X" cutoff is possible if the client-facing numbers should exclude ancient history.
+- Tested: `npm test` 65/65, `npx next build` green.
+
 ## 2026-07-28 — Report engagement breakdown + wrong-handle delete escape hatch
 - **Engagement breakdown in the client report** (per Jackie): new section under the hero showing Likes / Comments / Shares & reposts / Saves totals for the window, with the platform caveat spelled out (IG never exposes shares/saves; TikTok's share count includes reposts — no scraper offers a separate repost metric).
 - **Wrong-handle deletion** (Kamryn case): the trash button refused handles with synced posts (correct guard for real history — deleting would orphan + prune it). But a WRONG handle that scraped someone else's account was stuck: rename blocked, delete blocked, deactivate keeps the wrong posts counting. Now the 409 offers an explicit escalation: confirm → `DELETE ?deletePosts=true` removes the handle AND its wrongly-synced posts (snapshots cascade). Real-history handles: keep using Deactivate.
