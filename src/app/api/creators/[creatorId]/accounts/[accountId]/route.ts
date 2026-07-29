@@ -159,9 +159,14 @@ export async function PATCH(
  * anything. Guarded: if posts exist under this username on this platform,
  * refuse and point at Deactivate instead (deleting the row would orphan the
  * history and the stale-handle prune would wipe it on the next sync).
+ *
+ * Escape hatch for WRONG handles (someone else's account got scraped):
+ * `?deletePosts=true` deletes the synced posts under this username along
+ * with the row — their metrics were never this creator's to keep. The UI
+ * only sends it after an explicit confirmation.
  */
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ creatorId: string; accountId: string }> }
 ) {
   const session = await getSession();
@@ -186,24 +191,34 @@ export async function DELETE(
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
-  const postCount = await prisma.post.count({
-    where: {
-      creatorId,
-      platform: account.platform,
-      username: { equals: account.handle, mode: "insensitive" },
-    },
-  });
-  if (postCount > 0) {
+  const deletePosts =
+    new URL(req.url).searchParams.get("deletePosts") === "true";
+
+  const postWhere = {
+    creatorId,
+    platform: account.platform,
+    username: { equals: account.handle, mode: "insensitive" as const },
+  };
+  const postCount = await prisma.post.count({ where: postWhere });
+  if (postCount > 0 && !deletePosts) {
     return NextResponse.json(
       {
         error: `This handle has ${postCount} synced post${
           postCount === 1 ? "" : "s"
         } — deactivate it instead so the history is kept`,
+        postCount,
       },
       { status: 409 }
     );
   }
 
+  // PostMetricsSnapshot cascades on Post delete.
+  let deletedPosts = 0;
+  if (postCount > 0 && deletePosts) {
+    const deleted = await prisma.post.deleteMany({ where: postWhere });
+    deletedPosts = deleted.count;
+  }
+
   await prisma.creatorAccount.delete({ where: { id: accountId } });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, deletedPosts });
 }

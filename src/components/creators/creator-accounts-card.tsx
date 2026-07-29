@@ -268,6 +268,38 @@ export function CreatorAccountsCard({
       );
       if (!res.ok) {
         const j = await res.json().catch(() => null);
+        // Synced-posts guard: if this handle was simply WRONG (someone
+        // else's account got scraped), offer to delete the posts with it —
+        // that history was never this creator's to keep.
+        if (res.status === 409 && typeof j?.postCount === "number") {
+          const wipe = window.confirm(
+            `@${account.handle} has ${j.postCount} synced post${
+              j.postCount === 1 ? "" : "s"
+            }.\n\nIf this handle was WRONG (it scraped someone else's account), click OK to delete the handle AND its ${j.postCount} post${
+              j.postCount === 1 ? "" : "s"
+            } — this can't be undone.\n\nIf it's a real past account of this creator, click Cancel and use Deactivate instead so the history keeps counting.`
+          );
+          if (wipe) {
+            const forced = await fetch(
+              `/api/creators/${creatorId}/accounts/${account.id}?deletePosts=true`,
+              { method: "DELETE" }
+            );
+            if (forced.ok) {
+              const fj = await forced.json().catch(() => null);
+              toast.success(
+                `Account removed along with ${fj?.deletedPosts ?? "its"} wrongly-synced post${
+                  fj?.deletedPosts === 1 ? "" : "s"
+                }`
+              );
+              router.refresh();
+              return;
+            }
+            const fjErr = await forced.json().catch(() => null);
+            toast.error(fjErr?.error ?? "Could not delete account");
+            return;
+          }
+          return;
+        }
         toast.error(j?.error ?? "Could not delete account");
         return;
       }

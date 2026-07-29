@@ -3,6 +3,12 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-28 — Report engagement breakdown + wrong-handle delete escape hatch
+- **Engagement breakdown in the client report** (per Jackie): new section under the hero showing Likes / Comments / Shares & reposts / Saves totals for the window, with the platform caveat spelled out (IG never exposes shares/saves; TikTok's share count includes reposts — no scraper offers a separate repost metric).
+- **Wrong-handle deletion** (Kamryn case): the trash button refused handles with synced posts (correct guard for real history — deleting would orphan + prune it). But a WRONG handle that scraped someone else's account was stuck: rename blocked, delete blocked, deactivate keeps the wrong posts counting. Now the 409 offers an explicit escalation: confirm → `DELETE ?deletePosts=true` removes the handle AND its wrongly-synced posts (snapshots cascade). Real-history handles: keep using Deactivate.
+- **Views-discrepancy sanity check (no code)**: Home 960,370 vs Reports/Campaign 1,048,469 — both correct. Campaign page + report sum ALL tracked posts including pre-campaign-window posts (deliberate: pre-campaign viral videos count; Kevin's 60K reel is one). Home filters by publish date within the selected range, so 90d/custom-from-campaign-start clips the 88,099 views on posts published before the range. Optional fix if wanted: an "All time" option on Home's range picker.
+- Tested: `npm test` 65/65, `npx next build` green. No schema change.
+
 ## 2026-07-28 — Posts tab: filters query the DB (cut creators' posts no longer vanish)
 - Per Jackie: filtering Posts by a cut creator showed "No results found". Cause: the page loaded only the newest 500 posts and filtered them in the BROWSER — a cut creator stops producing new posts, so their history ages out of the newest-500 window and the filter finds nothing, even though every post is still in the DB.
 - Fix: creator/campaign/date filters are now URL params applied in the Prisma query, so selecting a creator fetches THAT creator's newest 500 posts. Filter URLs are also shareable/bookmarkable now. CSV export unchanged (exports the filtered rows).
