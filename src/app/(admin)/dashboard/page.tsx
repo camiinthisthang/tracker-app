@@ -10,6 +10,7 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { TrendDelta } from "@/components/shared/trend-delta";
+import { LastSyncedNote } from "@/components/shared/last-synced-note";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { CampaignSwitcher } from "@/components/dashboard/campaign-switcher";
 import {
@@ -220,7 +221,7 @@ export default async function DashboardPage({
   // the client-facing summary should never be a silent mystery.
   const syncHealthRows = await prisma.campaign.findMany({
     where: { ...campaignWhere, isActive: true },
-    select: { name: true, lastSyncSummary: true },
+    select: { name: true, lastSyncAt: true, lastSyncSummary: true },
   });
   const syncFailures = syncHealthRows.flatMap((c) => {
     const s = c.lastSyncSummary as SyncSummary | null;
@@ -232,7 +233,11 @@ export default async function DashboardPage({
     }));
   });
   const latestSyncAt = syncHealthRows
-    .map((c) => (c.lastSyncSummary as SyncSummary | null)?.at)
+    .map(
+      (c) =>
+        c.lastSyncAt?.toISOString() ??
+        (c.lastSyncSummary as SyncSummary | null)?.at,
+    )
     .filter((a): a is string => !!a)
     .sort()
     .pop();
@@ -268,6 +273,12 @@ export default async function DashboardPage({
           <ExportPdfButton />
         </div>
       </PageHeader>
+
+      {/* Freshness note: when the numbers below were last pulled — nightly
+          cron or force sync, whichever ran most recently. */}
+      <div className="mb-2 print:hidden">
+        <LastSyncedNote at={latestSyncAt ?? null} />
+      </div>
 
       <SyncHealthBanner summary={mergedSyncSummary} />
 

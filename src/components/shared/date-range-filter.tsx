@@ -11,6 +11,10 @@ interface DateRangeFilterProps {
   basePath: string;
   /** Other query params to keep when the range changes (campaign, week…). */
   preserve?: Record<string, string>;
+  /** Which key the page treats as its no-param default (the dashboard uses
+   * 7d; the creator page uses all-time). Clicking that pill clears the range
+   * params instead of setting them. */
+  defaultKey?: string;
 }
 
 function buildUrl(
@@ -30,6 +34,7 @@ export function DateRangeFilter({
   to,
   basePath,
   preserve = {},
+  defaultKey = DEFAULT_RANGE_KEY,
 }: DateRangeFilterProps) {
   const router = useRouter();
   const [customOpen, setCustomOpen] = useState(rangeKey === "custom");
@@ -56,7 +61,7 @@ export function DateRangeFilter({
               buildUrl(
                 basePath,
                 preserve,
-                p.key === DEFAULT_RANGE_KEY ? {} : { range: p.key },
+                p.key === defaultKey ? {} : { range: p.key },
               ),
             );
           }}
@@ -69,7 +74,13 @@ export function DateRangeFilter({
         className={pill(rangeKey === "all" && !customOpen)}
         onClick={() => {
           setCustomOpen(false);
-          router.push(buildUrl(basePath, preserve, { range: "all" }));
+          router.push(
+            buildUrl(
+              basePath,
+              preserve,
+              defaultKey === "all" ? {} : { range: "all" },
+            ),
+          );
         }}
       >
         All time
