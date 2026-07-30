@@ -6,6 +6,8 @@ import { getRequiredSession } from "@/lib/auth";
 import { canAccessCreator, campaignVisibilityWhere } from "@/lib/visibility";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
+import { parseDateRange } from "@/lib/date-range";
 import { TierBadge } from "@/components/creators/tier-badge";
 import { InviteCreatorButton } from "@/components/creators/invite-creator-button";
 import { CreatorAccountsCard } from "@/components/creators/creator-accounts-card";
@@ -112,6 +114,14 @@ export default async function CreatorDetailPage({
   };
 
   const now = new Date();
+  // Platform-split period filter: ?range=7d|30d|…|custom(&from&to). Default
+  // is all-time (matching the page's total stats), unlike the dashboard's 7d.
+  const viewRange = parseDateRange({
+    range: (Array.isArray(sp.range) ? sp.range[0] : sp.range) ?? "all",
+    from: sp.from,
+    to: sp.to,
+  });
+
   // Week navigation: ?week=N steps back N weeks (0 = this week) so each
   // contract week can be reviewed with the arrows on the weekly card.
   const weekOffset = parseWeekOffset(sp.week);
@@ -200,7 +210,12 @@ export default async function CreatorDetailPage({
     }),
     prisma.post.groupBy({
       by: ["platform"],
-      where: postWhere,
+      where: {
+        ...postWhere,
+        ...(viewRange.key !== "all"
+          ? { postedAt: { gte: viewRange.start, lt: viewRange.end } }
+          : {}),
+      },
       _sum: { views: true, likes: true, comments: true, shares: true, saves: true },
       _count: { _all: true },
     }),
@@ -430,10 +445,21 @@ export default async function CreatorDetailPage({
       ...(chart !== 28 ? { chart: String(chart) } : {}),
       ...(week > 0 ? { week: String(week) } : {}),
       ...(posts !== "recent" ? { posts } : {}),
+      ...(viewRange.key !== "all" ? { range: viewRange.key } : {}),
+      ...(viewRange.key === "custom" && viewRange.from && viewRange.to
+        ? { from: viewRange.from, to: viewRange.to }
+        : {}),
     }).toString();
     return `/creators/${creator.id}${qs ? `?${qs}` : ""}`;
   };
   const weekHref = (offset: number) => pageHref({ week: offset });
+  // What the range picker keeps when the period changes.
+  const preserveForRange = {
+    ...(campaignFilter ? { campaign: campaignFilter.id } : {}),
+    ...(chartDays !== 28 ? { chart: String(chartDays) } : {}),
+    ...(weekOffset > 0 ? { week: String(weekOffset) } : {}),
+    ...(postSort !== "recent" ? { posts: postSort } : {}),
+  };
 
   // Posts card: top-10 under the selected sort.
   const engagementOf = (p: {
@@ -614,9 +640,23 @@ export default async function CreatorDetailPage({
         />
       </div>
 
-      {/* Platform split */}
+      {/* Platform split — scoped to the selected period */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-2 print:hidden">
+        <p className="text-sm font-semibold text-slate-800">
+          Views by platform ·{" "}
+          <span className="font-normal text-slate-500">{viewRange.label}</span>
+        </p>
+        <DateRangeFilter
+          rangeKey={viewRange.key}
+          from={viewRange.from}
+          to={viewRange.to}
+          basePath={`/creators/${creator.id}`}
+          preserve={preserveForRange}
+          defaultKey="all"
+        />
+      </div>
       {platformStats.length > 0 && (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {platformStats.map((s) => (
             <div
               key={s.platform}

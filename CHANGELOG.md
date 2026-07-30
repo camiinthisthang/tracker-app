@@ -3,6 +3,11 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-29 — Creator page period/platform views filter + last-synced notes (Eastern Time)
+- **Views by platform, filterable by period** (per Jackie): the creator page's platform split now has the standard one-click range pills (24h/7d/14d/30d/90d/All time/Custom date range) — per-platform views, posts, and engagement % all scope to the selected window. Defaults to All time (matching the page's totals); range survives switching the campaign filter, chart window, and week nav. `DateRangeFilter` gained a `defaultKey` prop so pages can pick their own no-param default.
+- **"Data synced …" freshness notes**: dashboard (Home) and campaign overview now show when the data was last pulled — nightly cron or force sync, whichever ran last — as "Data synced Tue, Jul 29, 7:26 PM ET · 2 hours ago", pinned to Eastern Time per Jackie (the old buried "Last sync" value on the campaign page rendered in server UTC, which made the 06:00 UTC cron read as a random morning time; it now uses the same ET component). Dashboard uses the newest lastSyncAt across the campaigns in view.
+- Tested: `npm test` 67/67, `npx next build` green. No schema change.
+
 ## 2026-07-29 — Pre-campaign tracking window: posts older than 6 months before campaign start don't count
 - Product decision by Jackie (resolving the view-gap flag): "don't track anything that is not within 4–6 months of the campaign." Implemented at the generous end — posts published more than 6 MONTHS before their campaign's start date are out of scope. Recent pre-campaign viral posts (Kevin's ~60K reel) still count; a newly added handle's ancient history (techwithkam's Feb-2023 TikToks, 18K+ views) no longer inflates campaign totals.
 - Enforced at ingest in both sync paths (campaign sync + per-creator manual sync): too-old posts never enter the DB; sync summary records `ancientSkipped`. Constant `PRE_CAMPAIGN_TRACKING_MONTHS` in scrape-plan.ts if the window ever needs tightening to 4.

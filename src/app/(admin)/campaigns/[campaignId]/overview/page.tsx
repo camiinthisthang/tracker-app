@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/shared/stat-card";
 import { SyncButton } from "@/components/campaigns/sync-button";
+import { LastSyncedNote } from "@/components/shared/last-synced-note";
 import {
   SyncHealthBanner,
   type SyncSummary,
@@ -297,6 +298,12 @@ export default async function CampaignOverviewPage({
         />
       </PageHeader>
 
+      {/* Freshness note: nightly cron or force sync, whichever ran last —
+          rendered in the viewer's timezone. */}
+      <div className="mb-2 print:hidden">
+        <LastSyncedNote at={campaign.lastSyncAt?.toISOString() ?? null} />
+      </div>
+
       <SyncHealthBanner
         summary={(campaign.lastSyncSummary as SyncSummary | null) ?? null}
       />
@@ -354,10 +361,12 @@ export default async function CampaignOverviewPage({
           </div>
           <div>
             <p className="text-xs text-slate-400">Last sync</p>
-            <p className="mt-1 text-sm text-slate-700">
-              {campaign.lastSyncAt
-                ? format(campaign.lastSyncAt, "MMM d, h:mm a")
-                : "Never"}
+            <p className="mt-1">
+              <LastSyncedNote
+                at={campaign.lastSyncAt?.toISOString() ?? null}
+                className="text-sm text-slate-700"
+                prefix=""
+              />
             </p>
           </div>
         </div>
