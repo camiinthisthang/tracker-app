@@ -3,6 +3,10 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-31 — Most improved is now week-over-week (was prior-4-week average)
+- Per Jackie: compare each creator's avg views/post this week against LAST WEEK only — consistent weekly cadence that highlights improvement week to week. The `shoutoutMinPriorPosts` Settings knob now means "N+ posts last week" (default 3). Card copy, tooltip, and the self-diagnosing empty states all updated to the last-week framing.
+- Tested: `npm test` 67/67, `npx next build` green.
+
 ## 2026-07-31 — Weekly Shoutouts: self-diagnosing Most improved + runner-ups and richer detail
 - Per Jackie ("Most improved goes blank — why?"): the card requires a creator to (a) have `shoutoutMinPriorPosts`+ tracked posts in the prior 4 weeks AND (b) beat their own prior average this week — and there's a structural headwind: views are cumulative, so days-old posts compare against weeks-matured ones. The blank state now says exactly which rule blocked it: "N creators are up vs their prior average but under the 3-post history minimum", "No creator has 3+ tracked posts in the prior 4 weeks yet", or "No one topped their prior 4-week average — this week's posts are still gaining views". (Most creators' handles were only added Jul 28, so prior windows are just now filling in — the card should start firing naturally within a couple of weeks.)
 - Richer cards: every shoutout now shows a runner-up line (2nd place + their stat); Top performer adds avg views/post; Most engaged breaks interactions into likes · comments · shares+saves; Most consistent lists WHICH days they posted (Mon · Wed · Fri…). Full detail on hover where truncated.

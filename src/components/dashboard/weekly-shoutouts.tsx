@@ -62,7 +62,9 @@ export async function WeeklyShoutouts({
   const minEngagedViews = settings?.shoutoutMinViews ?? DEFAULT_MIN_ENGAGED_VIEWS;
   const minPriorPosts = settings?.shoutoutMinPriorPosts ?? DEFAULT_MIN_PRIOR_POSTS;
   const week = getWeekWindow(weekOffset);
-  const priorStart = subDays(week.start, 28);
+  // Most improved compares against the PREVIOUS WEEK (per Jackie,
+  // 2026-07-31: consistent week-to-week highlighting, not a 4-week average).
+  const priorStart = subDays(week.start, 7);
 
   const [weekPosts, priorPosts, attributions] = await Promise.all([
     prisma.post.findMany({
@@ -174,9 +176,9 @@ export async function WeeklyShoutouts({
   const improvedEmptyReason =
     qualifiedForImproved === 0
       ? thinHistoryImproved > 0
-        ? `${thinHistoryImproved} creator${thinHistoryImproved === 1 ? " is" : "s are"} up vs their prior average but under the ${minPriorPosts}-post history minimum (set in Settings)`
-        : `No creator has ${minPriorPosts}+ tracked posts in the prior 4 weeks yet`
-      : "No one topped their prior 4-week average — this week's posts are still gaining views";
+        ? `${thinHistoryImproved} creator${thinHistoryImproved === 1 ? " is" : "s are"} up vs last week but under the ${minPriorPosts}-post minimum for last week (set in Settings)`
+        : `No creator had ${minPriorPosts}+ tracked posts last week`
+      : "No one topped their last-week average yet — this week's posts are still gaining views";
 
   // Engagement rate only means something on posts with real reach: a creator
   // whose typical post is tiny can rack up friend-likes and top the rate
@@ -245,13 +247,13 @@ export async function WeeklyShoutouts({
     },
     {
       title: "Most improved",
-      tooltip: `Biggest % gain in average views vs their prior 4-week average — needs ${minPriorPosts}+ posts in that window to qualify (adjustable in Settings)`,
+      tooltip: `Biggest % gain in average views per post vs LAST week — needs ${minPriorPosts}+ posts last week to qualify (adjustable in Settings)`,
       icon: TrendingUp,
       creator: mostImproved?.agg.creator ?? null,
       stat: mostImproved ? `+${Math.round(mostImproved.pct)}% avg views` : "",
       positive: true,
       detail: mostImproved
-        ? `${Math.round(mostImproved.agg.views / mostImproved.agg.posts).toLocaleString()} vs ${Math.round(mostImproved.priorAvg).toLocaleString()} prior 4-week avg`
+        ? `${Math.round(mostImproved.agg.views / mostImproved.agg.posts).toLocaleString()} vs ${Math.round(mostImproved.priorAvg).toLocaleString()} avg last week`
         : improvedEmptyReason,
       runnerUp: improved[1]
         ? `${improved[1].agg.creator.name} · +${Math.round(improved[1].pct)}%`
