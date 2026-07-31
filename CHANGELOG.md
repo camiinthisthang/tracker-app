@@ -3,6 +3,11 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-31 — Most improved measures real view GROWTH (snapshots), per-day normalized
+- Per Jackie ("end of the week is coming and we'd like to see someone improving"): comparing lifetime view counts structurally penalized the current week (days-old posts vs matured ones) and kept the card blank. Most improved now measures views GAINED each week from the daily PostMetricsSnapshot baselines — current count minus week-start snapshot, summed across ALL the creator's posts — normalized per day so Wednesday isn't compared against a full 7-day week. Someone can win mid-week.
+- Guards: a post with no baseline snapshot only counts if published that week (late-tracked backfill isn't "growth"); winner needs `shoutoutMinPriorPosts`+ posts this week and 100+ views gained last week (no +∞% wins off a zero base). Empty states diagnose which guard blocked, including "baselines are still building" for freshly-tracked handles.
+- Stat reads "+X% view growth" with "N views gained this week vs M all last week" underneath.
+
 ## 2026-07-31 — Most improved is now week-over-week (was prior-4-week average)
 - Per Jackie: compare each creator's avg views/post this week against LAST WEEK only — consistent weekly cadence that highlights improvement week to week. The `shoutoutMinPriorPosts` Settings knob now means "N+ posts last week" (default 3). Card copy, tooltip, and the self-diagnosing empty states all updated to the last-week framing.
 - Tested: `npm test` 67/67, `npx next build` green.

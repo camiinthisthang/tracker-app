@@ -14,7 +14,7 @@ import type {
   campaignVisibilityWhere,
   creatorVisibilityWhere,
 } from "@/lib/visibility";
-import { getWeekWindow } from "@/lib/weeks";
+import { daysIntoWeek, getWeekWindow } from "@/lib/weeks";
 import { dashboardUrl, type DashboardParams } from "@/lib/dashboard-url";
 import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 
@@ -66,30 +66,49 @@ export async function WeeklyShoutouts({
   // 2026-07-31: consistent week-to-week highlighting, not a 4-week average).
   const priorStart = subDays(week.start, 7);
 
-  const [weekPosts, priorPosts, attributions] = await Promise.all([
-    prisma.post.findMany({
-      where: {
-        campaign: campaignWhere,
-        postedAt: { gte: week.start, lt: week.end },
-      },
-      select: {
-        creatorId: true,
-        views: true,
-        likes: true,
-        comments: true,
-        shares: true,
-        saves: true,
-        postedAt: true,
-        creator: { select: { id: true, name: true, handle: true } },
-      },
-    }),
-    prisma.post.findMany({
-      where: {
-        campaign: campaignWhere,
-        postedAt: { gte: priorStart, lt: week.start },
-      },
-      select: { creatorId: true, views: true },
-    }),
+  // Latest stored view count per post at (or before) a boundary date — the
+  // baseline for measuring how many views were GAINED inside a window.
+  const snapsAt = (boundary: Date) =>
+    prisma.postMetricsSnapshot.findMany({
+      where: { date: { lte: boundary }, post: { campaign: campaignWhere } },
+      orderBy: [{ postId: "asc" }, { date: "desc" }],
+      distinct: ["postId"],
+      select: { postId: true, views: true },
+    });
+
+  const [weekPosts, allPosts, snapsStart, snapsPrior, snapsEnd, attributions] =
+    await Promise.all([
+      prisma.post.findMany({
+        where: {
+          campaign: campaignWhere,
+          postedAt: { gte: week.start, lt: week.end },
+        },
+        select: {
+          creatorId: true,
+          views: true,
+          likes: true,
+          comments: true,
+          shares: true,
+          saves: true,
+          postedAt: true,
+          creator: { select: { id: true, name: true, handle: true } },
+        },
+      }),
+      prisma.post.findMany({
+        where: { campaign: campaignWhere },
+        select: {
+          id: true,
+          creatorId: true,
+          views: true,
+          postedAt: true,
+          creator: { select: { id: true, name: true, handle: true } },
+        },
+      }),
+      snapsAt(week.start),
+      snapsAt(priorStart),
+      weekOffset > 0
+        ? snapsAt(week.end)
+        : Promise.resolve(null as { postId: string; views: number }[] | null),
     ATTRIBUTION_ENABLED
       ? prisma.creatorAttribution.groupBy({
           by: ["creatorId"],
@@ -141,44 +160,84 @@ export async function WeeklyShoutouts({
   }
   const aggs = [...byCreator.values()];
 
-  const priorByCreator = new Map<string, { posts: number; views: number }>();
-  for (const p of priorPosts) {
-    const prev = priorByCreator.get(p.creatorId) ?? { posts: 0, views: 0 };
-    prev.posts++;
-    prev.views += p.views;
-    priorByCreator.set(p.creatorId, prev);
-  }
-
   const byViews = [...aggs].sort((a, b) => b.views - a.views);
   const topPerformer = byViews[0] ?? null;
   const topRunnerUp = byViews[1] ?? null;
 
-  // Most improved, with a self-diagnosing empty state: when nobody wins, say
-  // exactly which qualifying rule blocked it instead of a vague blank —
-  // "why is this empty" should be answerable from the card itself.
-  const improved: { agg: Agg; pct: number; priorAvg: number }[] = [];
-  let qualifiedForImproved = 0;
-  let thinHistoryImproved = 0;
-  for (const a of aggs) {
-    const prior = priorByCreator.get(a.creator.id);
-    if (!prior || prior.views === 0) continue;
-    const priorAvg = prior.views / prior.posts;
-    const pct = (a.views / a.posts / priorAvg - 1) * 100;
-    if (prior.posts < minPriorPosts) {
-      if (pct > 0) thinHistoryImproved++;
-      continue;
+  // ── Most improved: week-over-week VIEW GROWTH from daily snapshots ─────
+  // Comparing lifetime view counts penalized this week (days-old posts vs
+  // matured ones) and kept the card blank. Instead measure views GAINED in
+  // each week — current count minus the week-start snapshot, across ALL the
+  // creator's posts — normalized per day so a mid-week look isn't penalized
+  // against last week's full 7 days. A post with no baseline snapshot counts
+  // only if it was PUBLISHED in that week (otherwise it's late-tracked
+  // backfill, not real growth).
+  const startViews = new Map(snapsStart.map((s) => [s.postId, s.views]));
+  const priorViews = new Map(snapsPrior.map((s) => [s.postId, s.views]));
+  const endViews = snapsEnd
+    ? new Map(snapsEnd.map((s) => [s.postId, s.views]))
+    : null;
+
+  type Growth = { creator: CreatorLite; gainThisWeek: number; gainLastWeek: number };
+  const growthByCreator = new Map<string, Growth>();
+  for (const p of allPosts) {
+    let g = growthByCreator.get(p.creatorId);
+    if (!g) {
+      g = { creator: p.creator, gainThisWeek: 0, gainLastWeek: 0 };
+      growthByCreator.set(p.creatorId, g);
     }
+    const thisEnd = endViews ? (endViews.get(p.id) ?? null) : p.views;
+    const thisStart = startViews.get(p.id) ?? null;
+    if (thisEnd != null) {
+      if (thisStart != null) g.gainThisWeek += Math.max(0, thisEnd - thisStart);
+      else if (p.postedAt >= week.start && p.postedAt < week.end)
+        g.gainThisWeek += thisEnd;
+    }
+    const lastEnd = startViews.get(p.id) ?? null;
+    const lastStart = priorViews.get(p.id) ?? null;
+    if (lastEnd != null) {
+      if (lastStart != null) g.gainLastWeek += Math.max(0, lastEnd - lastStart);
+      else if (p.postedAt >= priorStart && p.postedAt < week.start)
+        g.gainLastWeek += lastEnd;
+    }
+  }
+
+  // Floor on last week's gain so +∞%-style wins off a ~0 base can't happen.
+  const MIN_LAST_WEEK_GAIN = 100;
+  const daysElapsed = weekOffset === 0 ? daysIntoWeek(week.start) : 7;
+  const improved: {
+    creator: CreatorLite;
+    pct: number;
+    gainThisWeek: number;
+    gainLastWeek: number;
+  }[] = [];
+  let anyLastWeekGain = 0;
+  let qualifiedForImproved = 0;
+  for (const [creatorId, g] of growthByCreator) {
+    if (g.gainLastWeek > 0) anyLastWeekGain++;
+    // Spotlight goes to creators actively posting this week (min set in
+    // Settings) with a real base to improve on.
+    if ((byCreator.get(creatorId)?.posts ?? 0) < minPriorPosts) continue;
+    if (g.gainLastWeek < MIN_LAST_WEEK_GAIN) continue;
     qualifiedForImproved++;
-    if (pct > 0) improved.push({ agg: a, pct, priorAvg });
+    const pct =
+      (g.gainThisWeek / daysElapsed / (g.gainLastWeek / 7) - 1) * 100;
+    if (pct > 0)
+      improved.push({
+        creator: g.creator,
+        pct,
+        gainThisWeek: g.gainThisWeek,
+        gainLastWeek: g.gainLastWeek,
+      });
   }
   improved.sort((a, b) => b.pct - a.pct);
   const mostImproved = improved[0] ?? null;
   const improvedEmptyReason =
     qualifiedForImproved === 0
-      ? thinHistoryImproved > 0
-        ? `${thinHistoryImproved} creator${thinHistoryImproved === 1 ? " is" : "s are"} up vs last week but under the ${minPriorPosts}-post minimum for last week (set in Settings)`
-        : `No creator had ${minPriorPosts}+ tracked posts last week`
-      : "No one topped their last-week average yet — this week's posts are still gaining views";
+      ? anyLastWeekGain === 0
+        ? "View-growth baselines are still building (they start when a handle is first tracked) — check back next week"
+        : `No creator with ${minPriorPosts}+ posts this week gained ${MIN_LAST_WEEK_GAIN}+ views last week to compare against`
+      : "No one is out-pacing last week's view growth yet";
 
   // Engagement rate only means something on posts with real reach: a creator
   // whose typical post is tiny can rack up friend-likes and top the rate
@@ -247,16 +306,16 @@ export async function WeeklyShoutouts({
     },
     {
       title: "Most improved",
-      tooltip: `Biggest % gain in average views per post vs LAST week — needs ${minPriorPosts}+ posts last week to qualify (adjustable in Settings)`,
+      tooltip: `Fastest week-over-week view growth: views gained across ALL their posts this week (per day, so mid-week isn't penalized) vs last week — needs ${minPriorPosts}+ posts this week (adjustable in Settings) and ${MIN_LAST_WEEK_GAIN}+ views gained last week`,
       icon: TrendingUp,
-      creator: mostImproved?.agg.creator ?? null,
-      stat: mostImproved ? `+${Math.round(mostImproved.pct)}% avg views` : "",
+      creator: mostImproved?.creator ?? null,
+      stat: mostImproved ? `+${Math.round(mostImproved.pct)}% view growth` : "",
       positive: true,
       detail: mostImproved
-        ? `${Math.round(mostImproved.agg.views / mostImproved.agg.posts).toLocaleString()} vs ${Math.round(mostImproved.priorAvg).toLocaleString()} avg last week`
+        ? `${mostImproved.gainThisWeek.toLocaleString()} views gained this week vs ${mostImproved.gainLastWeek.toLocaleString()} all last week`
         : improvedEmptyReason,
       runnerUp: improved[1]
-        ? `${improved[1].agg.creator.name} · +${Math.round(improved[1].pct)}%`
+        ? `${improved[1].creator.name} · +${Math.round(improved[1].pct)}%`
         : null,
     },
     {
