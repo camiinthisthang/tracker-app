@@ -36,6 +36,8 @@ interface Shoutout {
   creator: CreatorLite | null;
   stat: string;
   detail: string;
+  /** Optional second-place line, e.g. "Joe Lemin · 8,120 views". */
+  runnerUp?: string | null;
   positive?: boolean;
 }
 
@@ -103,6 +105,9 @@ export async function WeeklyShoutouts({
     posts: number;
     views: number;
     engagements: number;
+    likes: number;
+    comments: number;
+    sharesSaves: number;
     postViews: number[];
     days: Set<string>;
   };
@@ -115,6 +120,9 @@ export async function WeeklyShoutouts({
         posts: 0,
         views: 0,
         engagements: 0,
+        likes: 0,
+        comments: 0,
+        sharesSaves: 0,
         postViews: [],
         days: new Set(),
       };
@@ -123,6 +131,9 @@ export async function WeeklyShoutouts({
     agg.posts++;
     agg.views += p.views;
     agg.engagements += p.likes + p.comments + p.shares + p.saves;
+    agg.likes += p.likes;
+    agg.comments += p.comments;
+    agg.sharesSaves += p.shares + p.saves;
     agg.postViews.push(p.views);
     agg.days.add(p.postedAt.toDateString());
   }
@@ -136,22 +147,36 @@ export async function WeeklyShoutouts({
     priorByCreator.set(p.creatorId, prev);
   }
 
-  const topPerformer = aggs.reduce<Agg | null>(
-    (best, a) => (a.views > (best?.views ?? 0) ? a : best),
-    null
-  );
+  const byViews = [...aggs].sort((a, b) => b.views - a.views);
+  const topPerformer = byViews[0] ?? null;
+  const topRunnerUp = byViews[1] ?? null;
 
-  let mostImproved: { agg: Agg; pct: number; priorAvg: number } | null = null;
+  // Most improved, with a self-diagnosing empty state: when nobody wins, say
+  // exactly which qualifying rule blocked it instead of a vague blank —
+  // "why is this empty" should be answerable from the card itself.
+  const improved: { agg: Agg; pct: number; priorAvg: number }[] = [];
+  let qualifiedForImproved = 0;
+  let thinHistoryImproved = 0;
   for (const a of aggs) {
     const prior = priorByCreator.get(a.creator.id);
-    if (!prior || prior.posts < minPriorPosts || prior.views === 0) continue;
+    if (!prior || prior.views === 0) continue;
     const priorAvg = prior.views / prior.posts;
-    const weekAvg = a.views / a.posts;
-    const pct = (weekAvg / priorAvg - 1) * 100;
-    if (pct > 0 && (!mostImproved || pct > mostImproved.pct)) {
-      mostImproved = { agg: a, pct, priorAvg };
+    const pct = (a.views / a.posts / priorAvg - 1) * 100;
+    if (prior.posts < minPriorPosts) {
+      if (pct > 0) thinHistoryImproved++;
+      continue;
     }
+    qualifiedForImproved++;
+    if (pct > 0) improved.push({ agg: a, pct, priorAvg });
   }
+  improved.sort((a, b) => b.pct - a.pct);
+  const mostImproved = improved[0] ?? null;
+  const improvedEmptyReason =
+    qualifiedForImproved === 0
+      ? thinHistoryImproved > 0
+        ? `${thinHistoryImproved} creator${thinHistoryImproved === 1 ? " is" : "s are"} up vs their prior average but under the ${minPriorPosts}-post history minimum (set in Settings)`
+        : `No creator has ${minPriorPosts}+ tracked posts in the prior 4 weeks yet`
+      : "No one topped their prior 4-week average — this week's posts are still gaining views";
 
   // Engagement rate only means something on posts with real reach: a creator
   // whose typical post is tiny can rack up friend-likes and top the rate
@@ -161,13 +186,14 @@ export async function WeeklyShoutouts({
     const sorted = [...xs].sort((x, y) => x - y);
     return sorted[Math.floor(sorted.length / 2)] ?? 0;
   };
-  let mostEngaged: { agg: Agg; rate: number } | null = null;
+  const engaged: { agg: Agg; rate: number }[] = [];
   for (const a of aggs) {
     if (a.views < minEngagedViews) continue;
     if (medianViews(a.postViews) < minEngagedViews) continue;
-    const rate = (a.engagements / a.views) * 100;
-    if (!mostEngaged || rate > mostEngaged.rate) mostEngaged = { agg: a, rate };
+    engaged.push({ agg: a, rate: (a.engagements / a.views) * 100 });
   }
+  engaged.sort((a, b) => b.rate - a.rate);
+  const mostEngaged = engaged[0] ?? null;
 
   let bestConverter: { creator: CreatorLite; signups: number } | null = null;
   for (const row of attributions) {
@@ -183,12 +209,24 @@ export async function WeeklyShoutouts({
     if (creator) bestConverter = { creator, signups };
   }
 
-  const mostConsistent = aggs.reduce<Agg | null>((best, a) => {
-    if (!best) return a;
-    if (a.days.size !== best.days.size)
-      return a.days.size > best.days.size ? a : best;
-    return a.posts > best.posts ? a : best;
-  }, null);
+  const byConsistency = [...aggs].sort(
+    (a, b) => b.days.size - a.days.size || b.posts - a.posts
+  );
+  const mostConsistent = byConsistency[0] ?? null;
+  const consistentRunnerUp = byConsistency[1] ?? null;
+
+  // Which weekdays a creator posted, in Mon–Sun order, e.g. "Mon · Wed · Fri".
+  const postedDayLabels = (agg: Agg) => {
+    const labels: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(week.start);
+      d.setDate(d.getDate() + i);
+      if (agg.days.has(d.toDateString())) {
+        labels.push(d.toLocaleDateString("en-US", { weekday: "short" }));
+      }
+    }
+    return labels.join(" · ");
+  };
 
   const cards: Shoutout[] = [
     {
@@ -198,8 +236,12 @@ export async function WeeklyShoutouts({
       creator: topPerformer?.creator ?? null,
       stat: topPerformer ? `${topPerformer.views.toLocaleString()} views` : "",
       detail: topPerformer
-        ? `across ${topPerformer.posts} post${topPerformer.posts === 1 ? "" : "s"}`
+        ? `${topPerformer.posts} post${topPerformer.posts === 1 ? "" : "s"} · avg ${Math.round(topPerformer.views / topPerformer.posts).toLocaleString()}/post`
         : "No posts this week",
+      runnerUp:
+        topRunnerUp && topRunnerUp.views > 0
+          ? `${topRunnerUp.creator.name} · ${topRunnerUp.views.toLocaleString()} views`
+          : null,
     },
     {
       title: "Most improved",
@@ -210,7 +252,10 @@ export async function WeeklyShoutouts({
       positive: true,
       detail: mostImproved
         ? `${Math.round(mostImproved.agg.views / mostImproved.agg.posts).toLocaleString()} vs ${Math.round(mostImproved.priorAvg).toLocaleString()} prior 4-week avg`
-        : "Needs posting history to compare",
+        : improvedEmptyReason,
+      runnerUp: improved[1]
+        ? `${improved[1].agg.creator.name} · +${Math.round(improved[1].pct)}%`
+        : null,
     },
     {
       title: "Most engaged",
@@ -219,8 +264,11 @@ export async function WeeklyShoutouts({
       creator: mostEngaged?.agg.creator ?? null,
       stat: mostEngaged ? `${mostEngaged.rate.toFixed(1)}% engagement` : "",
       detail: mostEngaged
-        ? `${mostEngaged.agg.engagements.toLocaleString()} interactions / ${mostEngaged.agg.views.toLocaleString()} views`
+        ? `${mostEngaged.agg.likes.toLocaleString()} likes · ${mostEngaged.agg.comments.toLocaleString()} comments · ${mostEngaged.agg.sharesSaves.toLocaleString()} shares+saves / ${mostEngaged.agg.views.toLocaleString()} views`
         : `Needs ${minEngagedViews}+ views to qualify`,
+      runnerUp: engaged[1]
+        ? `${engaged[1].agg.creator.name} · ${engaged[1].rate.toFixed(1)}%`
+        : null,
     },
     ...(ATTRIBUTION_ENABLED
       ? [
@@ -247,8 +295,12 @@ export async function WeeklyShoutouts({
         ? `${mostConsistent.days.size} day${mostConsistent.days.size === 1 ? "" : "s"} posting`
         : "",
       detail: mostConsistent
-        ? `${mostConsistent.posts} post${mostConsistent.posts === 1 ? "" : "s"} this week`
+        ? `${mostConsistent.posts} post${mostConsistent.posts === 1 ? "" : "s"} · ${postedDayLabels(mostConsistent)}`
         : "No posts this week",
+      runnerUp:
+        consistentRunnerUp && consistentRunnerUp.days.size > 0
+          ? `${consistentRunnerUp.creator.name} · ${consistentRunnerUp.days.size} day${consistentRunnerUp.days.size === 1 ? "" : "s"}`
+          : null,
     },
   ];
 
@@ -322,7 +374,20 @@ export async function WeeklyShoutouts({
                 >
                   {card.stat}
                 </p>
-                <p className="truncate text-xs text-slate-400">{card.detail}</p>
+                <p
+                  title={card.detail}
+                  className="truncate text-xs text-slate-400"
+                >
+                  {card.detail}
+                </p>
+                {card.runnerUp && (
+                  <p
+                    title={`Runner-up: ${card.runnerUp}`}
+                    className="mt-1 truncate border-t border-slate-100 pt-1 text-[11px] text-slate-400"
+                  >
+                    2nd · {card.runnerUp}
+                  </p>
+                )}
               </>
             ) : (
               <p className="mt-2 text-xs text-slate-400">{card.detail}</p>
