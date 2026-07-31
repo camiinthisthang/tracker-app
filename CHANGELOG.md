@@ -3,6 +3,21 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-07-31 — Most improved measures real view GROWTH (snapshots), per-day normalized
+- Per Jackie ("end of the week is coming and we'd like to see someone improving"): comparing lifetime view counts structurally penalized the current week (days-old posts vs matured ones) and kept the card blank. Most improved now measures views GAINED each week from the daily PostMetricsSnapshot baselines — current count minus week-start snapshot, summed across ALL the creator's posts — normalized per day so Wednesday isn't compared against a full 7-day week. Someone can win mid-week.
+- Guards: a post with no baseline snapshot only counts if published that week (late-tracked backfill isn't "growth"); winner needs `shoutoutMinPriorPosts`+ posts this week and 100+ views gained last week (no +∞% wins off a zero base). Empty states diagnose which guard blocked, including "baselines are still building" for freshly-tracked handles.
+- Stat reads "+X% view growth" with "N views gained this week vs M all last week" underneath.
+
+## 2026-07-31 — Most improved is now week-over-week (was prior-4-week average)
+- Per Jackie: compare each creator's avg views/post this week against LAST WEEK only — consistent weekly cadence that highlights improvement week to week. The `shoutoutMinPriorPosts` Settings knob now means "N+ posts last week" (default 3). Card copy, tooltip, and the self-diagnosing empty states all updated to the last-week framing.
+- Tested: `npm test` 67/67, `npx next build` green.
+
+## 2026-07-31 — Weekly Shoutouts: self-diagnosing Most improved + runner-ups and richer detail
+- Per Jackie ("Most improved goes blank — why?"): the card requires a creator to (a) have `shoutoutMinPriorPosts`+ tracked posts in the prior 4 weeks AND (b) beat their own prior average this week — and there's a structural headwind: views are cumulative, so days-old posts compare against weeks-matured ones. The blank state now says exactly which rule blocked it: "N creators are up vs their prior average but under the 3-post history minimum", "No creator has 3+ tracked posts in the prior 4 weeks yet", or "No one topped their prior 4-week average — this week's posts are still gaining views". (Most creators' handles were only added Jul 28, so prior windows are just now filling in — the card should start firing naturally within a couple of weeks.)
+- Richer cards: every shoutout now shows a runner-up line (2nd place + their stat); Top performer adds avg views/post; Most engaged breaks interactions into likes · comments · shares+saves; Most consistent lists WHICH days they posted (Mon · Wed · Fri…). Full detail on hover where truncated.
+- Week-by-week navigation already existed (arrow buttons in the card header, preserved across the dashboard's range/campaign filters) — no change needed, noted here since it was easy to miss.
+- Tested: `npm test` 67/67, `npx next build` green. No schema change.
+
 ## 2026-07-29 — Creator page period/platform views filter + last-synced notes (Eastern Time)
 - **Views by platform, filterable by period** (per Jackie): the creator page's platform split now has the standard one-click range pills (24h/7d/14d/30d/90d/All time/Custom date range) — per-platform views, posts, and engagement % all scope to the selected window. Defaults to All time (matching the page's totals); range survives switching the campaign filter, chart window, and week nav. `DateRangeFilter` gained a `defaultKey` prop so pages can pick their own no-param default.
 - **"Data synced …" freshness notes**: dashboard (Home) and campaign overview now show when the data was last pulled — nightly cron or force sync, whichever ran last — as "Data synced Tue, Jul 29, 7:26 PM ET · 2 hours ago", pinned to Eastern Time per Jackie (the old buried "Last sync" value on the campaign page rendered in server UTC, which made the 06:00 UTC cron read as a random morning time; it now uses the same ET component). Dashboard uses the newest lastSyncAt across the campaigns in view.

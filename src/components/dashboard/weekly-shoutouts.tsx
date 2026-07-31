@@ -14,7 +14,7 @@ import type {
   campaignVisibilityWhere,
   creatorVisibilityWhere,
 } from "@/lib/visibility";
-import { getWeekWindow } from "@/lib/weeks";
+import { daysIntoWeek, getWeekWindow } from "@/lib/weeks";
 import { dashboardUrl, type DashboardParams } from "@/lib/dashboard-url";
 import { ATTRIBUTION_ENABLED } from "@/lib/constants";
 
@@ -36,6 +36,8 @@ interface Shoutout {
   creator: CreatorLite | null;
   stat: string;
   detail: string;
+  /** Optional second-place line, e.g. "Joe Lemin · 8,120 views". */
+  runnerUp?: string | null;
   positive?: boolean;
 }
 
@@ -60,32 +62,53 @@ export async function WeeklyShoutouts({
   const minEngagedViews = settings?.shoutoutMinViews ?? DEFAULT_MIN_ENGAGED_VIEWS;
   const minPriorPosts = settings?.shoutoutMinPriorPosts ?? DEFAULT_MIN_PRIOR_POSTS;
   const week = getWeekWindow(weekOffset);
-  const priorStart = subDays(week.start, 28);
+  // Most improved compares against the PREVIOUS WEEK (per Jackie,
+  // 2026-07-31: consistent week-to-week highlighting, not a 4-week average).
+  const priorStart = subDays(week.start, 7);
 
-  const [weekPosts, priorPosts, attributions] = await Promise.all([
-    prisma.post.findMany({
-      where: {
-        campaign: campaignWhere,
-        postedAt: { gte: week.start, lt: week.end },
-      },
-      select: {
-        creatorId: true,
-        views: true,
-        likes: true,
-        comments: true,
-        shares: true,
-        saves: true,
-        postedAt: true,
-        creator: { select: { id: true, name: true, handle: true } },
-      },
-    }),
-    prisma.post.findMany({
-      where: {
-        campaign: campaignWhere,
-        postedAt: { gte: priorStart, lt: week.start },
-      },
-      select: { creatorId: true, views: true },
-    }),
+  // Latest stored view count per post at (or before) a boundary date — the
+  // baseline for measuring how many views were GAINED inside a window.
+  const snapsAt = (boundary: Date) =>
+    prisma.postMetricsSnapshot.findMany({
+      where: { date: { lte: boundary }, post: { campaign: campaignWhere } },
+      orderBy: [{ postId: "asc" }, { date: "desc" }],
+      distinct: ["postId"],
+      select: { postId: true, views: true },
+    });
+
+  const [weekPosts, allPosts, snapsStart, snapsPrior, snapsEnd, attributions] =
+    await Promise.all([
+      prisma.post.findMany({
+        where: {
+          campaign: campaignWhere,
+          postedAt: { gte: week.start, lt: week.end },
+        },
+        select: {
+          creatorId: true,
+          views: true,
+          likes: true,
+          comments: true,
+          shares: true,
+          saves: true,
+          postedAt: true,
+          creator: { select: { id: true, name: true, handle: true } },
+        },
+      }),
+      prisma.post.findMany({
+        where: { campaign: campaignWhere },
+        select: {
+          id: true,
+          creatorId: true,
+          views: true,
+          postedAt: true,
+          creator: { select: { id: true, name: true, handle: true } },
+        },
+      }),
+      snapsAt(week.start),
+      snapsAt(priorStart),
+      weekOffset > 0
+        ? snapsAt(week.end)
+        : Promise.resolve(null as { postId: string; views: number }[] | null),
     ATTRIBUTION_ENABLED
       ? prisma.creatorAttribution.groupBy({
           by: ["creatorId"],
@@ -103,6 +126,9 @@ export async function WeeklyShoutouts({
     posts: number;
     views: number;
     engagements: number;
+    likes: number;
+    comments: number;
+    sharesSaves: number;
     postViews: number[];
     days: Set<string>;
   };
@@ -115,6 +141,9 @@ export async function WeeklyShoutouts({
         posts: 0,
         views: 0,
         engagements: 0,
+        likes: 0,
+        comments: 0,
+        sharesSaves: 0,
         postViews: [],
         days: new Set(),
       };
@@ -123,35 +152,92 @@ export async function WeeklyShoutouts({
     agg.posts++;
     agg.views += p.views;
     agg.engagements += p.likes + p.comments + p.shares + p.saves;
+    agg.likes += p.likes;
+    agg.comments += p.comments;
+    agg.sharesSaves += p.shares + p.saves;
     agg.postViews.push(p.views);
     agg.days.add(p.postedAt.toDateString());
   }
   const aggs = [...byCreator.values()];
 
-  const priorByCreator = new Map<string, { posts: number; views: number }>();
-  for (const p of priorPosts) {
-    const prev = priorByCreator.get(p.creatorId) ?? { posts: 0, views: 0 };
-    prev.posts++;
-    prev.views += p.views;
-    priorByCreator.set(p.creatorId, prev);
-  }
+  const byViews = [...aggs].sort((a, b) => b.views - a.views);
+  const topPerformer = byViews[0] ?? null;
+  const topRunnerUp = byViews[1] ?? null;
 
-  const topPerformer = aggs.reduce<Agg | null>(
-    (best, a) => (a.views > (best?.views ?? 0) ? a : best),
-    null
-  );
+  // ── Most improved: week-over-week VIEW GROWTH from daily snapshots ─────
+  // Comparing lifetime view counts penalized this week (days-old posts vs
+  // matured ones) and kept the card blank. Instead measure views GAINED in
+  // each week — current count minus the week-start snapshot, across ALL the
+  // creator's posts — normalized per day so a mid-week look isn't penalized
+  // against last week's full 7 days. A post with no baseline snapshot counts
+  // only if it was PUBLISHED in that week (otherwise it's late-tracked
+  // backfill, not real growth).
+  const startViews = new Map(snapsStart.map((s) => [s.postId, s.views]));
+  const priorViews = new Map(snapsPrior.map((s) => [s.postId, s.views]));
+  const endViews = snapsEnd
+    ? new Map(snapsEnd.map((s) => [s.postId, s.views]))
+    : null;
 
-  let mostImproved: { agg: Agg; pct: number; priorAvg: number } | null = null;
-  for (const a of aggs) {
-    const prior = priorByCreator.get(a.creator.id);
-    if (!prior || prior.posts < minPriorPosts || prior.views === 0) continue;
-    const priorAvg = prior.views / prior.posts;
-    const weekAvg = a.views / a.posts;
-    const pct = (weekAvg / priorAvg - 1) * 100;
-    if (pct > 0 && (!mostImproved || pct > mostImproved.pct)) {
-      mostImproved = { agg: a, pct, priorAvg };
+  type Growth = { creator: CreatorLite; gainThisWeek: number; gainLastWeek: number };
+  const growthByCreator = new Map<string, Growth>();
+  for (const p of allPosts) {
+    let g = growthByCreator.get(p.creatorId);
+    if (!g) {
+      g = { creator: p.creator, gainThisWeek: 0, gainLastWeek: 0 };
+      growthByCreator.set(p.creatorId, g);
+    }
+    const thisEnd = endViews ? (endViews.get(p.id) ?? null) : p.views;
+    const thisStart = startViews.get(p.id) ?? null;
+    if (thisEnd != null) {
+      if (thisStart != null) g.gainThisWeek += Math.max(0, thisEnd - thisStart);
+      else if (p.postedAt >= week.start && p.postedAt < week.end)
+        g.gainThisWeek += thisEnd;
+    }
+    const lastEnd = startViews.get(p.id) ?? null;
+    const lastStart = priorViews.get(p.id) ?? null;
+    if (lastEnd != null) {
+      if (lastStart != null) g.gainLastWeek += Math.max(0, lastEnd - lastStart);
+      else if (p.postedAt >= priorStart && p.postedAt < week.start)
+        g.gainLastWeek += lastEnd;
     }
   }
+
+  // Floor on last week's gain so +∞%-style wins off a ~0 base can't happen.
+  const MIN_LAST_WEEK_GAIN = 100;
+  const daysElapsed = weekOffset === 0 ? daysIntoWeek(week.start) : 7;
+  const improved: {
+    creator: CreatorLite;
+    pct: number;
+    gainThisWeek: number;
+    gainLastWeek: number;
+  }[] = [];
+  let anyLastWeekGain = 0;
+  let qualifiedForImproved = 0;
+  for (const [creatorId, g] of growthByCreator) {
+    if (g.gainLastWeek > 0) anyLastWeekGain++;
+    // Spotlight goes to creators actively posting this week (min set in
+    // Settings) with a real base to improve on.
+    if ((byCreator.get(creatorId)?.posts ?? 0) < minPriorPosts) continue;
+    if (g.gainLastWeek < MIN_LAST_WEEK_GAIN) continue;
+    qualifiedForImproved++;
+    const pct =
+      (g.gainThisWeek / daysElapsed / (g.gainLastWeek / 7) - 1) * 100;
+    if (pct > 0)
+      improved.push({
+        creator: g.creator,
+        pct,
+        gainThisWeek: g.gainThisWeek,
+        gainLastWeek: g.gainLastWeek,
+      });
+  }
+  improved.sort((a, b) => b.pct - a.pct);
+  const mostImproved = improved[0] ?? null;
+  const improvedEmptyReason =
+    qualifiedForImproved === 0
+      ? anyLastWeekGain === 0
+        ? "View-growth baselines are still building (they start when a handle is first tracked) — check back next week"
+        : `No creator with ${minPriorPosts}+ posts this week gained ${MIN_LAST_WEEK_GAIN}+ views last week to compare against`
+      : "No one is out-pacing last week's view growth yet";
 
   // Engagement rate only means something on posts with real reach: a creator
   // whose typical post is tiny can rack up friend-likes and top the rate
@@ -161,13 +247,14 @@ export async function WeeklyShoutouts({
     const sorted = [...xs].sort((x, y) => x - y);
     return sorted[Math.floor(sorted.length / 2)] ?? 0;
   };
-  let mostEngaged: { agg: Agg; rate: number } | null = null;
+  const engaged: { agg: Agg; rate: number }[] = [];
   for (const a of aggs) {
     if (a.views < minEngagedViews) continue;
     if (medianViews(a.postViews) < minEngagedViews) continue;
-    const rate = (a.engagements / a.views) * 100;
-    if (!mostEngaged || rate > mostEngaged.rate) mostEngaged = { agg: a, rate };
+    engaged.push({ agg: a, rate: (a.engagements / a.views) * 100 });
   }
+  engaged.sort((a, b) => b.rate - a.rate);
+  const mostEngaged = engaged[0] ?? null;
 
   let bestConverter: { creator: CreatorLite; signups: number } | null = null;
   for (const row of attributions) {
@@ -183,12 +270,24 @@ export async function WeeklyShoutouts({
     if (creator) bestConverter = { creator, signups };
   }
 
-  const mostConsistent = aggs.reduce<Agg | null>((best, a) => {
-    if (!best) return a;
-    if (a.days.size !== best.days.size)
-      return a.days.size > best.days.size ? a : best;
-    return a.posts > best.posts ? a : best;
-  }, null);
+  const byConsistency = [...aggs].sort(
+    (a, b) => b.days.size - a.days.size || b.posts - a.posts
+  );
+  const mostConsistent = byConsistency[0] ?? null;
+  const consistentRunnerUp = byConsistency[1] ?? null;
+
+  // Which weekdays a creator posted, in Mon–Sun order, e.g. "Mon · Wed · Fri".
+  const postedDayLabels = (agg: Agg) => {
+    const labels: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(week.start);
+      d.setDate(d.getDate() + i);
+      if (agg.days.has(d.toDateString())) {
+        labels.push(d.toLocaleDateString("en-US", { weekday: "short" }));
+      }
+    }
+    return labels.join(" · ");
+  };
 
   const cards: Shoutout[] = [
     {
@@ -198,19 +297,26 @@ export async function WeeklyShoutouts({
       creator: topPerformer?.creator ?? null,
       stat: topPerformer ? `${topPerformer.views.toLocaleString()} views` : "",
       detail: topPerformer
-        ? `across ${topPerformer.posts} post${topPerformer.posts === 1 ? "" : "s"}`
+        ? `${topPerformer.posts} post${topPerformer.posts === 1 ? "" : "s"} · avg ${Math.round(topPerformer.views / topPerformer.posts).toLocaleString()}/post`
         : "No posts this week",
+      runnerUp:
+        topRunnerUp && topRunnerUp.views > 0
+          ? `${topRunnerUp.creator.name} · ${topRunnerUp.views.toLocaleString()} views`
+          : null,
     },
     {
       title: "Most improved",
-      tooltip: `Biggest % gain in average views vs their prior 4-week average — needs ${minPriorPosts}+ posts in that window to qualify (adjustable in Settings)`,
+      tooltip: `Fastest week-over-week view growth: views gained across ALL their posts this week (per day, so mid-week isn't penalized) vs last week — needs ${minPriorPosts}+ posts this week (adjustable in Settings) and ${MIN_LAST_WEEK_GAIN}+ views gained last week`,
       icon: TrendingUp,
-      creator: mostImproved?.agg.creator ?? null,
-      stat: mostImproved ? `+${Math.round(mostImproved.pct)}% avg views` : "",
+      creator: mostImproved?.creator ?? null,
+      stat: mostImproved ? `+${Math.round(mostImproved.pct)}% view growth` : "",
       positive: true,
       detail: mostImproved
-        ? `${Math.round(mostImproved.agg.views / mostImproved.agg.posts).toLocaleString()} vs ${Math.round(mostImproved.priorAvg).toLocaleString()} prior 4-week avg`
-        : "Needs posting history to compare",
+        ? `${mostImproved.gainThisWeek.toLocaleString()} views gained this week vs ${mostImproved.gainLastWeek.toLocaleString()} all last week`
+        : improvedEmptyReason,
+      runnerUp: improved[1]
+        ? `${improved[1].creator.name} · +${Math.round(improved[1].pct)}%`
+        : null,
     },
     {
       title: "Most engaged",
@@ -219,8 +325,11 @@ export async function WeeklyShoutouts({
       creator: mostEngaged?.agg.creator ?? null,
       stat: mostEngaged ? `${mostEngaged.rate.toFixed(1)}% engagement` : "",
       detail: mostEngaged
-        ? `${mostEngaged.agg.engagements.toLocaleString()} interactions / ${mostEngaged.agg.views.toLocaleString()} views`
+        ? `${mostEngaged.agg.likes.toLocaleString()} likes · ${mostEngaged.agg.comments.toLocaleString()} comments · ${mostEngaged.agg.sharesSaves.toLocaleString()} shares+saves / ${mostEngaged.agg.views.toLocaleString()} views`
         : `Needs ${minEngagedViews}+ views to qualify`,
+      runnerUp: engaged[1]
+        ? `${engaged[1].agg.creator.name} · ${engaged[1].rate.toFixed(1)}%`
+        : null,
     },
     ...(ATTRIBUTION_ENABLED
       ? [
@@ -247,8 +356,12 @@ export async function WeeklyShoutouts({
         ? `${mostConsistent.days.size} day${mostConsistent.days.size === 1 ? "" : "s"} posting`
         : "",
       detail: mostConsistent
-        ? `${mostConsistent.posts} post${mostConsistent.posts === 1 ? "" : "s"} this week`
+        ? `${mostConsistent.posts} post${mostConsistent.posts === 1 ? "" : "s"} · ${postedDayLabels(mostConsistent)}`
         : "No posts this week",
+      runnerUp:
+        consistentRunnerUp && consistentRunnerUp.days.size > 0
+          ? `${consistentRunnerUp.creator.name} · ${consistentRunnerUp.days.size} day${consistentRunnerUp.days.size === 1 ? "" : "s"}`
+          : null,
     },
   ];
 
@@ -322,7 +435,20 @@ export async function WeeklyShoutouts({
                 >
                   {card.stat}
                 </p>
-                <p className="truncate text-xs text-slate-400">{card.detail}</p>
+                <p
+                  title={card.detail}
+                  className="truncate text-xs text-slate-400"
+                >
+                  {card.detail}
+                </p>
+                {card.runnerUp && (
+                  <p
+                    title={`Runner-up: ${card.runnerUp}`}
+                    className="mt-1 truncate border-t border-slate-100 pt-1 text-[11px] text-slate-400"
+                  >
+                    2nd · {card.runnerUp}
+                  </p>
+                )}
               </>
             ) : (
               <p className="mt-2 text-xs text-slate-400">{card.detail}</p>

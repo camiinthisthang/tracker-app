@@ -22,3 +22,9 @@ export function parseWeekOffset(raw: string | string[] | undefined): number {
   if (!Number.isInteger(n) || n < 0) return 0;
   return Math.min(n, 52);
 }
+
+/** Days elapsed so far in a (possibly in-progress) week window, clamped to
+ * [1, 7] — used to normalize "views gained this week" to a per-day pace. */
+export function daysIntoWeek(start: Date, now = new Date()): number {
+  return Math.min(7, Math.max(1, (now.getTime() - start.getTime()) / 86_400_000));
+}
