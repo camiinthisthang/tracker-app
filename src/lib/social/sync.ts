@@ -9,18 +9,24 @@ import {
   SHALLOW_SCRAPE_RESULTS_LIMIT,
 } from "./apify";
 import {
-  planHandleScrape,
+  planScrape,
   trackingCutoff,
   budgetModeFor,
   isDormantHandle,
   HANDLE_FRESH_WINDOW_CRON_MS,
-  DEACTIVATED_FRESH_WINDOW_MS,
-  DORMANT_FRESH_WINDOW_MS,
   type ApifyBudgetMode,
+  type CadenceTier,
   type ScrapeDepth,
 } from "./scrape-plan";
+
 import type { SocialPost } from "./types";
 import type { Platform } from "@/generated/prisma/enums";
+
+/** Canonical map key for a scraped handle — every lookup that joins handle
+ * data (sync states, dormancy, dedup) must agree on this exact format. */
+export function handleKey(platform: string, handle: string): string {
+  return `${platform}:${handle.toLowerCase()}`;
+}
 
 // Hashtag filtering is intentionally OFF: we track each creator's entire
 // account within the campaign window because creators don't reliably tag every
@@ -92,7 +98,7 @@ export function resolveSyncHandles(
     scopedToCampaign: boolean
   ) => {
     if (!handle) return;
-    const key = `${platform}:${handle.toLowerCase()}`;
+    const key = handleKey(platform, handle);
     if (seen.has(key)) return;
     seen.add(key);
     out.push({ platform, handle, scopedToCampaign });
@@ -265,7 +271,7 @@ export async function loadHandleSyncStates(
   >();
   const pairs = new Map<string, { platform: SyncPlatform; handle: string }>();
   for (const t of tasks) {
-    pairs.set(`${t.platform}:${t.handle.toLowerCase()}`, {
+    pairs.set(handleKey(t.platform, t.handle), {
       platform: t.platform,
       handle: t.handle.toLowerCase(),
     });
@@ -275,7 +281,7 @@ export async function loadHandleSyncStates(
     where: { OR: [...pairs.values()] },
   });
   for (const r of rows) {
-    byKey.set(`${r.platform}:${r.handle}`, {
+    byKey.set(handleKey(r.platform, r.handle), {
       lastSuccessAt: r.lastSuccessAt,
       lastDeepAt: r.lastDeepAt,
     });
@@ -297,23 +303,38 @@ export async function loadHandleSyncStates(
  */
 export type ApifyLimitState = { monthlyLimitHit: boolean };
 
-/** Live budget snapshot driving the sync's spend behavior; null = the usage
- * API was unavailable (sync proceeds normally rather than blocking). */
+/** Live budget snapshot driving the sync's spend behavior. */
 export type ApifyBudget = {
   mode: ApifyBudgetMode;
   usedUsd: number;
   limitUsd: number;
-} | null;
+};
 
-/** Pre-flight the Apify account's monthly usage into a budget mode. */
-export async function assessApifyBudget(): Promise<ApifyBudget> {
+// Budget mode can't meaningfully change minute-to-minute; a short cache keeps
+// back-to-back manual syncs from re-hitting the billing API.
+const BUDGET_CACHE_TTL_MS = 2 * 60_000;
+let budgetCache: { at: number; value: ApifyBudget | null } | null = null;
+
+/** Pre-flight the Apify account's monthly usage into a budget mode.
+ * null = the usage API was unavailable (sync proceeds normally rather than
+ * blocking). */
+export async function assessApifyBudget(): Promise<ApifyBudget | null> {
+  if (budgetCache && Date.now() - budgetCache.at < BUDGET_CACHE_TTL_MS) {
+    return budgetCache.value;
+  }
   const usage = await fetchApifyUsage();
-  if (!usage) return null;
-  return {
-    mode: budgetModeFor(usage.usedUsd / usage.limitUsd, usage.cycleElapsedRatio),
-    usedUsd: usage.usedUsd,
-    limitUsd: usage.limitUsd,
-  };
+  const value = usage
+    ? {
+        mode: budgetModeFor(
+          usage.usedUsd / usage.limitUsd,
+          usage.cycleElapsedRatio
+        ),
+        usedUsd: Math.round(usage.usedUsd * 100) / 100,
+        limitUsd: usage.limitUsd,
+      }
+    : null;
+  budgetCache = { at: Date.now(), value };
+  return value;
 }
 
 export async function syncCampaign(
@@ -326,9 +347,12 @@ export async function syncCampaign(
   freshWindowMs = 0,
   // Budget snapshot from assessApifyBudget(). undefined = fetch it here
   // (single-campaign callers); syncAllCampaigns fetches once for the run.
-  budget?: ApifyBudget
+  budget?: ApifyBudget | null
 ) {
-  if (budget === undefined) budget = await assessApifyBudget();
+  // Kick off the (HTTP) budget pre-flight concurrently with the campaign
+  // load instead of serializing two independent round-trips.
+  const budgetPromise =
+    budget === undefined ? assessApifyBudget() : Promise.resolve(budget);
   // EVERY membership syncs — deactivated creators included (per Jacqueline,
   // 2026-07-15): deactivating a creator (per campaign or whole roster) only
   // hides them from the tracking/attention pages, it never stops data
@@ -403,24 +427,28 @@ export async function syncCampaign(
   // one cron run and absorbs back-to-back manual re-syncs — and scrape the
   // rest shallow unless their weekly deep pass is due. Failed handles have no
   // fresh lastSuccessAt, so they always retry (deep if their pass is due).
-  const stateByKey = await loadHandleSyncStates(tasks);
   const planNow = Date.now();
-
-  // Dormancy: newest tracked post per (platform, handle). A handle whose
-  // latest post is 14+ days old (or that has been scraped before and never
-  // produced a post) drops to the ~3-day cadence — the weekly deep pass and
-  // the shallow re-checks still catch a dormant video that suddenly picks up
-  // views, without paying for a nightly scrape that finds nothing new.
-  const latestByHandle = await prisma.post.groupBy({
-    by: ["platform", "username"],
-    where: {
-      creatorId: { in: campaign.campaignCreators.map((cc) => cc.creatorId) },
-    },
-    _max: { postedAt: true },
-  });
+  // Dormancy input: newest tracked post per (platform, handle). A handle
+  // whose latest post is 14+ days old (or that has been scraped before and
+  // never produced a post) drops to the ~3-day cadence — the weekly deep
+  // pass and the shallow re-checks still catch a dormant video that suddenly
+  // picks up views, without paying for a nightly scrape that finds nothing
+  // new. Loaded concurrently with the handle sync states.
+  const [stateByKey, latestByHandle, resolvedBudget] = await Promise.all([
+    loadHandleSyncStates(tasks),
+    prisma.post.groupBy({
+      by: ["platform", "username"],
+      where: {
+        creatorId: { in: campaign.campaignCreators.map((cc) => cc.creatorId) },
+      },
+      _max: { postedAt: true },
+    }),
+    budgetPromise,
+  ]);
+  budget = resolvedBudget;
   const latestPostAt = new Map(
     latestByHandle.map((r) => [
-      `${r.platform}:${r.username.toLowerCase()}`,
+      handleKey(r.platform, r.username),
       r._max.postedAt,
     ])
   );
@@ -430,57 +458,31 @@ export async function syncCampaign(
   let budgetSkips = 0;
   const runnable: FetchTask[] = [];
   for (const t of tasks) {
-    const key = `${t.platform}:${t.handle.toLowerCase()}`;
+    const key = handleKey(t.platform, t.handle);
     const state = stateByKey.get(key);
-    const dormant =
-      !t.weeklyOnly &&
-      isDormantHandle(
-        latestPostAt.get(key) ?? null,
-        Boolean(state?.lastSuccessAt),
-        planNow
-      );
-
-    // Budget guardrails: when the month is burning too fast, the cheap-to-
-    // postpone work sits out — dormant handles in conserve mode; dormant AND
-    // deactivated handles in critical mode. Active-roster handles always run.
-    if (budget && dormant && budget.mode !== "normal") {
-      budgetSkips++;
-      continue;
-    }
-    if (budget && t.weeklyOnly && budget.mode === "critical") {
-      budgetSkips++;
-      continue;
-    }
-
-    const plan = planHandleScrape(
+    const tier: CadenceTier = t.weeklyOnly
+      ? "weekly"
+      : isDormantHandle(
+            latestPostAt.get(key) ?? null,
+            Boolean(state?.lastSuccessAt),
+            planNow
+          )
+        ? "dormant"
+        : "active";
+    const decision = planScrape({
       state,
-      planNow,
-      // Weekly-only handles use the 6-day window regardless of caller — even
-      // a manual Sync Data doesn't re-pull a deactivated creator early.
-      // Dormant handles use the ~3-day window.
-      t.weeklyOnly
-        ? Math.max(freshWindowMs, DEACTIVATED_FRESH_WINDOW_MS)
-        : dormant
-          ? Math.max(freshWindowMs, DORMANT_FRESH_WINDOW_MS)
-          : freshWindowMs
-    );
-    if (plan === "skip") {
-      if (dormant) dormantSkips++;
+      tier,
+      budgetMode: budget?.mode ?? null,
+      callerFreshWindowMs: freshWindowMs,
+      now: planNow,
+    });
+    if (decision.action === "skip") {
+      if (decision.reason === "budget") budgetSkips++;
+      else if (tier === "dormant") dormantSkips++;
       else freshSkips++;
       continue;
     }
-    // When a weekly-only handle does run, take the full-depth pass — it won't
-    // get another look for ~a week.
-    let depth: ScrapeDepth = t.weeklyOnly ? "deep" : plan;
-    // Spend-pacing: conserve downgrades REPEAT deep passes to shallow for
-    // active handles (a brand-new handle still gets its first full backfill);
-    // critical forces shallow across the board. Weekly-only handles keep
-    // their deep pass — they only get touched once a week as it is.
-    if (budget && !t.weeklyOnly && depth === "deep" && state?.lastDeepAt) {
-      if (budget.mode !== "normal") depth = "shallow";
-    }
-    if (budget && budget.mode === "critical") depth = "shallow";
-    runnable.push({ ...t, depth });
+    runnable.push({ ...t, depth: decision.depth });
   }
 
   // Rotate the task order by day so a campaign too big for one time budget
@@ -670,13 +672,7 @@ export async function syncCampaign(
         ancientSkipped,
         deferred: deferredCount,
         monthlyLimitHit: limitState.monthlyLimitHit,
-        apifyBudget: budget
-          ? {
-              mode: budget.mode,
-              usedUsd: Math.round(budget.usedUsd * 100) / 100,
-              limitUsd: budget.limitUsd,
-            }
-          : null,
+        apifyBudget: budget,
         failures: skipped,
       },
     },
@@ -693,7 +689,7 @@ export async function syncCampaign(
     ancientSkipped,
     deferred: deferredCount,
     monthlyLimitHit: limitState.monthlyLimitHit,
-    budgetMode: budget?.mode ?? null,
+    apifyBudget: budget,
     skipped,
   };
 }

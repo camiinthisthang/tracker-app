@@ -59,7 +59,7 @@ export async function fetchApifyUsage(): Promise<ApifyUsage | null> {
   try {
     const res = await axios.get(`${APIFY_BASE}/users/me/limits`, {
       params: { token: getToken() },
-      timeout: 15_000,
+      timeout: 4_000,
     });
     const d = res.data?.data ?? res.data ?? {};
     const usedUsd =
@@ -85,10 +85,13 @@ export async function fetchApifyUsage(): Promise<ApifyUsage | null> {
     const cycleElapsedRatio =
       Number.isFinite(start) && Number.isFinite(end) && end > start
         ? Math.min(1, Math.max(0, (now - start) / (end - start)))
-        : Math.min(1, (new Date().getUTCDate() - 1) / 30);
+        : Math.min(1, (new Date(now).getUTCDate() - 1) / 30);
     return { usedUsd, limitUsd, cycleElapsedRatio };
   } catch (e) {
-    console.warn("[apify] usage pre-flight failed (continuing without):", e);
+    console.warn(
+      "[apify] usage pre-flight failed (continuing without):",
+      describeApifyError(e)
+    );
     return null;
   }
 }

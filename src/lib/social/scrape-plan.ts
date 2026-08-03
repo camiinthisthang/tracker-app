@@ -103,6 +103,65 @@ export function budgetModeFor(
   return "normal";
 }
 
+/** Which scheduling tier a handle is on: active roster (nightly), dormant
+ * (~3-day checks), or weekly (deactivated creators/memberships). */
+export type CadenceTier = "active" | "dormant" | "weekly";
+
+export type ScrapeDecision =
+  | { action: "run"; depth: ScrapeDepth }
+  | { action: "skip"; reason: "fresh" | "budget" };
+
+const TIER_FLOOR_WINDOW_MS: Record<CadenceTier, number> = {
+  active: 0,
+  dormant: DORMANT_FRESH_WINDOW_MS,
+  weekly: DEACTIVATED_FRESH_WINDOW_MS,
+};
+
+/**
+ * The whole per-handle scheduling decision in one place: cadence tier +
+ * budget mode + freshness/deep-pass state → run (at what depth) or skip
+ * (why). Both sync entry points route through this, so budget guardrails
+ * can't be bypassed by one code path drifting.
+ *
+ * Budget policy: dormant handles sit out any non-normal mode; weekly handles
+ * sit out critical; conserve downgrades REPEAT deep passes to shallow for
+ * active handles (a first-ever deep backfill still runs); critical forces
+ * shallow. Weekly handles keep their deep pass in conserve — they're only
+ * touched once a week as it is.
+ */
+export function planScrape(opts: {
+  state: HandleScrapeState | undefined;
+  tier: CadenceTier;
+  budgetMode: ApifyBudgetMode | null;
+  callerFreshWindowMs: number;
+  now: number;
+}): ScrapeDecision {
+  const { state, tier, budgetMode, callerFreshWindowMs, now } = opts;
+
+  if (budgetMode && budgetMode !== "normal") {
+    if (tier === "dormant" || (tier === "weekly" && budgetMode === "critical")) {
+      return { action: "skip", reason: "budget" };
+    }
+  }
+
+  const window = Math.max(callerFreshWindowMs, TIER_FLOOR_WINDOW_MS[tier]);
+  const plan = planHandleScrape(state, now, window);
+  if (plan === "skip") return { action: "skip", reason: "fresh" };
+
+  let depth: ScrapeDepth = tier === "weekly" ? "deep" : plan;
+  if (budgetMode === "critical") {
+    depth = "shallow";
+  } else if (
+    budgetMode === "conserve" &&
+    tier !== "weekly" &&
+    depth === "deep" &&
+    state?.lastDeepAt
+  ) {
+    depth = "shallow";
+  }
+  return { action: "run", depth };
+}
+
 export type HandleScrapeState = {
   lastSuccessAt: Date | null;
   lastDeepAt: Date | null;

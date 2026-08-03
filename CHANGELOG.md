@@ -3,6 +3,15 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-08-03 — Cleanup pass on the budget guardrails (pre-merge)
+- **One planner for every sync path**: cadence tier + budget mode + freshness/deep-pass state now resolve in a single `planScrape()` (src/lib/social/scrape-plan.ts) returning run-at-depth or skip-with-reason. The cron/campaign sync and the per-creator manual sync both route through it, so budget guardrails can't be bypassed by one code path drifting.
+- **Per-creator manual sync is now budget-aware too**: it previously always deep-scraped and ignored budget modes; now it plans per handle (critical → shallow), fetches at the planned depth, and records the actual depth in the deep-pass schedule.
+- **Shared `handleKey()`** for every `PLATFORM:handle-lowercase` map key (sync states, dormancy, failure sets) — four hand-built template strings collapsed into one helper.
+- **`assessApifyBudget()` hardening**: 2-min in-memory cache (one billing-API call serves a whole cron run / burst of manual syncs), usedUsd rounding moved inside, usage pre-flight timeout cut 15s → 4s with `describeApifyError` for readable warnings, and it now runs concurrently with the campaign/state queries instead of blocking them.
+- **Banner**: budget-pacing note now also renders when the sync had failures or deferrals (it used to silently disappear exactly when things were worst); container styles deduped; budget mode type imported from scrape-plan instead of hand-redeclared.
+- Skipped on purpose: hoisting the dormancy query across campaigns (one active campaign — not worth the plumbing), username `in`-filtering the groupBy (case-sensitivity risk), and removing the calendar-day cycle fallback (intentional robustness).
+- Tested: `npm test` 81/81 (8 new `planScrape` tests incl. budget sit-outs, conserve downgrade, tier windows), `npx next build` green. No schema change, no behavior change to the cron path.
+
 ## 2026-08-03 — Apify budget guardrails: usage-aware sync modes, dormant-handle cadence, manual-sync rate limit
 - Context: the monthly hard limit hit AGAIN (Aug 3, 1:01 AM ET cron — the account's billing cycle is anchored to its creation date, ~the 22nd, so no Aug 1 reset). Previous cuts reduced waste but nothing WATCHED spend. Now the sync does.
 - **Budget pre-flight** (`fetchApifyUsage` → `assessApifyBudget`): before scraping, the sync reads the account's live monthly usage vs its limit from Apify's API and picks a mode: `normal` (under pace) / `conserve` (spending ahead of the cycle's elapsed-time pace by >15pts: repeat deep passes downgrade to shallow, dormant handles sit out) / `critical` (≥90% used: active handles only, all shallow). Fails open — a billing-API hiccup never blocks syncing. Cron pre-flights once per run; manual campaign syncs pre-flight per call.
