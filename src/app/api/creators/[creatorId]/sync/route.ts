@@ -3,16 +3,27 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { canAccessCreator } from "@/lib/visibility";
 import {
+  assessApifyBudget,
   fetchWithMemoryRetry,
+  handleKey,
   mapWithConcurrency,
   recordHandleScrapeSuccess,
   resolveSyncHandles,
   loadExistingMetrics,
+  loadHandleSyncStates,
   upsertPost,
   SCRAPE_CONCURRENCY,
   type SyncPlatform,
 } from "@/lib/social/sync";
-import { trackingCutoff } from "@/lib/social/scrape-plan";
+import {
+  planScrape,
+  trackingCutoff,
+  HANDLE_FRESH_WINDOW_MANUAL_MS,
+} from "@/lib/social/scrape-plan";
+import {
+  SCRAPE_RESULTS_LIMIT,
+  SHALLOW_SCRAPE_RESULTS_LIMIT,
+} from "@/lib/social/apify";
 import type { SocialPost } from "@/lib/social/types";
 
 /**
@@ -93,14 +104,42 @@ export async function POST(
     includeDefaults
   );
 
+  // This button had no rate limit at all — mashing it deep-scraped every
+  // handle (IG = two actors) on every click. Same planner as the campaign
+  // sync: a 30-min freshness window absorbs repeat clicks, and the account's
+  // budget mode still applies (critical forces shallow scrapes).
+  const [states, budget] = await Promise.all([
+    loadHandleSyncStates(handleTasks),
+    assessApifyBudget(),
+  ]);
+  const planNow = Date.now();
+  const staleTasks = handleTasks.flatMap((t) => {
+    const decision = planScrape({
+      state: states.get(handleKey(t.platform, t.handle)),
+      tier: "active",
+      budgetMode: budget?.mode ?? null,
+      callerFreshWindowMs: HANDLE_FRESH_WINDOW_MANUAL_MS,
+      now: planNow,
+    });
+    return decision.action === "run" ? [{ ...t, depth: decision.depth }] : [];
+  });
+  const freshSkipped = handleTasks.length - staleTasks.length;
+
   const failures: { platform: SyncPlatform; handle: string; error: string }[] =
     [];
   const fetchResults = await mapWithConcurrency(
-    handleTasks,
+    staleTasks,
     SCRAPE_CONCURRENCY,
     async (t) => ({
       ...t,
-      posts: await fetchWithMemoryRetry(t.platform, t.handle).catch((e) => {
+      posts: await fetchWithMemoryRetry(
+        t.platform,
+        t.handle,
+        t.depth === "shallow"
+          ? SHALLOW_SCRAPE_RESULTS_LIMIT
+          : SCRAPE_RESULTS_LIMIT,
+        t.depth
+      ).catch((e) => {
         console.error(`${t.platform.toLowerCase()} scrape failed`, e);
         failures.push({
           platform: t.platform,
@@ -115,12 +154,12 @@ export async function POST(
   const allPosts = fetchResults.flatMap((r) => r.posts);
   let upserted = 0;
 
-  // This manual sync always scrapes at full depth, so a success counts as a
-  // deep pass in the freshness/deep-pass schedule the campaign sync reads.
-  const failedKeys = new Set(failures.map((f) => `${f.platform}:${f.handle}`));
+  const failedKeys = new Set(
+    failures.map((f) => handleKey(f.platform, f.handle))
+  );
   for (const r of fetchResults) {
-    if (!failedKeys.has(`${r.platform}:${r.handle}`)) {
-      await recordHandleScrapeSuccess(r.platform, r.handle, "deep");
+    if (!failedKeys.has(handleKey(r.platform, r.handle))) {
+      await recordHandleScrapeSuccess(r.platform, r.handle, r.depth);
     }
   }
 
@@ -160,7 +199,8 @@ export async function POST(
     youtubePosts: countByPlatform("YOUTUBE"),
     youtubeAttempted: handleTasks.some((t) => t.platform === "YOUTUBE"),
     failures,
-    accountsAttempted: handleTasks.length,
+    accountsAttempted: staleTasks.length,
+    freshSkipped,
     attachedToCampaign: campaignId ?? null,
     warning:
       !campaignId && allPosts.length > 0

@@ -1,9 +1,17 @@
 import { describe, it, expect } from "vitest";
 import {
   planHandleScrape,
+  planScrape,
+  isDormantHandle,
+  budgetModeFor,
+  trackingCutoff,
   DEEP_SCRAPE_INTERVAL_MS,
   HANDLE_FRESH_WINDOW_CRON_MS,
   HANDLE_FRESH_WINDOW_MANUAL_MS,
+  DEACTIVATED_FRESH_WINDOW_MS,
+  DORMANT_AFTER_MS,
+  DORMANT_FRESH_WINDOW_MS,
+  PRE_CAMPAIGN_TRACKING_MONTHS,
 } from "@/lib/social/scrape-plan";
 
 const NOW = Date.UTC(2026, 6, 22, 6, 0, 0);
@@ -82,20 +90,14 @@ describe("planHandleScrape", () => {
 });
 
 describe("deactivated-creator weekly cadence", () => {
-  it("window is under 7 days so the weekly pull cannot drift", async () => {
-    const { DEACTIVATED_FRESH_WINDOW_MS } = await import(
-      "@/lib/social/scrape-plan"
-    );
+  it("window is under 7 days so the weekly pull cannot drift", () => {
     expect(DEACTIVATED_FRESH_WINDOW_MS).toBeLessThan(7 * 86_400_000);
     expect(DEACTIVATED_FRESH_WINDOW_MS).toBeGreaterThan(
       HANDLE_FRESH_WINDOW_CRON_MS
     );
   });
 
-  it("skips inside the window, runs after it", async () => {
-    const { DEACTIVATED_FRESH_WINDOW_MS } = await import(
-      "@/lib/social/scrape-plan"
-    );
+  it("skips inside the window, runs after it", () => {
     const recent = { lastSuccessAt: daysAgo(3), lastDeepAt: daysAgo(3) };
     const due = { lastSuccessAt: daysAgo(6.5), lastDeepAt: daysAgo(6.5) };
     expect(
@@ -108,18 +110,195 @@ describe("deactivated-creator weekly cadence", () => {
 });
 
 describe("pre-campaign tracking cutoff", () => {
-  it("is 6 months before campaign start", async () => {
-    const { trackingCutoff, PRE_CAMPAIGN_TRACKING_MONTHS } = await import(
-      "@/lib/social/scrape-plan"
-    );
+  it("is 6 months before campaign start", () => {
     expect(PRE_CAMPAIGN_TRACKING_MONTHS).toBe(6);
     const cutoff = trackingCutoff(new Date(Date.UTC(2026, 6, 11)));
     expect(cutoff.getTime()).toBe(Date.UTC(2026, 0, 11));
   });
 
-  it("handles year wrap", async () => {
-    const { trackingCutoff } = await import("@/lib/social/scrape-plan");
+  it("handles year wrap", () => {
     const cutoff = trackingCutoff(new Date(Date.UTC(2026, 1, 1)));
     expect(cutoff.getTime()).toBe(Date.UTC(2025, 7, 1));
+  });
+});
+
+describe("dormant handles", () => {
+  it("14+ days without a new post is dormant; newer is not", () => {
+    expect(DORMANT_AFTER_MS).toBe(14 * 86_400_000);
+    expect(isDormantHandle(daysAgo(15), true, NOW)).toBe(true);
+    expect(isDormantHandle(daysAgo(3), true, NOW)).toBe(false);
+  });
+
+  it("no posts ever: dormant only once the handle has been scraped", () => {
+    expect(isDormantHandle(null, true, NOW)).toBe(true);
+    expect(isDormantHandle(null, false, NOW)).toBe(false);
+  });
+
+  it("dormant window is ~3 days and above the cron window", () => {
+    expect(DORMANT_FRESH_WINDOW_MS).toBeGreaterThan(
+      HANDLE_FRESH_WINDOW_CRON_MS
+    );
+    expect(DORMANT_FRESH_WINDOW_MS).toBeLessThan(3 * 86_400_000);
+  });
+});
+
+describe("budget modes", () => {
+  it("critical at 90%+ regardless of pace", () => {
+    expect(budgetModeFor(0.9, 0.99)).toBe("critical");
+    expect(budgetModeFor(0.95, 0.5)).toBe("critical");
+  });
+
+  it("conserve when spending runs ahead of the cycle's pace", () => {
+    expect(budgetModeFor(0.5, 0.2)).toBe("conserve");
+    expect(budgetModeFor(0.4, 0.35)).toBe("normal");
+  });
+
+  it("normal when on or under pace", () => {
+    expect(budgetModeFor(0.3, 0.5)).toBe("normal");
+    expect(budgetModeFor(0, 0)).toBe("normal");
+  });
+});
+
+describe("planScrape", () => {
+  const staleDeepDue = { lastSuccessAt: daysAgo(1), lastDeepAt: daysAgo(7) };
+  const staleDeepRecent = { lastSuccessAt: daysAgo(1), lastDeepAt: daysAgo(2) };
+
+  it("active handle, normal budget: follows the shallow/deep schedule", () => {
+    expect(
+      planScrape({
+        state: staleDeepDue,
+        tier: "active",
+        budgetMode: "normal",
+        callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+        now: NOW,
+      })
+    ).toEqual({ action: "run", depth: "deep" });
+    expect(
+      planScrape({
+        state: staleDeepRecent,
+        tier: "active",
+        budgetMode: "normal",
+        callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+        now: NOW,
+      })
+    ).toEqual({ action: "run", depth: "shallow" });
+  });
+
+  it("fresh handle skips with reason fresh", () => {
+    expect(
+      planScrape({
+        state: { lastSuccessAt: hoursAgo(2), lastDeepAt: daysAgo(2) },
+        tier: "active",
+        budgetMode: "normal",
+        callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+        now: NOW,
+      })
+    ).toEqual({ action: "skip", reason: "fresh" });
+  });
+
+  it("dormant tier stretches the freshness window past the cron window", () => {
+    const scrapedYesterday = {
+      lastSuccessAt: daysAgo(1),
+      lastDeepAt: daysAgo(1),
+    };
+    expect(
+      planScrape({
+        state: scrapedYesterday,
+        tier: "dormant",
+        budgetMode: "normal",
+        callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+        now: NOW,
+      })
+    ).toEqual({ action: "skip", reason: "fresh" });
+    expect(
+      planScrape({
+        state: { lastSuccessAt: daysAgo(3), lastDeepAt: daysAgo(3) },
+        tier: "dormant",
+        budgetMode: "normal",
+        callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+        now: NOW,
+      })
+    ).toEqual({ action: "run", depth: "shallow" });
+  });
+
+  it("dormant handles sit out any non-normal budget mode", () => {
+    for (const budgetMode of ["conserve", "critical"] as const) {
+      expect(
+        planScrape({
+          state: staleDeepDue,
+          tier: "dormant",
+          budgetMode,
+          callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+          now: NOW,
+        })
+      ).toEqual({ action: "skip", reason: "budget" });
+    }
+  });
+
+  it("weekly handles sit out critical but keep their deep pass in conserve", () => {
+    const due = { lastSuccessAt: daysAgo(6.5), lastDeepAt: daysAgo(6.5) };
+    expect(
+      planScrape({
+        state: due,
+        tier: "weekly",
+        budgetMode: "critical",
+        callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+        now: NOW,
+      })
+    ).toEqual({ action: "skip", reason: "budget" });
+    expect(
+      planScrape({
+        state: due,
+        tier: "weekly",
+        budgetMode: "conserve",
+        callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+        now: NOW,
+      })
+    ).toEqual({ action: "run", depth: "deep" });
+  });
+
+  it("conserve downgrades a repeat deep pass but allows a first-ever deep", () => {
+    expect(
+      planScrape({
+        state: staleDeepDue,
+        tier: "active",
+        budgetMode: "conserve",
+        callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+        now: NOW,
+      })
+    ).toEqual({ action: "run", depth: "shallow" });
+    expect(
+      planScrape({
+        state: undefined,
+        tier: "active",
+        budgetMode: "conserve",
+        callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+        now: NOW,
+      })
+    ).toEqual({ action: "run", depth: "deep" });
+  });
+
+  it("critical forces every running scrape shallow", () => {
+    expect(
+      planScrape({
+        state: staleDeepDue,
+        tier: "active",
+        budgetMode: "critical",
+        callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+        now: NOW,
+      })
+    ).toEqual({ action: "run", depth: "shallow" });
+  });
+
+  it("null budget (usage API unavailable) behaves like normal", () => {
+    expect(
+      planScrape({
+        state: { lastSuccessAt: daysAgo(3), lastDeepAt: daysAgo(7) },
+        tier: "dormant",
+        budgetMode: null,
+        callerFreshWindowMs: HANDLE_FRESH_WINDOW_CRON_MS,
+        now: NOW,
+      })
+    ).toEqual({ action: "run", depth: "deep" });
   });
 });

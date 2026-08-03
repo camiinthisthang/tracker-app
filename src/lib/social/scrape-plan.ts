@@ -59,6 +59,109 @@ export function trackingCutoff(campaignStart: Date): Date {
   return d;
 }
 
+/** A handle is DORMANT when its newest tracked post is at least this old (or
+ * it has been scraped successfully before and never had a post). Dormant
+ * handles get the slower cadence below instead of nightly — enough to catch
+ * a dormant video that suddenly goes viral within a couple of days, without
+ * paying for a nightly scrape that returns nothing new. */
+export const DORMANT_AFTER_MS = 14 * 86_400_000;
+
+/** Dormant-handle freshness window: ~every 3rd nightly run (2.5 days so the
+ * cadence can't drift past 3 days). The weekly deep pass still applies. */
+export const DORMANT_FRESH_WINDOW_MS = 2.5 * 86_400_000;
+
+export function isDormantHandle(
+  latestPostAt: Date | null,
+  everScraped: boolean,
+  now: number
+): boolean {
+  if (latestPostAt == null) return everScraped;
+  return now - latestPostAt.getTime() >= DORMANT_AFTER_MS;
+}
+
+/**
+ * Budget-aware sync modes, from the Apify account's live monthly usage:
+ * - normal:   under pace — full behavior.
+ * - conserve: spending ahead of the billing cycle's pace — repeat deep
+ *   passes downgrade to shallow (first-ever deeps still allowed) and
+ *   dormant handles sit out the run.
+ * - critical: >=90% of the monthly limit used — active handles only, all
+ *   shallow; dormant and deactivated handles sit out.
+ */
+export type ApifyBudgetMode = "normal" | "conserve" | "critical";
+
+/** How far ahead of the cycle's elapsed-time pace spending may run before
+ * conserve mode kicks in (15 percentage points of the monthly budget). */
+export const BUDGET_PACE_SLACK = 0.15;
+
+export function budgetModeFor(
+  usedRatio: number,
+  cycleElapsedRatio: number
+): ApifyBudgetMode {
+  if (usedRatio >= 0.9) return "critical";
+  if (usedRatio > cycleElapsedRatio + BUDGET_PACE_SLACK) return "conserve";
+  return "normal";
+}
+
+/** Which scheduling tier a handle is on: active roster (nightly), dormant
+ * (~3-day checks), or weekly (deactivated creators/memberships). */
+export type CadenceTier = "active" | "dormant" | "weekly";
+
+export type ScrapeDecision =
+  | { action: "run"; depth: ScrapeDepth }
+  | { action: "skip"; reason: "fresh" | "budget" };
+
+const TIER_FLOOR_WINDOW_MS: Record<CadenceTier, number> = {
+  active: 0,
+  dormant: DORMANT_FRESH_WINDOW_MS,
+  weekly: DEACTIVATED_FRESH_WINDOW_MS,
+};
+
+/**
+ * The whole per-handle scheduling decision in one place: cadence tier +
+ * budget mode + freshness/deep-pass state → run (at what depth) or skip
+ * (why). Both sync entry points route through this, so budget guardrails
+ * can't be bypassed by one code path drifting.
+ *
+ * Budget policy: dormant handles sit out any non-normal mode; weekly handles
+ * sit out critical; conserve downgrades REPEAT deep passes to shallow for
+ * active handles (a first-ever deep backfill still runs); critical forces
+ * shallow. Weekly handles keep their deep pass in conserve — they're only
+ * touched once a week as it is.
+ */
+export function planScrape(opts: {
+  state: HandleScrapeState | undefined;
+  tier: CadenceTier;
+  budgetMode: ApifyBudgetMode | null;
+  callerFreshWindowMs: number;
+  now: number;
+}): ScrapeDecision {
+  const { state, tier, budgetMode, callerFreshWindowMs, now } = opts;
+
+  if (budgetMode && budgetMode !== "normal") {
+    if (tier === "dormant" || (tier === "weekly" && budgetMode === "critical")) {
+      return { action: "skip", reason: "budget" };
+    }
+  }
+
+  const window = Math.max(callerFreshWindowMs, TIER_FLOOR_WINDOW_MS[tier]);
+  const plan = planHandleScrape(state, now, window);
+  if (plan === "skip") return { action: "skip", reason: "fresh" };
+
+  let depth: ScrapeDepth = tier === "weekly" ? "deep" : plan;
+  if (budgetMode === "critical") {
+    depth = "shallow";
+  } else if (
+    budgetMode === "conserve" &&
+    tier !== "weekly" &&
+    depth === "deep" &&
+    state?.lastDeepAt
+  ) {
+    depth = "shallow";
+  }
+  return { action: "run", depth };
+}
+
 export type HandleScrapeState = {
   lastSuccessAt: Date | null;
   lastDeepAt: Date | null;
