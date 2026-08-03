@@ -8,11 +8,16 @@ import {
   recordHandleScrapeSuccess,
   resolveSyncHandles,
   loadExistingMetrics,
+  loadHandleSyncStates,
   upsertPost,
   SCRAPE_CONCURRENCY,
   type SyncPlatform,
 } from "@/lib/social/sync";
-import { trackingCutoff } from "@/lib/social/scrape-plan";
+import {
+  planHandleScrape,
+  trackingCutoff,
+  HANDLE_FRESH_WINDOW_MANUAL_MS,
+} from "@/lib/social/scrape-plan";
 import type { SocialPost } from "@/lib/social/types";
 
 /**
@@ -93,10 +98,25 @@ export async function POST(
     includeDefaults
   );
 
+  // This button had no rate limit at all — mashing it deep-scraped every
+  // handle (IG = two actors) on every click. Same 30-min freshness window as
+  // the campaign Sync Data button: recently-scraped handles sit out.
+  const states = await loadHandleSyncStates(handleTasks);
+  const planNow = Date.now();
+  const staleTasks = handleTasks.filter(
+    (t) =>
+      planHandleScrape(
+        states.get(`${t.platform}:${t.handle.toLowerCase()}`),
+        planNow,
+        HANDLE_FRESH_WINDOW_MANUAL_MS
+      ) !== "skip"
+  );
+  const freshSkipped = handleTasks.length - staleTasks.length;
+
   const failures: { platform: SyncPlatform; handle: string; error: string }[] =
     [];
   const fetchResults = await mapWithConcurrency(
-    handleTasks,
+    staleTasks,
     SCRAPE_CONCURRENCY,
     async (t) => ({
       ...t,
@@ -160,7 +180,8 @@ export async function POST(
     youtubePosts: countByPlatform("YOUTUBE"),
     youtubeAttempted: handleTasks.some((t) => t.platform === "YOUTUBE"),
     failures,
-    accountsAttempted: handleTasks.length,
+    accountsAttempted: staleTasks.length,
+    freshSkipped,
     attachedToCampaign: campaignId ?? null,
     warning:
       !campaignId && allPosts.length > 0

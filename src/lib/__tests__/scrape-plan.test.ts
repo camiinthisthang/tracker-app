@@ -123,3 +123,50 @@ describe("pre-campaign tracking cutoff", () => {
     expect(cutoff.getTime()).toBe(Date.UTC(2025, 7, 1));
   });
 });
+
+describe("dormant handles", () => {
+  it("14+ days without a new post is dormant; newer is not", async () => {
+    const { isDormantHandle, DORMANT_AFTER_MS } = await import(
+      "@/lib/social/scrape-plan"
+    );
+    expect(DORMANT_AFTER_MS).toBe(14 * 86_400_000);
+    expect(isDormantHandle(daysAgo(15), true, NOW)).toBe(true);
+    expect(isDormantHandle(daysAgo(3), true, NOW)).toBe(false);
+  });
+
+  it("no posts ever: dormant only once the handle has been scraped", async () => {
+    const { isDormantHandle } = await import("@/lib/social/scrape-plan");
+    expect(isDormantHandle(null, true, NOW)).toBe(true);
+    expect(isDormantHandle(null, false, NOW)).toBe(false);
+  });
+
+  it("dormant window is ~3 days and above the cron window", async () => {
+    const { DORMANT_FRESH_WINDOW_MS } = await import(
+      "@/lib/social/scrape-plan"
+    );
+    expect(DORMANT_FRESH_WINDOW_MS).toBeGreaterThan(
+      HANDLE_FRESH_WINDOW_CRON_MS
+    );
+    expect(DORMANT_FRESH_WINDOW_MS).toBeLessThan(3 * 86_400_000);
+  });
+});
+
+describe("budget modes", () => {
+  it("critical at 90%+ regardless of pace", async () => {
+    const { budgetModeFor } = await import("@/lib/social/scrape-plan");
+    expect(budgetModeFor(0.9, 0.99)).toBe("critical");
+    expect(budgetModeFor(0.95, 0.5)).toBe("critical");
+  });
+
+  it("conserve when spending runs ahead of the cycle's pace", async () => {
+    const { budgetModeFor } = await import("@/lib/social/scrape-plan");
+    expect(budgetModeFor(0.5, 0.2)).toBe("conserve");
+    expect(budgetModeFor(0.4, 0.35)).toBe("normal");
+  });
+
+  it("normal when on or under pace", async () => {
+    const { budgetModeFor } = await import("@/lib/social/scrape-plan");
+    expect(budgetModeFor(0.3, 0.5)).toBe("normal");
+    expect(budgetModeFor(0, 0)).toBe("normal");
+  });
+});

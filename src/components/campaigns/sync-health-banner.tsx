@@ -6,6 +6,11 @@ export interface SyncSummary {
   postsUpserted?: number;
   platformAttempts?: number;
   monthlyLimitHit?: boolean;
+  apifyBudget?: {
+    mode: "normal" | "conserve" | "critical";
+    usedUsd: number;
+    limitUsd: number;
+  } | null;
   failures?: { creator: string; reason: string }[];
 }
 
@@ -16,7 +21,39 @@ export interface SyncSummary {
  */
 export function SyncHealthBanner({ summary }: { summary: SyncSummary | null }) {
   const all = summary?.failures ?? [];
-  if (!summary || all.length === 0) return null;
+  // Budget pacing note: shown whenever the last sync ran in a reduced mode,
+  // even with zero failures — spending ahead of pace should be visible
+  // BEFORE it becomes a wall of monthly-limit 403s.
+  const budget = summary?.apifyBudget ?? null;
+  const budgetNote =
+    budget && budget.mode !== "normal" ? (
+      <p
+        className={`text-xs font-medium ${
+          budget.mode === "critical" ? "text-amber-700" : "text-slate-500"
+        }`}
+      >
+        Apify budget: ${budget.usedUsd.toLocaleString()} of $
+        {budget.limitUsd.toLocaleString()} used this cycle —{" "}
+        {budget.mode === "critical"
+          ? "syncs are in essential-only mode (active handles, shallow) until the cycle resets or the limit is raised."
+          : "spending is ahead of pace, so deep refreshes and dormant handles are paused to stretch the budget."}
+      </p>
+    ) : null;
+
+  if (!summary || all.length === 0) {
+    if (!budgetNote) return null;
+    return (
+      <div
+        className={`mb-4 rounded-xl border p-4 print:hidden ${
+          budget?.mode === "critical"
+            ? "border-amber-200 bg-amber-50"
+            : "border-slate-200 bg-slate-50"
+        }`}
+      >
+        {budgetNote}
+      </div>
+    );
+  }
 
   // Time-budget deferrals are routine, not failures: the scrape is abandoned
   // before Vercel's kill wall and automatically goes first on the next run.

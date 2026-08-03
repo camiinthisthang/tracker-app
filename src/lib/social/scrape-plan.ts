@@ -59,6 +59,50 @@ export function trackingCutoff(campaignStart: Date): Date {
   return d;
 }
 
+/** A handle is DORMANT when its newest tracked post is at least this old (or
+ * it has been scraped successfully before and never had a post). Dormant
+ * handles get the slower cadence below instead of nightly — enough to catch
+ * a dormant video that suddenly goes viral within a couple of days, without
+ * paying for a nightly scrape that returns nothing new. */
+export const DORMANT_AFTER_MS = 14 * 86_400_000;
+
+/** Dormant-handle freshness window: ~every 3rd nightly run (2.5 days so the
+ * cadence can't drift past 3 days). The weekly deep pass still applies. */
+export const DORMANT_FRESH_WINDOW_MS = 2.5 * 86_400_000;
+
+export function isDormantHandle(
+  latestPostAt: Date | null,
+  everScraped: boolean,
+  now: number
+): boolean {
+  if (latestPostAt == null) return everScraped;
+  return now - latestPostAt.getTime() >= DORMANT_AFTER_MS;
+}
+
+/**
+ * Budget-aware sync modes, from the Apify account's live monthly usage:
+ * - normal:   under pace — full behavior.
+ * - conserve: spending ahead of the billing cycle's pace — repeat deep
+ *   passes downgrade to shallow (first-ever deeps still allowed) and
+ *   dormant handles sit out the run.
+ * - critical: >=90% of the monthly limit used — active handles only, all
+ *   shallow; dormant and deactivated handles sit out.
+ */
+export type ApifyBudgetMode = "normal" | "conserve" | "critical";
+
+/** How far ahead of the cycle's elapsed-time pace spending may run before
+ * conserve mode kicks in (15 percentage points of the monthly budget). */
+export const BUDGET_PACE_SLACK = 0.15;
+
+export function budgetModeFor(
+  usedRatio: number,
+  cycleElapsedRatio: number
+): ApifyBudgetMode {
+  if (usedRatio >= 0.9) return "critical";
+  if (usedRatio > cycleElapsedRatio + BUDGET_PACE_SLACK) return "conserve";
+  return "normal";
+}
+
 export type HandleScrapeState = {
   lastSuccessAt: Date | null;
   lastDeepAt: Date | null;

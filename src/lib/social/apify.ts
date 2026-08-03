@@ -42,6 +42,57 @@ function getToken() {
   return t;
 }
 
+export type ApifyUsage = {
+  usedUsd: number;
+  limitUsd: number;
+  /** 0..1 — how far through the account's billing cycle we are. */
+  cycleElapsedRatio: number;
+};
+
+/**
+ * Live monthly platform usage vs the account's hard limit — the pre-flight
+ * budget check that keeps a sync run from burning the whole month early.
+ * Defensive on shape (Apify has shuffled this payload before) and returns
+ * null on any failure so a billing-API hiccup can never block syncing.
+ */
+export async function fetchApifyUsage(): Promise<ApifyUsage | null> {
+  try {
+    const res = await axios.get(`${APIFY_BASE}/users/me/limits`, {
+      params: { token: getToken() },
+      timeout: 15_000,
+    });
+    const d = res.data?.data ?? res.data ?? {};
+    const usedUsd =
+      d?.current?.monthlyUsageUsd ??
+      d?.current?.monthlyUsage ??
+      d?.monthlyUsageUsd;
+    const limitUsd =
+      d?.limits?.maxMonthlyUsageUsd ??
+      d?.limits?.monthlyUsageUsd ??
+      d?.maxMonthlyUsageUsd;
+    if (
+      typeof usedUsd !== "number" ||
+      typeof limitUsd !== "number" ||
+      limitUsd <= 0
+    ) {
+      return null;
+    }
+    const startRaw = d?.monthlyUsageCycle?.startAt;
+    const endRaw = d?.monthlyUsageCycle?.endAt;
+    const start = startRaw ? new Date(startRaw).getTime() : NaN;
+    const end = endRaw ? new Date(endRaw).getTime() : NaN;
+    const now = Date.now();
+    const cycleElapsedRatio =
+      Number.isFinite(start) && Number.isFinite(end) && end > start
+        ? Math.min(1, Math.max(0, (now - start) / (end - start)))
+        : Math.min(1, (new Date().getUTCDate() - 1) / 30);
+    return { usedUsd, limitUsd, cycleElapsedRatio };
+  } catch (e) {
+    console.warn("[apify] usage pre-flight failed (continuing without):", e);
+    return null;
+  }
+}
+
 /**
  * Run an actor synchronously and get the dataset items as a single response.
  * Apify waits up to 5 min; we cap client-side at 120s so one slow creator

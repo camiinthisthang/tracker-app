@@ -3,6 +3,7 @@ import {
   fetchTikTokPostsViaApify,
   fetchInstagramPostsViaApify,
   fetchYouTubeShortsViaApify,
+  fetchApifyUsage,
   isApifyMonthlyLimitError,
   SCRAPE_RESULTS_LIMIT,
   SHALLOW_SCRAPE_RESULTS_LIMIT,
@@ -10,8 +11,12 @@ import {
 import {
   planHandleScrape,
   trackingCutoff,
+  budgetModeFor,
+  isDormantHandle,
   HANDLE_FRESH_WINDOW_CRON_MS,
   DEACTIVATED_FRESH_WINDOW_MS,
+  DORMANT_FRESH_WINDOW_MS,
+  type ApifyBudgetMode,
   type ScrapeDepth,
 } from "./scrape-plan";
 import type { SocialPost } from "./types";
@@ -292,6 +297,25 @@ export async function loadHandleSyncStates(
  */
 export type ApifyLimitState = { monthlyLimitHit: boolean };
 
+/** Live budget snapshot driving the sync's spend behavior; null = the usage
+ * API was unavailable (sync proceeds normally rather than blocking). */
+export type ApifyBudget = {
+  mode: ApifyBudgetMode;
+  usedUsd: number;
+  limitUsd: number;
+} | null;
+
+/** Pre-flight the Apify account's monthly usage into a budget mode. */
+export async function assessApifyBudget(): Promise<ApifyBudget> {
+  const usage = await fetchApifyUsage();
+  if (!usage) return null;
+  return {
+    mode: budgetModeFor(usage.usedUsd / usage.limitUsd, usage.cycleElapsedRatio),
+    usedUsd: usage.usedUsd,
+    limitUsd: usage.limitUsd,
+  };
+}
+
 export async function syncCampaign(
   campaignId: string,
   deadline?: number,
@@ -299,8 +323,12 @@ export async function syncCampaign(
   // Handles successfully scraped within this window are skipped entirely
   // (0 = never skip). Cron passes HANDLE_FRESH_WINDOW_CRON_MS, the manual
   // sync button HANDLE_FRESH_WINDOW_MANUAL_MS — see scrape-plan.ts.
-  freshWindowMs = 0
+  freshWindowMs = 0,
+  // Budget snapshot from assessApifyBudget(). undefined = fetch it here
+  // (single-campaign callers); syncAllCampaigns fetches once for the run.
+  budget?: ApifyBudget
 ) {
+  if (budget === undefined) budget = await assessApifyBudget();
   // EVERY membership syncs — deactivated creators included (per Jacqueline,
   // 2026-07-15): deactivating a creator (per campaign or whole roster) only
   // hides them from the tracking/attention pages, it never stops data
@@ -377,25 +405,82 @@ export async function syncCampaign(
   // fresh lastSuccessAt, so they always retry (deep if their pass is due).
   const stateByKey = await loadHandleSyncStates(tasks);
   const planNow = Date.now();
+
+  // Dormancy: newest tracked post per (platform, handle). A handle whose
+  // latest post is 14+ days old (or that has been scraped before and never
+  // produced a post) drops to the ~3-day cadence — the weekly deep pass and
+  // the shallow re-checks still catch a dormant video that suddenly picks up
+  // views, without paying for a nightly scrape that finds nothing new.
+  const latestByHandle = await prisma.post.groupBy({
+    by: ["platform", "username"],
+    where: {
+      creatorId: { in: campaign.campaignCreators.map((cc) => cc.creatorId) },
+    },
+    _max: { postedAt: true },
+  });
+  const latestPostAt = new Map(
+    latestByHandle.map((r) => [
+      `${r.platform}:${r.username.toLowerCase()}`,
+      r._max.postedAt,
+    ])
+  );
+
   let freshSkips = 0;
+  let dormantSkips = 0;
+  let budgetSkips = 0;
   const runnable: FetchTask[] = [];
   for (const t of tasks) {
+    const key = `${t.platform}:${t.handle.toLowerCase()}`;
+    const state = stateByKey.get(key);
+    const dormant =
+      !t.weeklyOnly &&
+      isDormantHandle(
+        latestPostAt.get(key) ?? null,
+        Boolean(state?.lastSuccessAt),
+        planNow
+      );
+
+    // Budget guardrails: when the month is burning too fast, the cheap-to-
+    // postpone work sits out — dormant handles in conserve mode; dormant AND
+    // deactivated handles in critical mode. Active-roster handles always run.
+    if (budget && dormant && budget.mode !== "normal") {
+      budgetSkips++;
+      continue;
+    }
+    if (budget && t.weeklyOnly && budget.mode === "critical") {
+      budgetSkips++;
+      continue;
+    }
+
     const plan = planHandleScrape(
-      stateByKey.get(`${t.platform}:${t.handle.toLowerCase()}`),
+      state,
       planNow,
       // Weekly-only handles use the 6-day window regardless of caller — even
       // a manual Sync Data doesn't re-pull a deactivated creator early.
+      // Dormant handles use the ~3-day window.
       t.weeklyOnly
         ? Math.max(freshWindowMs, DEACTIVATED_FRESH_WINDOW_MS)
-        : freshWindowMs
+        : dormant
+          ? Math.max(freshWindowMs, DORMANT_FRESH_WINDOW_MS)
+          : freshWindowMs
     );
     if (plan === "skip") {
-      freshSkips++;
+      if (dormant) dormantSkips++;
+      else freshSkips++;
       continue;
     }
     // When a weekly-only handle does run, take the full-depth pass — it won't
     // get another look for ~a week.
-    runnable.push({ ...t, depth: t.weeklyOnly ? "deep" : plan });
+    let depth: ScrapeDepth = t.weeklyOnly ? "deep" : plan;
+    // Spend-pacing: conserve downgrades REPEAT deep passes to shallow for
+    // active handles (a brand-new handle still gets its first full backfill);
+    // critical forces shallow across the board. Weekly-only handles keep
+    // their deep pass — they only get touched once a week as it is.
+    if (budget && !t.weeklyOnly && depth === "deep" && state?.lastDeepAt) {
+      if (budget.mode !== "normal") depth = "shallow";
+    }
+    if (budget && budget.mode === "critical") depth = "shallow";
+    runnable.push({ ...t, depth });
   }
 
   // Rotate the task order by day so a campaign too big for one time budget
@@ -580,9 +665,18 @@ export async function syncCampaign(
         postsUpserted: totalPostsUpserted,
         platformAttempts: tasks.length,
         freshSkips,
+        dormantSkips,
+        budgetSkips,
         ancientSkipped,
         deferred: deferredCount,
         monthlyLimitHit: limitState.monthlyLimitHit,
+        apifyBudget: budget
+          ? {
+              mode: budget.mode,
+              usedUsd: Math.round(budget.usedUsd * 100) / 100,
+              limitUsd: budget.limitUsd,
+            }
+          : null,
         failures: skipped,
       },
     },
@@ -594,9 +688,12 @@ export async function syncCampaign(
     creatorsAttempted: campaign.campaignCreators.length,
     platformAttempts: tasks.length,
     freshSkips,
+    dormantSkips,
+    budgetSkips,
     ancientSkipped,
     deferred: deferredCount,
     monthlyLimitHit: limitState.monthlyLimitHit,
+    budgetMode: budget?.mode ?? null,
     skipped,
   };
 }
@@ -873,6 +970,14 @@ export async function syncAllCampaigns(teamId?: string, deadline?: number) {
   // hard limit" 403, later campaigns still finalize (banner + daily-metric
   // backfill) but launch zero scrapes.
   const limitState: ApifyLimitState = { monthlyLimitHit: false };
+  // One usage pre-flight for the whole run — every campaign shares the
+  // budget mode instead of hitting the billing API N times.
+  const budget = await assessApifyBudget();
+  if (budget && budget.mode !== "normal") {
+    console.warn(
+      `[sync] Apify budget ${budget.mode}: $${budget.usedUsd.toFixed(2)} of $${budget.limitUsd} used — reducing scrape depth/coverage this run`
+    );
+  }
 
   for (const campaign of campaigns) {
     if (deadline != null && Date.now() >= deadline) {
@@ -888,7 +993,8 @@ export async function syncAllCampaigns(teamId?: string, deadline?: number) {
         campaign.id,
         deadline,
         limitState,
-        HANDLE_FRESH_WINDOW_CRON_MS
+        HANDLE_FRESH_WINDOW_CRON_MS,
+        budget
       );
       results.push({ campaignId: campaign.id, ...result });
     } catch (error) {
