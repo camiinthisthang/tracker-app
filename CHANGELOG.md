@@ -3,6 +3,13 @@
 Append-only log of work completed during autonomous overnight sessions and
 notable manual changes. Newest entries on top.
 
+## 2026-08-20 — Contract Tracker payout: pay overage instead of capping at the fee
+- Context: payout reconciliation for the Aug 22 cycle (done off-DB from an /api/posts export) showed every active creator over their contracted count, and the tracker's Payout column was capping everyone at 100% of the monthly rate — under-stating what finance actually pays (rate ÷ contracted per post, same rate beyond the contract; confirmed against the Jun 22–Jul 22 Mercury payout sheet, e.g. Aspen's 30.5/40 and Alexa's "67 crossposts = 33.5 videos").
+- `payoutFor` in src/components/campaigns/contract-tracker.tsx: removed the `min(ratio, 1)` cap — payout = monthlyRate × delivered ÷ contracted, so under-delivery prorates down and over-delivery pays the same per-post rate. Basis unchanged: raw TikTok + Instagram posts in the creator's contract window; YouTube still never counts.
+- Added a hover tooltip on the Payout column header spelling out the formula (the existing "+N" overage badge already said extras are paid per video — the column now matches it).
+- Known limitation (flagged, not changed): the column counts raw posts, so same-platform backup-account reposts inflate it and single-platform (non-crossposted) videos count as half — the caption-dedupe reconciliation is the source of truth for actual settlement. Also the column spans the whole contract window, not a single 22nd-to-22nd pay cycle.
+- Tested: `npm test` 81/81, `npx next build` green (`npm run build` runs `prisma migrate deploy`, which can't run in the sandbox — no DATABASE_URL; migrations apply on Vercel as usual). No schema change.
+
 ## 2026-08-03 — Cleanup pass on the budget guardrails (pre-merge)
 - **One planner for every sync path**: cadence tier + budget mode + freshness/deep-pass state now resolve in a single `planScrape()` (src/lib/social/scrape-plan.ts) returning run-at-depth or skip-with-reason. The cron/campaign sync and the per-creator manual sync both route through it, so budget guardrails can't be bypassed by one code path drifting.
 - **Per-creator manual sync is now budget-aware too**: it previously always deep-scraped and ignored budget modes; now it plans per handle (critical → shallow), fetches at the planned depth, and records the actual depth in the deep-pass schedule.

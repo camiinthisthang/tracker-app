@@ -368,9 +368,12 @@ function fmtUSD(n: number): string {
 }
 
 /**
- * Payout = monthly rate × min(delivered ÷ contracted, 1), capped at 100%.
- * Always uses the combined TT+IG basis (a crossposted video counts on both
- * platforms), independent of the platform tab. Null if rate or contract unset.
+ * Payout = monthly rate × (delivered ÷ contracted), uncapped — this is how
+ * finance pays: rate ÷ contracted = per-post rate, under-delivery prorates
+ * down, and posts beyond the contracted count pay at the same per-post rate
+ * (they are NOT a new month). Always uses the combined TT+IG basis (a
+ * crossposted video counts on both platforms; YouTube never counts),
+ * independent of the platform tab. Null if rate or contract unset.
  */
 function payoutFor(row: ContractCreatorRow): number | null {
   if (row.monthlyRate == null) return null;
@@ -378,8 +381,7 @@ function payoutFor(row: ContractCreatorRow): number | null {
     (row.contractedTiktok ?? 0) + (row.contractedInstagram ?? 0);
   if (contracted <= 0) return null;
   const posted = row.postedTiktok + row.postedInstagram;
-  const ratio = Math.min(posted / contracted, 1);
-  return Math.round(row.monthlyRate * ratio * 100) / 100;
+  return Math.round(row.monthlyRate * (posted / contracted) * 100) / 100;
 }
 
 /** Info icon that reveals the pace-legend popover on hover/focus. */
@@ -573,7 +575,12 @@ export function ContractTracker({
               <th className="px-3 py-2 text-center font-medium">Rate / mo</th>
               <th className="px-3 py-2 text-center font-medium">Posted</th>
               <th className="px-3 py-2 text-center font-medium">%</th>
-              <th className="px-3 py-2 text-center font-medium">Payout</th>
+              <th
+                className="cursor-help px-3 py-2 text-center font-medium"
+                title="Monthly rate × delivered ÷ contracted, uncapped: under-delivery prorates down, and posts beyond the contracted count pay at the same per-post rate. TikTok + Instagram posts only — YouTube never counts."
+              >
+                Payout
+              </th>
               <th className="px-3 py-2 text-center font-medium">
                 <span className="inline-flex items-center gap-1">
                   Pace
