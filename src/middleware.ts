@@ -24,8 +24,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Marketing landing pages (dropdeck hosts only): serve the static files in
-  // /public/site. Everywhere else these paths fall through to the app.
-  if (isMarketingHost) {
+  // /public/site. Everywhere else these paths fall through to the app. Logged-in users also fall through to the app routes (fixes the Creators tab landing on the marketing page).
+  if (isMarketingHost && !token) {
     if (pathname === "/") {
       return NextResponse.rewrite(new URL("/site/index.html", request.url));
     }
